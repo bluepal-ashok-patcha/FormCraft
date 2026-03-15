@@ -1,3 +1,62 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-800 antialiased;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+}
+
+@layer components {
+  .enterprise-card {
+    @apply bg-white border border-slate-200 shadow-sm transition-all duration-200 rounded-enterprise hover:shadow-md hover:border-slate-300;
+  }
+
+  .btn-primary {
+    @apply px-5 py-2.5 bg-brand-default text-white font-semibold rounded-enterprise transition-all active:scale-[0.98] hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm;
+  }
+
+  .btn-secondary {
+    @apply px-5 py-2.5 bg-white border border-slate-200 text-slate-600 font-semibold rounded-enterprise transition-all active:scale-[0.98] hover:bg-slate-50 disabled:opacity-50 flex items-center justify-center gap-2;
+  }
+
+  .input-field {
+    @apply w-full px-4 py-2.5 bg-white border border-slate-200 rounded-enterprise outline-none transition-all focus:border-brand-default focus:ring-4 focus:ring-brand-500/10 placeholder:text-slate-400;
+  }
+
+  .sidebar-link {
+    @apply flex items-center gap-2 px-3 py-2 text-slate-500 hover:text-brand-default hover:bg-brand-50 transition-all rounded-lg font-medium;
+  }
+
+  .sidebar-link-active {
+    @apply sidebar-link text-brand-default bg-brand-50 border-r-2 border-brand-default rounded-r-none;
+  }
+
+  .label-sm {
+    @apply text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5 block;
+  }
+
+  .perspective-1000 {
+    perspective: 1000px;
+  }
+
+  .preserve-3d {
+    transform-style: preserve-3d;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-slate-100;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-300 rounded-full hover:bg-slate-400;
+}

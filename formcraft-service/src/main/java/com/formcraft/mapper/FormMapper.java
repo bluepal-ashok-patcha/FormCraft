@@ -1,0 +1,35 @@
+package com.formcraft.mapper;
+
+import com.formcraft.dto.request.FormRequest;
+import com.formcraft.dto.response.FormDto;
+import com.formcraft.entity.Form;
+import org.springframework.stereotype.Component;
+
+@Component
+public class FormMapper {
+
+    public Form toEntity(FormRequest request) {
+        return Form.builder()
+                .name(request.getName())
+                .slug(null) // Added based on the provided snippet
+                .schema(request.getSchema())
+                .active(true) // Added based on the provided snippet
+                .startsAt(request.getStartsAt()) // Added based on the provided snippet
+                .expiresAt(request.getExpiresAt()) // Added based on the provided snippet
+                .build();
+    }
+
+    public FormDto toDto(Form entity) {
+        return FormDto.builder()
+                .id(entity.getId())
+                .name(entity.getName())
+                .slug(entity.getSlug())
+                .schema(entity.getSchema())
+                .active(entity.isActive())
+                .startsAt(entity.getStartsAt()) // Added based on the provided snippet
+                .expiresAt(entity.getExpiresAt())
+                .createdAt(entity.getCreatedAt())
+                .responseCount(0) // Default to 0, service can populate
+                .build();
+    }
+}

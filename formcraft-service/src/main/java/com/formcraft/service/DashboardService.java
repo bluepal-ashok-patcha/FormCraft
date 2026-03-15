@@ -1,0 +1,96 @@
+package com.formcraft.service;
+
+import com.formcraft.dto.response.DashboardStatsResponse;
+import com.formcraft.entity.Form;
+import com.formcraft.entity.FormResponse;
+import com.formcraft.repository.FormRepository;
+import com.formcraft.repository.FormResponseRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Service
+@RequiredArgsConstructor
+public class DashboardService {
+
+    private final FormRepository formRepository;
+    private final FormResponseRepository formResponseRepository;
+
+    @Transactional(readOnly = true)
+    public DashboardStatsResponse getDashboardStats() {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        
+        long totalForms = formRepository.countByCreatedBy(username);
+        long totalResponses = formResponseRepository.countByFormCreatedBy(username);
+        long activeForms = formRepository.countByCreatedByAndActiveTrue(username);
+        
+        LocalDateTime startOfToday = LocalDateTime.now().withHour(0).withMinute(0).withSecond(0).withNano(0);
+        long responsesToday = formResponseRepository.countByFormCreatedByAndCreatedAtGreaterThanEqual(username, startOfToday);
+
+        double rate = totalForms > 0 ? (double) activeForms / totalForms * 100 : 0;
+        double avgResponses = totalForms > 0 ? (double) totalResponses / totalForms : 0;
+
+        // Recently created forms
+        List<Form> recentForms = formRepository.findTop5ByCreatedByOrderByCreatedAtDesc(username);
+        // Recent responses
+        List<FormResponse> recentResponses = formResponseRepository.findTop5ByFormCreatedByOrderByCreatedAtDesc(username);
+
+        List<DashboardStatsResponse.RecentActivity> activities = new ArrayList<>();
+        
+        recentForms.forEach(f -> activities.add(DashboardStatsResponse.RecentActivity.builder()
+                .id(f.getId().toString())
+                .type("FORM_CREATED")
+                .title("New Form Created")
+                .description("You created " + f.getName())
+                .timeAgo(getTimeAgo(f.getCreatedAt()))
+                .timestamp(f.getCreatedAt())
+                .build()));
+
+        recentResponses.forEach(r -> activities.add(DashboardStatsResponse.RecentActivity.builder()
+                .id(r.getId().toString())
+                .type("RESPONSE_RECEIVED")
+                .title("New Response")
+                .description("Someone responded to " + r.getForm().getName())
+                .timeAgo(getTimeAgo(r.getCreatedAt()))
+                .timestamp(r.getCreatedAt())
+                .build()));
+
+        activities.sort((a, b) -> b.getTimestamp().compareTo(a.getTimestamp()));
+
+        // Chart Data (Last 7 days)
+        LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);
+        List<Object[]> stats = formResponseRepository.findResponseStatsByCreatedBy(username, sevenDaysAgo);
+        
+        List<DashboardStatsResponse.ChartData> chartData = stats.stream()
+                .map(s -> DashboardStatsResponse.ChartData.builder()
+                        .date(s[0].toString())
+                        .count(((Number) s[1]).longValue())
+                        .build())
+                .collect(Collectors.toList());
+
+        return DashboardStatsResponse.builder()
+                .totalForms(totalForms)
+                .totalResponses(totalResponses)
+                .activeForms(activeForms)
+                .responsesToday(responsesToday)
+                .submissionRate(rate)
+                .avgResponsesPerForm(avgResponses)
+                .recentActivity(activities.stream().limit(5).collect(Collectors.toList()))
+                .chartData(chartData)
+                .build();
+    }
+
+    private String getTimeAgo(LocalDateTime dateTime) {
+        if (dateTime == null) return "Just now";
+        // Simple implementation
+        return dateTime.format(DateTimeFormatter.ofPattern("HH:mm"));
+    }
+}
