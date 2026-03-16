@@ -1,53 +1,213 @@
-import { useState } from 'react';
+import { useRef, useEffect, useState, useCallback } from 'react';
+import { toast } from 'react-toastify';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Shield, 
-  Mail, 
-  Lock, 
-  ArrowRight, 
-  Square, 
-  Loader2, 
-  UserPlus, 
-  Ghost, 
-  Layout, 
-  CheckCircle,
-  Hash,
-  Type,
+import {
+  Shield,
+  Mail,
+  Lock,
+  ArrowRight,
+  Loader2,
+  CheckCircle2,
   User,
-  AlertCircle
+  AlertCircle,
+  Zap,
+  Activity,
+  Layers,
+  Layout,
+  Plus,
+  MousePointer2,
+  Send,
+  Eye,
+  Type,
+  Square
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useMotionValue, useSpring, useAnimationFrame, animate } from 'framer-motion';
 
-const FloatingField = ({ delay, icon: Icon, top, left, rotate }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20, rotateZ: rotate }}
-    animate={{ 
-      opacity: [0.05, 0.15, 0.05], 
-      y: [0, -40, 0],
-      rotateZ: [rotate, rotate + 10, rotate]
-    }}
-    transition={{ 
-      duration: 8, 
-      repeat: Infinity, 
-      delay,
-      ease: "easeInOut" 
-    }}
-    className="absolute pointer-events-none hidden lg:block text-brand-default blur-[0.5px]"
-    style={{ top, left }}
-  >
-    <Icon size={40} strokeWidth={1.5} />
-  </motion.div>
-);
+// ─── FORMCRAFT NODE ANIMATION (Custom "Blueprint" Style) ─────────────────────────
+const FormNodeAnimation = ({ color = '#4f46e5' }) => {
+  const containerRef = useRef(null);
+  const [size, setSize] = useState({ w: 600, h: 400 });
+  const mouseX = useMotionValue(-1000);
+  const mouseY = useMotionValue(-1000);
 
+  useEffect(() => {
+    const updateSize = () => {
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        setSize({ w: rect.width, h: rect.height });
+      }
+    };
+    updateSize();
+    window.addEventListener('resize', updateSize);
+    return () => window.removeEventListener('resize', updateSize);
+  }, []);
+
+  const handleMouseMove = useCallback((e) => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (rect) {
+      mouseX.set(e.clientX - rect.left);
+      mouseY.set(e.clientY - rect.top);
+    }
+  }, [mouseX, mouseY]);
+
+  // Mock Form Modules floating around
+  const modules = [
+    { id: 'M1', icon: Type, label: 'Text Input', x: 20, y: 25, delay: 0 },
+    { id: 'M2', icon: Square, label: 'Checkbox', x: 75, y: 15, delay: 2 },
+    { id: 'M3', icon: Mail, label: 'Email Field', x: 25, y: 50, delay: 1 },
+    { id: 'M4', icon: Send, label: 'Submit Button', x: 25, y: 75, delay: 3 },
+    { id: 'M5', icon: Shield, label: 'Validator', x: 80, y: 70, delay: 1.5 },
+    { id: 'M6', icon: Zap, label: 'Logic Rule', x: 60, y: 35, delay: 2.5 },
+  ];
+
+  return (
+    <div
+      ref={containerRef}
+      onMouseMove={handleMouseMove}
+      className="absolute inset-0 w-full h-full overflow-hidden pointer-events-auto select-none"
+    >
+      {/* Background Grid */}
+      <svg className="absolute inset-0 w-full h-full" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <pattern id="grid-pattern" width="40" height="40" patternUnits="userSpaceOnUse">
+            <path d="M 40 0 L 0 0 0 40" fill="none" stroke={color} strokeWidth="1" strokeOpacity="0.05" />
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#grid-pattern)" />
+      </svg>
+
+      {/* Floating Connection Lines (Blueprint feel) */}
+      <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-20">
+        <motion.path
+          d={`M ${size.w * 0.2} ${size.h * 0.25} L ${size.w * 0.38} ${size.h * 0.5} L ${size.w * 0.25} ${size.h * 0.75}`}
+          stroke={color} strokeWidth="1.5" fill="none" strokeDasharray="5,5"
+        />
+        <motion.path
+          d={`M ${size.w * 0.75} ${size.h * 0.15} L ${size.w * 0.6} ${size.h * 0.35} L ${size.w * 0.8} ${size.h * 0.7}`}
+          stroke={color} strokeWidth="1.5" fill="none" strokeDasharray="5,5"
+        />
+      </svg>
+
+      {modules.map((mod) => (
+        <FormModule
+          key={mod.id}
+          {...mod}
+          color={color}
+          mouseX={mouseX}
+          mouseY={mouseY}
+          containerSize={size}
+        />
+      ))}
+
+      {/* Central Branding Logo Area */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="relative z-20 p-8 rounded-[3rem] bg-white/40 backdrop-blur-xl border border-white/20 shadow-2xl flex flex-col items-center gap-4"
+        >
+          <div className="w-16 h-16 bg-white rounded-2xl shadow-xl flex items-center justify-center">
+            <Layers className="text-indigo-600" size={32} strokeWidth={2.5} />
+          </div>
+          <div className="text-center">
+            <h1 className="text-3xl font-black text-slate-900 tracking-tighter">FORMCRAFT</h1>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Digital Architecture</p>
+          </div>
+        </motion.div>
+      </div>
+    </div>
+  );
+};
+
+const FormModule = ({ icon: Icon, label, x, y, delay, color, mouseX, mouseY, containerSize }) => {
+  const posX = useMotionValue((x / 100) * containerSize.w);
+  const posY = useMotionValue((y / 100) * containerSize.h);
+
+  const offsetX = useSpring(0, { stiffness: 100, damping: 20 });
+  const offsetY = useSpring(0, { stiffness: 100, damping: 20 });
+  const hoverScale = useSpring(1, { stiffness: 200, damping: 15 });
+
+  useEffect(() => {
+    posX.set((x / 100) * containerSize.w);
+    posY.set((y / 100) * containerSize.h);
+  }, [containerSize, x, y]);
+
+  useAnimationFrame(() => {
+    const mX = mouseX.get();
+    const mY = mouseY.get();
+    const currX = posX.get();
+    const currY = posY.get();
+
+    const dx = mX - currX;
+    const dy = mY - currY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (dist < 150) {
+      const strength = 1 - dist / 150;
+      offsetX.set(dx * strength * 0.4);
+      offsetY.set(dy * strength * 0.4);
+      hoverScale.set(1.1);
+    } else {
+      offsetX.set(0);
+      offsetY.set(0);
+      hoverScale.set(1);
+    }
+  });
+
+  return (
+    <motion.div
+      style={{
+        position: 'absolute',
+        left: posX,
+        top: posY,
+        x: offsetX,
+        y: offsetY,
+        scale: hoverScale,
+        translateX: '-50%',
+        translateY: '-50%',
+      }}
+      animate={{
+        y: [0, -10, 0]
+      }}
+      transition={{
+        duration: 4,
+        repeat: Infinity,
+        delay,
+        ease: "easeInOut"
+      }}
+      className="z-10 group"
+    >
+      <div className="bg-white/80 backdrop-blur-md border border-white p-3 rounded-2xl shadow-xl flex items-center gap-3 cursor-default">
+        <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center group-hover:bg-indigo-50 transition-colors">
+          <Icon size={18} className="text-slate-400 group-hover:text-indigo-600 transition-colors" />
+        </div>
+        <div className="pr-2">
+          <p className="text-[10px] font-black text-slate-800 uppercase tracking-tight">{label}</p>
+          <div className="flex gap-1 mt-0.5">
+            <div className="w-12 h-1 bg-slate-100 rounded-full overflow-hidden">
+              <motion.div
+                animate={{ x: [-50, 50] }}
+                transition={{ duration: 2, repeat: Infinity }}
+                className="w-full h-full bg-indigo-200"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
+// ─── MAIN AUTH PAGE ──────────────────────────────────────────────────────────────
 const AuthPage = () => {
   const [isLogin, setIsLogin] = useState(true);
-  const [formData, setFormData] = useState({ 
-    username: '', 
+  const [formData, setFormData] = useState({
+    username: '',
     fullName: '',
-    email: '', 
-    password: '', 
-    confirmPassword: '' 
+    email: '',
+    password: '',
+    confirmPassword: ''
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -67,6 +227,7 @@ const AuthPage = () => {
     try {
       if (isLogin) {
         await login(formData.username, formData.password);
+        toast.success('Secure Access Granted: Terminal connected.');
         navigate('/dashboard');
       } else {
         if (formData.password !== formData.confirmPassword) {
@@ -79,230 +240,262 @@ const AuthPage = () => {
           password: formData.password
         });
         setIsLogin(true);
-        alert('Provisioning successful. Access granted.');
+        toast.success('Entry Permit Issued: Registration successful.');
       }
     } catch (err) {
-      setError(err?.message || 'Interface error. Please retry.');
+      const msg = err?.message || 'Authentication failed.';
+      setError(msg);
+      toast.error(`Access Denied: ${msg}`);
     } finally {
       setLoading(false);
     }
   };
 
+  const slideVariants = {
+    enter: (direction) => ({
+      x: direction > 0 ? 1000 : -1000,
+      opacity: 0
+    }),
+    center: {
+      zIndex: 1,
+      x: 0,
+      opacity: 1
+    },
+    exit: (direction) => ({
+      zIndex: 0,
+      x: direction < 0 ? 1000 : -1000,
+      opacity: 0
+    })
+  };
+
   return (
-    <div className="min-h-screen bg-[#FDFEFF] flex items-center justify-center p-6 relative overflow-hidden perspective-1000">
-      {/* Dynamic Background Decor */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-brand-50 blur-[120px] rounded-full opacity-60" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-slate-50 blur-[100px] rounded-full opacity-80" />
-        
-        {/* Floating System Assets */}
-        <FloatingField icon={Layout} top="15%" left="12%" rotate={-10} delay={0} />
-        <FloatingField icon={Type} top="60%" left="8%" rotate={15} delay={1} />
-        <FloatingField icon={CheckCircle} top="25%" left="82%" rotate={5} delay={2} />
-        <FloatingField icon={Hash} top="70%" left="88%" rotate={-15} delay={1.5} />
-      </div>
+    <div className="min-h-screen bg-slate-50 flex overflow-hidden font-sans">
 
-      <motion.div 
-        layout
-        className="w-full max-w-[1100px] flex gap-20 items-center relative z-10"
-      >
-        {/* Left Side: Professional Branding */}
-        <div className="hidden lg:flex flex-col flex-1 max-w-md">
+      {/* Dynamic Split Panel Arrangement */}
+      <AnimatePresence mode="wait" custom={isLogin ? -1 : 1}>
+        {isLogin ? (
           <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="flex items-center gap-3 mb-10"
+            key="login-view"
+            custom={-1}
+            variants={slideVariants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            className="flex w-full"
           >
-            <div className="w-10 h-10 bg-slate-900 rounded-md flex items-center justify-center shadow-xl shadow-slate-200">
-              <Square className="text-white fill-white" size={20} />
+            {/* Branding Panel (LEFT on Login) */}
+            <div className="hidden lg:flex w-1/2 bg-indigo-50 relative flex-col items-center justify-center p-12">
+              <FormNodeAnimation color="#4f46e5" />
             </div>
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight italic">FormCraft</h1>
-          </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-          >
-            <h2 className="text-5xl font-bold text-slate-900 leading-[1.1] mb-6">
-              Next-generation <br />
-              <span className="text-brand-default">data architecture.</span>
-            </h2>
-            <p className="text-slate-500 text-lg leading-relaxed mb-8">
-              The industry standard for building, deploying, and monitoring dynamic collection nodes in real-time.
-            </p>
-            
-            <div className="flex items-center gap-12 border-t border-slate-100 pt-8">
-              <div>
-                <p className="text-2xl font-bold text-slate-900">4.9k+</p>
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Deployments</p>
-              </div>
-              <div className="w-px h-10 bg-slate-100" />
-              <div>
-                <p className="text-2xl font-bold text-slate-900">99.9%</p>
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Uptime</p>
-              </div>
-            </div>
-          </motion.div>
-        </div>
+            {/* Form Panel (RIGHT on Login) */}
+            <div className="w-full lg:w-1/2 bg-white flex items-center justify-center p-8 md:p-16 relative z-10">
+              <div className="w-full max-w-[420px]">
+                <AuthHeader title="Welcome back" subtitle="Please sign in to manage your workspace" />
 
-        {/* Right Side: 3D Auth Card */}
-        <div className="w-full max-w-[420px] preserve-3d">
-          <AnimatePresence mode="wait">
-            <motion.div 
-              key={isLogin ? 'login' : 'register'}
-              initial={{ rotateY: 90, opacity: 0, scale: 0.95 }}
-              animate={{ rotateY: 0, opacity: 1, scale: 1 }}
-              exit={{ rotateY: -90, opacity: 0, scale: 0.95 }}
-              transition={{ type: "spring", stiffness: 120, damping: 18 }}
-              className="bg-white p-1 rounded-lg shadow-[0_32px_64px_-16px_rgba(0,0,0,0.08)] border border-slate-200"
-            >
-              <div className="p-10">
-                <div className="mb-10 text-center">
-                  <h3 className="text-2xl font-bold text-slate-900 tracking-tight mb-2">
-                    {isLogin ? 'Welcome Back' : 'Create Account'}
-                  </h3>
-                  <p className="text-slate-400 text-sm font-medium">
-                    {isLogin ? 'Access your administrative console' : 'Initialize your collection workspace'}
-                  </p>
-                </div>
+                <ErrorMessage error={error} />
 
-                {error && (
-                  <div className="mb-6 p-4 bg-rose-50 border border-rose-100 text-rose-600 rounded-lg text-[11px] font-bold flex items-center gap-3">
-                    <AlertCircle size={14} />
-                    {error}
-                  </div>
-                )}
-
-                <form onSubmit={handleAction} className="space-y-4">
-                  {!isLogin && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      className="space-y-1"
-                    >
-                      <label className="label-sm">Full Name</label>
-                      <div className="relative group">
-                        <Type className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-brand-default transition-colors" size={16} />
-                        <input
-                          type="text"
-                          required
-                          className="input-field pl-11 text-sm font-medium"
-                          placeholder="e.g. John Doe"
-                          value={formData.fullName}
-                          onChange={(e) => setFormData({...formData, fullName: e.target.value})}
-                        />
-                      </div>
-                    </motion.div>
-                  )}
-
-                  <div className="space-y-1">
-                    <label className="label-sm">Username</label>
-                    <div className="relative group">
-                      <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-brand-default transition-colors" size={16} />
-                      <input
-                        type="text"
-                        required
-                        className="input-field pl-11 text-sm font-medium"
-                        placeholder="e.g. j.doe_architect"
-                        value={formData.username}
-                        onChange={(e) => setFormData({...formData, username: e.target.value})}
-                      />
-                    </div>
-                  </div>
-
-                  {!isLogin && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      className="space-y-1"
-                    >
-                      <label className="label-sm">System Email</label>
-                      <div className="relative group">
-                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-brand-default transition-colors" size={16} />
-                        <input
-                          type="email"
-                          required
-                          className="input-field pl-11 text-sm font-medium"
-                          placeholder="admin@enterprise.com"
-                          value={formData.email}
-                          onChange={(e) => setFormData({...formData, email: e.target.value})}
-                        />
-                      </div>
-                    </motion.div>
-                  )}
-
-                  <div className="space-y-1">
-                    <label className="label-sm">Access Key</label>
-                    <div className="relative group">
-                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-brand-default transition-colors" size={16} />
-                      <input
-                        type="password"
-                        required
-                        className="input-field pl-11 text-sm font-medium"
-                        placeholder="••••••••"
-                        value={formData.password}
-                        onChange={(e) => setFormData({...formData, password: e.target.value})}
-                      />
-                    </div>
-                  </div>
-
-                  {!isLogin && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      className="space-y-1"
-                    >
-                      <label className="label-sm">Verify Key</label>
-                      <div className="relative group">
-                        <Shield className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-brand-default transition-colors" size={16} />
-                        <input
-                          type="password"
-                          required
-                          className="input-field pl-11 text-sm font-medium"
-                          placeholder="Confirm access key"
-                          value={formData.confirmPassword}
-                          onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})}
-                        />
-                      </div>
-                    </motion.div>
-                  )}
-
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full btn-primary h-12 mt-4 text-sm tracking-wide"
-                  >
-                    {loading ? (
-                      <Loader2 className="animate-spin" size={18} />
-                    ) : (
-                      <>
-                        <span>{isLogin ? 'Authenticate' : 'Initialize Node'}</span>
-                        <ArrowRight size={16} />
-                      </>
-                    )}
-                  </button>
+                <form onSubmit={handleAction} className="space-y-5">
+                  <InputField
+                    label="Username"
+                    icon={User}
+                    placeholder="operator_alias"
+                    value={formData.username}
+                    onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                  />
+                  <InputField
+                    label="Password"
+                    icon={Lock}
+                    type="password"
+                    placeholder="••••••••"
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    forgot={true}
+                  />
+                  <SubmitButton loading={loading} text="Sign In to Dashboard" />
                 </form>
 
-                <div className="mt-10 pt-6 border-t border-slate-100 flex flex-col items-center gap-4">
-                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest text-center">
-                    {isLogin ? "New to the architecture?" : "Existing administrator?"}
-                  </p>
-                  <button
-                    onClick={handleToggle}
-                    className="text-sm font-bold text-brand-default hover:text-brand-600 transition-colors flex items-center gap-2"
-                  >
-                    {isLogin ? 'Create Workspace' : 'Sign in to Interface'}
-                  </button>
-                </div>
+                <AuthToggle
+                  isLogin={isLogin}
+                  onToggle={handleToggle}
+                  label="REQUIREMENT: NEW OPERATOR ACCESS"
+                  action="Initialize Registration"
+                />
               </div>
-            </motion.div>
-          </AnimatePresence>
-        </div>
-      </motion.div>
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="register-view"
+            custom={1}
+            variants={slideVariants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            className="flex w-full flex-row-reverse"
+          >
+            {/* Branding Panel (RIGHT on Register) */}
+            <div className="hidden lg:flex w-1/2 bg-indigo-50 relative flex-col items-center justify-center p-12">
+              <FormNodeAnimation color="#4f46e5" />
+            </div>
+
+            {/* Form Panel (LEFT on Register) */}
+            <div className="w-full lg:w-1/2 bg-white flex items-center justify-center p-8 md:p-16 relative z-10">
+              <div className="w-full max-w-[480px]">
+                <AuthHeader title="Create Space" subtitle="Join the elite community of digital architects" />
+
+                <ErrorMessage error={error} />
+
+                <form onSubmit={handleAction} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <InputField
+                      label="Full Identity"
+                      icon={User}
+                      placeholder="John Doe"
+                      value={formData.fullName}
+                      onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                    />
+                    <InputField
+                      label="Username"
+                      icon={Zap}
+                      placeholder="alias"
+                      value={formData.username}
+                      onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                    />
+                  </div>
+                  <InputField
+                    label="Email Address"
+                    icon={Mail}
+                    type="email"
+                    placeholder="operator@company.com"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  />
+                  <div className="grid grid-cols-2 gap-4">
+                    <InputField
+                      label="Password"
+                      icon={Lock}
+                      type="password"
+                      placeholder="••••••••"
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    />
+                    <InputField
+                      label="Confirm"
+                      icon={Shield}
+                      type="password"
+                      placeholder="••••••••"
+                      value={formData.confirmPassword}
+                      onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                    />
+                  </div>
+                  <SubmitButton loading={loading} text="Create Workspace" />
+                </form>
+
+                <AuthToggle
+                  isLogin={isLogin}
+                  onToggle={handleToggle}
+                  label="EXISTING: ADMINISTRATIVE ENTITY"
+                  action="Return to Login"
+                />
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <footer className="fixed bottom-6 left-0 right-0 flex justify-center pointer-events-none opacity-40">
+        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.4em]">
+          &copy; {new Date().getFullYear()} FormCraft Inc. // System Active
+        </p>
+      </footer>
     </div>
   );
 };
 
+// ─── HELPER COMPONENTS ──────────────────────────────────────────────────────────
+
+const AuthHeader = ({ title, subtitle }) => (
+  <div className="mb-10">
+    <h2 className="text-4xl font-black text-slate-900 tracking-tighter mb-2">{title}</h2>
+    <p className="text-slate-400 text-sm font-bold tracking-tight">{subtitle}</p>
+  </div>
+);
+
+const ErrorMessage = ({ error }) => (
+  <AnimatePresence mode="wait">
+    {error && (
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -10 }}
+        className={`mb-6 p-4 rounded-xl flex items-center gap-3 text-[11px] font-black uppercase tracking-wider border ${error.startsWith('success:')
+            ? 'bg-emerald-50 border-emerald-100 text-emerald-700'
+            : 'bg-rose-50 border-rose-100 text-rose-700'
+          }`}
+      >
+        {error.startsWith('success:') ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+        {error.replace('success:', '')}
+      </motion.div>
+    )}
+  </AnimatePresence>
+);
+
+const InputField = ({ label, icon: Icon, type = 'text', placeholder, value, onChange, forgot }) => (
+  <div className="space-y-2 group">
+    <div className="flex items-center justify-between px-1">
+      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest group-focus-within:text-indigo-600 transition-colors">{label}</label>
+      {forgot && <button type="button" className="text-[10px] font-bold text-indigo-600 hover:text-indigo-700 transition-colors uppercase tracking-widest">Forgot?</button>}
+    </div>
+    <div className="relative">
+      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-indigo-600 transition-colors">
+        <Icon size={18} strokeWidth={2.5} />
+      </div>
+      <input
+        type={type}
+        required
+        placeholder={placeholder}
+        className="w-full h-14 bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-4 text-sm font-bold text-slate-900 outline-none focus:bg-white focus:border-indigo-600 focus:ring-4 focus:ring-indigo-500/10 transition-all placeholder:text-slate-300"
+        value={value}
+        onChange={onChange}
+      />
+    </div>
+  </div>
+);
+
+const SubmitButton = ({ loading, text }) => (
+  <button
+    type="submit"
+    disabled={loading}
+    className="w-full h-14 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-[0.4em] flex items-center justify-center gap-3 hover:bg-slate-800 transition-all active:scale-[0.98] shadow-xl shadow-slate-200 mt-8"
+  >
+    {loading ? (
+      <Loader2 className="animate-spin" size={20} />
+    ) : (
+      <>
+        <span>{text}</span>
+        <ArrowRight size={18} />
+      </>
+    )}
+  </button>
+);
+
+const AuthToggle = ({ onToggle, label, action }) => (
+  <div className="mt-12 text-center">
+    <button
+      onClick={onToggle}
+      className="group flex flex-col items-center gap-2 mx-auto"
+    >
+      <span className="text-[10px] font-bold text-slate-300 uppercase tracking-[0.3em] group-hover:text-slate-400 transition-colors">
+        {label}
+      </span>
+      <span className="text-xs font-black text-indigo-600 uppercase tracking-widest border-b-2 border-transparent group-hover:border-indigo-600 py-1 transition-all">
+        {action}
+      </span>
+    </button>
+  </div>
+);
 
 export default AuthPage;

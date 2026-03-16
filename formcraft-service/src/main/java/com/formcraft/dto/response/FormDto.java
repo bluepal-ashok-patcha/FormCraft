@@ -13,7 +13,7 @@ public class FormDto {
     private String name;
     private String slug;
     private java.util.Map<String, Object> schema;
-    private boolean active;
+    private com.formcraft.enums.FormStatus status;
     private LocalDateTime expiresAt;
     private LocalDateTime startsAt;
     private LocalDateTime createdAt;

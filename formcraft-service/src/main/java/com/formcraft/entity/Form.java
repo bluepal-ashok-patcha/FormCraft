@@ -33,13 +33,18 @@ public class Form extends BaseEntity {
     @Column(columnDefinition = "jsonb", nullable = false)
     private java.util.Map<String, Object> schema;
 
+
+    @Enumerated(EnumType.STRING)
     @Builder.Default
-    @Column(name = "active")
-    private boolean active = true;
+    @Column(name = "status")
+    private com.formcraft.enums.FormStatus status = com.formcraft.enums.FormStatus.ACTIVE;
 
     @Column(name = "expires_at")
     private LocalDateTime expiresAt;
 
     @Column(name = "starts_at")
     private LocalDateTime startsAt;
+
+    @OneToMany(mappedBy = "form", cascade = CascadeType.ALL, orphanRemoval = true)
+    private java.util.List<FormResponse> responses;
 }

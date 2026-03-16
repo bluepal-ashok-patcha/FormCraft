@@ -10,7 +10,7 @@ import org.springframework.data.domain.Pageable;
 import java.util.UUID;
 
 @Repository
-public interface FormResponseRepository extends JpaRepository<FormResponse, UUID> {
+public interface FormResponseRepository extends JpaRepository<FormResponse, UUID>, org.springframework.data.jpa.repository.JpaSpecificationExecutor<FormResponse> {
     Page<FormResponse> findByFormId(UUID formId, Pageable pageable);
     long countByFormId(UUID formId);
     long countByFormCreatedBy(String username);

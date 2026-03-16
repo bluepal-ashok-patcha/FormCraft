@@ -16,6 +16,7 @@ import {
   Square
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { toast } from 'react-toastify';
 
 const SidebarLink = ({ to, icon: Icon, label, active, collapsed }) => (
   <Link
@@ -25,7 +26,7 @@ const SidebarLink = ({ to, icon: Icon, label, active, collapsed }) => (
       active 
         ? 'sidebar-link-active' 
         : 'sidebar-link'
-    } transition-all duration-200`}
+    } transition-all duration-200 ${collapsed ? 'justify-center px-0' : ''}`}
   >
     <div className="w-6 flex items-center justify-center shrink-0">
       <Icon size={18} className={active ? 'text-brand-default' : ''} />
@@ -42,6 +43,7 @@ const MainLayout = ({ children }) => {
 
   const handleLogout = async () => {
     await logout();
+    toast.info('Session Terminated: Secure signal disconnected.');
     navigate('/login');
   };
 
@@ -54,11 +56,11 @@ const MainLayout = ({ children }) => {
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
             className="p-2 text-slate-400 hover:text-brand-default hover:bg-brand-50 rounded-enterprise transition-all"
           >
-            <Menu size={20} />
+            <Menu size={16} />
           </button>
           <div className="flex items-center gap-2 pr-4 border-r border-slate-100">
-            <div className="w-8 h-8 bg-slate-900 rounded-enterprise flex items-center justify-center">
-              <Square className="text-white fill-white" size={16} />
+            <div className="w-8 h-8 bg-brand-default rounded-enterprise flex items-center justify-center shadow-sm shadow-brand-500/20">
+              <Square className="text-white fill-white" size={14} />
             </div>
           </div>
           <div className="flex items-center gap-4">
@@ -68,10 +70,10 @@ const MainLayout = ({ children }) => {
                location.pathname === '/forms' ? 'Asset Management' : 'Interface'}
             </h2>
             <div className="hidden md:flex items-center bg-slate-100/80 rounded-md px-3 py-1.5 gap-2 border border-slate-200/50">
-              <Search size={14} className="text-slate-400" />
+              <Search size={12} className="text-slate-400" />
               <input type="text" placeholder="Search data..." className="bg-transparent border-none outline-none text-xs w-48 font-medium text-slate-600 placeholder:text-slate-400" />
               <button className="bg-brand-default text-white p-1 rounded-md shadow-sm shadow-brand-500/20">
-                <Search size={12} />
+                <Search size={10} />
               </button>
             </div>
           </div>
@@ -79,7 +81,7 @@ const MainLayout = ({ children }) => {
 
         <div className="flex items-center gap-4">
           <button className="p-2 text-slate-400 hover:text-brand-default transition-colors hover:bg-brand-50 rounded-md relative group">
-            <Bell size={18} />
+            <Bell size={14} />
             <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-accent-orange rounded-full border-2 border-white"></span>
           </button>
           <div className="h-6 w-px bg-slate-100"></div>
@@ -89,7 +91,7 @@ const MainLayout = ({ children }) => {
               <p className="text-[10px] text-slate-400 mt-1">Admin Console</p>
             </div>
             <div className="w-9 h-9 rounded-md bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-500 transition-all hover:border-brand-default hover:text-brand-default cursor-pointer">
-              <User size={18} />
+              <User size={14} />
             </div>
           </div>
         </div>
@@ -98,7 +100,7 @@ const MainLayout = ({ children }) => {
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar - Now correctly below Navbar */}
         <aside className={`${sidebarCollapsed ? 'w-16' : 'w-64'} bg-white border-r border-slate-100 flex flex-col z-10 shadow-sm transition-all duration-300`}>
-          <div className="p-4 flex-1">
+          <div className={`${sidebarCollapsed ? 'p-2' : 'p-4'} flex-1`}>
             <nav className="space-y-1">
               <SidebarLink 
                 to="/dashboard" 
@@ -124,7 +126,7 @@ const MainLayout = ({ children }) => {
             </nav>
           </div>
 
-          <div className="p-4 mt-auto border-t border-slate-50">
+          <div className={`${sidebarCollapsed ? 'p-2' : 'p-4'} mt-auto border-t border-slate-50`}>
             <button 
               onClick={handleLogout}
               className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3 px-4'} py-2.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-all rounded-lg font-bold uppercase text-[10px] tracking-widest`}

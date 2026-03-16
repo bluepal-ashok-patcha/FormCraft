@@ -14,14 +14,17 @@ public interface FormService {
     FormDto createForm(FormRequest request);
     FormDto getFormById(UUID id);
     FormDto getFormBySlug(String slug);
-    Page<FormDto> getAllForms(Pageable pageable);
+    Page<FormDto> getAllForms(String search, com.formcraft.enums.FormStatus status, java.time.LocalDateTime startDate, java.time.LocalDateTime endDate, Pageable pageable);
     
     ResponseDto submitResponse(SubmissionRequest request);
-    Page<ResponseDto> getResponsesByFormId(UUID formId, Pageable pageable);
+    Page<ResponseDto> getResponsesByFormId(UUID formId, java.time.LocalDateTime startDate, java.time.LocalDateTime endDate, Pageable pageable);
     
     FormDto toggleFormStatus(UUID id);
     FormDto scheduleFormDeactivation(UUID id, int days);
 
     void deleteResponse(UUID responseId);
     ResponseDto updateResponse(UUID responseId, java.util.Map<String, Object> responses);
+    
+    void deleteForm(UUID id);
+    FormDto updateForm(UUID id, FormRequest request);
 }

@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import { toast } from 'react-toastify';
 import { motion } from 'framer-motion';
 import { 
   AreaChart, 
@@ -35,7 +36,7 @@ const StatChip = ({ icon: Icon, label, value, trend, colorClass }) => (
     className="bg-white border border-slate-100 p-4 rounded-enterprise shadow-[0_2px_10px_-3px_rgba(0,0,0,0.04)] flex items-center gap-4 group hover:border-brand-default/30 transition-all hover:shadow-md h-24"
   >
     <div className={`w-12 h-12 rounded-xl ${colorClass} bg-opacity-10 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform`}>
-      <Icon size={20} className={colorClass.replace('bg-', 'text-').replace('-10', '')} />
+      <Icon size={16} className={colorClass.replace('bg-', 'text-').replace('-10', '')} />
     </div>
     <div className="min-w-0 flex-1">
       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{label}</p>
@@ -59,6 +60,7 @@ const Dashboard = () => {
         setStats(response.data);
       } catch (error) {
         console.error('Error fetching dashboard stats:', error);
+        toast.error('Sync Error: Could not retrieve dashboard intelligence.');
       } finally {
         setLoading(false);
       }
@@ -111,7 +113,7 @@ const Dashboard = () => {
               onClick={() => navigate('/builder')}
               className="px-6 bg-brand-default text-white h-10 rounded-md font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 hover:bg-brand-600 transition-all shadow-lg shadow-brand-500/10"
             >
-              <Plus size={14} />
+              <Plus size={12} />
               Initialize
             </button>
           </div>
@@ -123,7 +125,7 @@ const Dashboard = () => {
         <StatChip label="Total Forms" value={stats?.totalForms || 0} icon={FileText} colorClass="bg-blue-500" />
         <StatChip label="Total Responses" value={stats?.totalResponses || 0} icon={ClipboardList} colorClass="bg-emerald-500" />
         <StatChip label="Active Forms" value={stats?.activeForms || 0} icon={Activity} colorClass="bg-brand-500" />
-        <StatChip label="Completion Rate" value={`${Math.round(stats?.submissionRate || 0)}%`} icon={TrendingUp} colorClass="bg-indigo-500" />
+        <StatChip label="Completion Rate" value={`${Math.round(stats?.submissionRate || 0)}%`} icon={TrendingUp} colorClass="bg-brand-500" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">

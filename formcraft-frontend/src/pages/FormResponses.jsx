@@ -19,9 +19,11 @@ import {
   Save,
   X,
   ClipboardList,
-  MoreVertical
+  MoreVertical,
+  History
 } from 'lucide-react';
 import api from '../services/api';
+import { toast } from 'react-toastify';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 
@@ -33,9 +35,12 @@ const FormResponses = () => {
   const [form, setForm] = useState(null);
   const [responses, setResponses] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
+  const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [selectedResponse, setSelectedResponse] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({});
@@ -50,34 +55,69 @@ const FormResponses = () => {
   }, []);
 
   const refreshData = async () => {
+    setRefreshing(true);
     try {
-      const respRes = await api.get(`/forms/${id}/responses?page=${page}&size=10`);
+      let url = `/forms/${id}/responses?page=${page}&size=10`;
+      if (dateRange.start) url += `&startDate=${new Date(dateRange.start).toISOString()}`;
+      if (dateRange.end) url += `&endDate=${new Date(dateRange.end).toISOString()}`;
+      
+      const respRes = await api.get(url);
       setResponses(respRes.data.content || []);
       setTotalPages(respRes.data.totalPages || 0);
+      setTotalElements(respRes.data.totalElements || 0);
     } catch (err) {
       console.error('Error refreshing data:', err);
+    } finally {
+      setRefreshing(false);
     }
+  };
+
+  const clearFilters = () => {
+    setDateRange({ start: '', end: '' });
+    setSearchTerm('');
+    setPage(0);
   };
 
   useEffect(() => {
     const fetchData = async () => {
+      if (loading) setLoading(true);
+      else setRefreshing(true);
       try {
+        let url = `/forms/${id}/responses?page=${page}&size=10`;
+        if (dateRange.start) url += `&startDate=${new Date(dateRange.start).toISOString()}`;
+        if (dateRange.end) url += `&endDate=${new Date(dateRange.end).toISOString()}`;
+
         const [formRes, respRes] = await Promise.all([
           api.get(`/forms/${id}`),
-          api.get(`/forms/${id}/responses?page=${page}&size=10`)
+          api.get(url)
         ]);
         // Form controllers return ApiResponse, intercepted to return response.data
         setForm(formRes.data);
         setResponses(respRes.data.content || []);
         setTotalPages(respRes.data.totalPages || 0);
+        setTotalElements(respRes.data.totalElements || 0);
       } catch (err) {
         console.error('Error fetching responses:', err);
+        toast.error('Sync Error: Could not retrieve latest payload history.');
       } finally {
         setLoading(false);
+        setRefreshing(false);
       }
     };
     fetchData();
-  }, [id, page]);
+  }, [id, page, dateRange]);
+
+  // Client-side search for the current page entries
+  const filteredResponses = responses.filter(resp => {
+    if (!searchTerm) return true;
+    const searchLower = searchTerm.toLowerCase();
+    // Search in ID
+    if (resp.id.toLowerCase().includes(searchLower)) return true;
+    // Search in payload data
+    return Object.values(resp.responseData).some(val => 
+      String(val).toLowerCase().includes(searchLower)
+    );
+  });
 
   // Extract keys from response data to use as headers
   // We'll use the first response's keys or fallback to schema fields
@@ -119,16 +159,6 @@ const FormResponses = () => {
           </div>
           
           <div className="flex items-center gap-4 shrink-0 w-full md:w-auto">
-            <div className="relative hidden lg:block">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
-              <input 
-                type="text" 
-                placeholder="Filter logs..." 
-                className="bg-slate-800 border border-slate-700 rounded-md pl-10 pr-4 py-2 text-[10px] font-bold text-white uppercase tracking-widest focus:outline-none focus:border-brand-default w-64 transition-all"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
             <button className="px-5 bg-brand-default text-white h-10 rounded-md font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 hover:bg-brand-600 transition-all shadow-lg shadow-brand-500/10">
               <Download size={14} />
               Export
@@ -137,77 +167,136 @@ const FormResponses = () => {
         </div>
       </motion.div>
 
-      {/* 📊 ANALYTIC GRID */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="bg-white border border-slate-100 p-6 rounded-enterprise shadow-sm flex items-center gap-5 group hover:border-brand-default/30 transition-all"
-        >
-          <div className="w-12 h-12 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-            <FileSpreadsheet size={20} />
-          </div>
-          <div>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Responses</p>
-            <h4 className="text-2xl font-black text-slate-900 tracking-tight">{responses.length}</h4>
-          </div>
-        </motion.div>
-
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.1 }}
-          className="bg-white border border-slate-100 p-6 rounded-enterprise shadow-sm flex items-center gap-5 group hover:border-brand-default/30 transition-all"
-        >
-          <div className="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-            <Activity size={20} />
-          </div>
-          <div>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Form Status</p>
-            <h4 className="text-2xl font-black text-emerald-500 tracking-tight uppercase">Live</h4>
-          </div>
-        </motion.div>
-
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.2 }}
-          className="bg-white border border-slate-100 p-6 rounded-enterprise shadow-sm flex items-center gap-5 group hover:border-brand-default/30 transition-all"
-        >
-          <div className="w-12 h-12 rounded-xl bg-orange-500/10 text-orange-500 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-            <Calendar size={20} />
-          </div>
-          <div>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Launch Date</p>
-            <h4 className="text-xl font-black text-slate-900 tracking-tight">
-              {form?.createdAt ? new Date(form.createdAt).toLocaleDateString() : '-'}
-            </h4>
-          </div>
-        </motion.div>
-      </div>
-
-      {/* 🕹️ RESPONSE LOGS TABLE */}
+      {/* 🔍 LOG FILTERS & SEARCH */}
       <motion.div 
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-        className="bg-white rounded-enterprise border border-slate-100 shadow-xl overflow-hidden"
+        className="bg-white border border-slate-100 p-4 rounded-enterprise shadow-sm flex flex-wrap items-center gap-4"
       >
-        <div className="bg-white p-6 px-8 flex flex-col md:flex-row justify-between items-center gap-4 border-b border-slate-100">
-          <div className="flex items-center gap-4">
-             <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-white">
-                <TableIcon size={16} />
-             </div>
-             <div>
-                <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">Response Records</h3>
-                <p className="text-[9px] text-slate-400 font-bold uppercase mt-1 tracking-widest">Last Updated at {new Date().toLocaleTimeString()}</p>
-             </div>
-          </div>
-          <div className="flex bg-slate-50 rounded-lg p-1 border border-slate-200">
-            <button className="px-3 py-1.5 text-[9px] font-black text-white bg-slate-900 rounded-md uppercase tracking-widest shadow-sm">Tabular</button>
-            <button className="px-3 py-1.5 text-[9px] font-black text-slate-400 hover:text-slate-600 uppercase tracking-widest transition-colors">Grid View</button>
+        <div className="relative flex-1 min-w-[240px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+          <input 
+            type="text" 
+            placeholder="Search within loaded payloads..." 
+            className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-10 pr-4 py-2 text-xs font-bold text-slate-700 focus:outline-none focus:border-brand-default transition-all"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Calendar size={14} className="text-slate-400" />
+          <div className="flex items-center bg-slate-50 border border-slate-200 rounded-lg px-2">
+            <input 
+              type="date" 
+              value={dateRange.start}
+              onChange={(e) => { setDateRange({...dateRange, start: e.target.value}); setPage(0); }}
+              className="bg-transparent border-none py-2 text-[10px] font-bold text-slate-700 focus:outline-none"
+            />
+            <span className="text-slate-300 mx-1">-</span>
+            <input 
+              type="date" 
+              value={dateRange.end}
+              onChange={(e) => { setDateRange({...dateRange, end: e.target.value}); setPage(0); }}
+              className="bg-transparent border-none py-2 text-[10px] font-bold text-slate-700 focus:outline-none"
+            />
           </div>
         </div>
+
+        <button 
+          onClick={clearFilters}
+          className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
+          title="Reset Sequence"
+        >
+          <X size={18} />
+        </button>
+      </motion.div>
+
+      <div className={`space-y-8 transition-opacity duration-300 ${refreshing ? 'opacity-50' : 'opacity-100'}`}>
+        {/* 📊 ANALYTIC GRID */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white border border-slate-100 p-6 rounded-enterprise shadow-sm flex items-center gap-5 group hover:border-brand-default/30 transition-all"
+          >
+            <div className="w-12 h-12 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+              <FileSpreadsheet size={20} />
+            </div>
+            <div>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Responses</p>
+              <h4 className="text-2xl font-black text-slate-900 tracking-tight">{totalElements}</h4>
+            </div>
+          </motion.div>
+
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.1 }}
+            className="bg-white border border-slate-100 p-6 rounded-enterprise shadow-sm flex items-center gap-5 group hover:border-brand-default/30 transition-all col-span-1"
+          >
+            <div className="w-12 h-12 rounded-xl bg-orange-500/10 text-orange-500 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+              <History size={20} />
+            </div>
+            <div className="flex-1">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Life Cycle Schedule</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Initiation</p>
+                  <p className="text-xs font-black text-slate-900 truncate">
+                    {form?.startsAt ? new Date(form.startsAt).toLocaleDateString() : 'IMMEDIATE'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Decommission</p>
+                  <p className="text-xs font-black text-slate-900 truncate">
+                    {form?.expiresAt ? new Date(form.expiresAt).toLocaleDateString() : 'ETERNAL'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.2 }}
+            className="bg-white border border-slate-100 p-6 rounded-enterprise shadow-sm flex items-center gap-5 group hover:border-brand-default/30 transition-all"
+          >
+            <div className="w-12 h-12 rounded-xl bg-orange-500/10 text-orange-500 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+              <Calendar size={20} />
+            </div>
+            <div>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Launch Date</p>
+              <h4 className="text-xl font-black text-slate-900 tracking-tight">
+                {form?.createdAt ? new Date(form.createdAt).toLocaleDateString() : '-'}
+              </h4>
+            </div>
+          </motion.div>
+        </div>
+
+        {/* 🕹️ RESPONSE LOGS TABLE */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="bg-white rounded-enterprise border border-slate-100 shadow-xl overflow-hidden"
+        >
+          <div className="bg-white p-6 px-8 flex flex-col md:flex-row justify-between items-center gap-4 border-b border-slate-100">
+            <div className="flex items-center gap-4">
+               <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-white">
+                  <TableIcon size={16} />
+               </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">Response Records</h3>
+                  <p className="text-[9px] text-slate-400 font-bold uppercase mt-1 tracking-widest">Last Updated at {new Date().toLocaleTimeString()}</p>
+                </div>
+             </div>
+             <div className="flex bg-slate-50 rounded-lg p-1 border border-slate-200">
+               <button className="px-3 py-1.5 text-[9px] font-black text-white bg-slate-900 rounded-md uppercase tracking-widest shadow-sm">Tabular</button>
+               <button className="px-3 py-1.5 text-[9px] font-black text-slate-400 hover:text-slate-600 uppercase tracking-widest transition-colors">Grid View</button>
+             </div>
+          </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[900px]">
@@ -223,7 +312,7 @@ const FormResponses = () => {
             </thead>
             <tbody className="divide-y divide-slate-50">
               <AnimatePresence mode="popLayout">
-                {responses.map((resp, idx) => (
+                {filteredResponses.map((resp, idx) => (
                   <motion.tr 
                     initial={{ opacity: 0, y: 5 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -242,7 +331,9 @@ const FormResponses = () => {
                     </td>
                     {headers.map(h => (
                       <td key={h} className="px-8 py-5">
-                        <span className="text-sm font-semibold text-slate-700">{resp.responseData[h] || '-'}</span>
+                        <span className="text-sm font-semibold text-slate-700">
+                          {Array.isArray(resp.responseData[h]) ? resp.responseData[h].join(', ') : (resp.responseData[h] || '-')}
+                        </span>
                       </td>
                     ))}
                     <td className="px-8 py-5 text-right whitespace-nowrap">
@@ -300,7 +391,7 @@ const FormResponses = () => {
             </tbody>
           </table>
           
-          {responses.length === 0 && (
+          {filteredResponses.length === 0 && (
             <div className="flex flex-col items-center justify-center py-24 opacity-20 grayscale">
                 <div className="w-20 h-20 bg-slate-900 rounded-full flex items-center justify-center mb-6">
                     <ClipboardList size={40} className="text-white" />
@@ -390,7 +481,9 @@ const FormResponses = () => {
                     ) : (
                       <div className="p-3 bg-slate-50 border border-slate-100 rounded-[4px]">
                         <p className="text-sm font-semibold text-slate-700">
-                          {selectedResponse.responseData[field.label] || '-'}
+                          {Array.isArray(selectedResponse.responseData[field.label]) 
+                            ? selectedResponse.responseData[field.label].join(', ') 
+                            : (selectedResponse.responseData[field.label] || '-')}
                         </p>
                       </div>
                     )}
@@ -455,9 +548,10 @@ const FormResponses = () => {
                              const res = await api.put(`/responses/${selectedResponse.id}`, editData);
                              setSelectedResponse(res.data);
                              setIsEditing(false);
+                             toast.success('Packet Modified: Response data updated successfully.');
                              refreshData();
                            } catch (err) {
-                             alert('Failed to update response: ' + (err.message || 'Unknown error'));
+                             toast.error('Update Failed: ' + (err.response?.data?.message || err.message));
                            }
                         }}
                         className="btn-primary h-9 px-4 text-[11px] font-bold flex items-center gap-2 rounded-[4px]"
@@ -511,9 +605,10 @@ const FormResponses = () => {
                       await api.delete(`/responses/${deleteConfirm.id}`);
                       setDeleteConfirm({ isOpen: false, id: null });
                       setSelectedResponse(null);
+                      toast.success('Data Erased: Response permanently removed from logs.');
                       refreshData();
                     } catch (err) {
-                      alert('Broadcast failure: Unable to delete record');
+                      toast.error('Erase Failed: Broadcast failure - unable to delete record.');
                     }
                   }}
                   className="flex-1 h-10 bg-rose-500 text-white rounded-[4px] text-[11px] font-black uppercase tracking-widest hover:bg-rose-600 transition-all shadow-lg shadow-rose-500/20"
@@ -531,6 +626,7 @@ const FormResponses = () => {
           </div>
         )}
       </AnimatePresence>
+      </div>
     </div>
   );
 };

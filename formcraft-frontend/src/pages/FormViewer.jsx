@@ -11,6 +11,7 @@ import {
   ChevronDown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from 'react-toastify';
 import api from '../services/api';
 
 const FormViewer = () => {
@@ -50,23 +51,35 @@ const FormViewer = () => {
         formId: form.id,
         responses: responses
       });
+      toast.success('Transmission Successful: Your response has been indexed.');
       setSubmitted(true);
     } catch (err) {
+      toast.error('Protocol Error: Data transmission failed.');
       setError(err?.message || "Data transmission failed via protocol error.");
     } finally {
       setSubmitting(false);
     }
   };
 
+  const handleCheckboxChange = (label, option, checked) => {
+    setResponses(prev => {
+      const current = prev[label] || [];
+      if (checked) {
+        return { ...prev, [label]: [...current, option] };
+      } else {
+        return { ...prev, [label]: current.filter(item => item !== option) };
+      }
+    });
+  };
+
   const handleChange = (label, value) => {
     setResponses(prev => ({ ...prev, [label]: value }));
   };
 
-  const now = new Date();
-  const isExpired = form?.expiresAt && new Date(form.expiresAt) < now;
-  const isFuture = form?.startsAt && new Date(form.startsAt) > now;
-  const isDeactivated = form && !form.active;
-  const isUnavailable = !form || error || isExpired || isFuture || isDeactivated;
+  const isLive = form?.status === 'ACTIVE';
+  const isPlanned = form?.status === 'PLANNED';
+  const isInactive = form?.status === 'INACTIVE';
+  const isUnavailable = !form || error || !isLive;
 
   if (loading) return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-10">
@@ -107,24 +120,21 @@ const FormViewer = () => {
         className="max-w-md w-full bg-white p-12 rounded-enterprise shadow-2xl border border-slate-100 text-center"
       >
         <div className={`w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-xl transition-all duration-500 ${
-          isFuture ? 'bg-amber-500 shadow-amber-500/20' : 
-          isExpired ? 'bg-slate-400 shadow-slate-400/20' : 
-          isDeactivated ? 'bg-rose-500 shadow-rose-500/20' : 
+          isPlanned ? 'bg-amber-500 shadow-amber-500/20' : 
+          isInactive ? 'bg-rose-500 shadow-rose-500/20' : 
           'bg-rose-600 shadow-rose-600/20'
         } text-white`}>
-          {isFuture ? <Calendar size={40} /> : <AlertCircle size={40} />}
+          {isPlanned ? <Calendar size={40} /> : <AlertCircle size={40} />}
         </div>
         
         <h2 className="text-2xl font-black text-slate-900 mb-2 uppercase tracking-tight">
-          {isFuture ? 'Opening Soon' : 
-           isExpired ? 'Form Closed' : 
-           isDeactivated ? 'Form Unavailable' : 
+          {isPlanned ? 'Opening Soon' : 
+           isInactive ? 'Form Closed' : 
            'Form Not Found'}
         </h2>
         <p className="text-slate-500 font-medium mb-8 leading-relaxed">
-          {isFuture ? `This form isn't open for responses yet. It will be available on ${new Date(form.startsAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} at ${new Date(form.startsAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}.` : 
-           isExpired ? 'This form is no longer accepting responses.' : 
-           isDeactivated ? 'This form has been temporarily disabled by the owner.' : 
+          {isPlanned ? `This form isn't open for responses yet. It will be available on ${new Date(form.startsAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} at ${new Date(form.startsAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}.` : 
+           isInactive ? 'This form is currently not accepting responses.' : 
            error || "We couldn't find the form you're looking for or it may have been removed."}
         </p>
         <Link to="/" className="inline-flex items-center gap-2 text-brand-default font-black uppercase tracking-widest text-[10px] hover:gap-3 transition-all">
@@ -215,6 +225,38 @@ const FormViewer = () => {
                           required={field.required}
                           onChange={(e) => handleChange(field.label, e.target.value)}
                         />
+                      </div>
+                    ) : field.type === 'radio' ? (
+                      <div className="space-y-3">
+                        {field.options?.map(opt => (
+                          <label key={opt} className="flex items-center gap-3 p-4 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-white hover:border-brand-default transition-all group/opt">
+                            <input 
+                              type="radio"
+                              name={field.id}
+                              value={opt}
+                              checked={responses[field.label] === opt}
+                              required={field.required && !responses[field.label]}
+                              onChange={(e) => handleChange(field.label, e.target.value)}
+                              className="w-4 h-4 text-brand-default focus:ring-brand-default border-slate-300"
+                            />
+                            <span className="text-sm font-semibold text-slate-700 group-hover/opt:text-brand-default transition-colors">{opt}</span>
+                          </label>
+                        ))}
+                      </div>
+                    ) : field.type === 'checkbox' ? (
+                      <div className="space-y-3">
+                        {field.options?.map(opt => (
+                          <label key={opt} className="flex items-center gap-3 p-4 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-white hover:border-brand-default transition-all group/opt">
+                            <input 
+                              type="checkbox"
+                              value={opt}
+                              checked={(responses[field.label] || []).includes(opt)}
+                              onChange={(e) => handleCheckboxChange(field.label, opt, e.target.checked)}
+                              className="w-4 h-4 text-brand-default border-slate-300 rounded focus:ring-brand-default"
+                            />
+                            <span className="text-sm font-semibold text-slate-700 group-hover/opt:text-brand-default transition-colors">{opt}</span>
+                          </label>
+                        ))}
                       </div>
                     ) : (
                       <input 

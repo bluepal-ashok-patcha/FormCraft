@@ -7,6 +7,45 @@
     @apply bg-slate-50 text-slate-800 antialiased;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
   }
+
+  /* React Toastify Branding Overrides */
+  :root {
+    --toastify-color-success: #10b981; /* Emerald 500 */
+    --toastify-color-error: #e11d48;   /* Rose 600 */
+    --toastify-color-info: #7C3AED;    /* Brand Purple */
+    --toastify-color-warning: #f59e0b; /* Amber 500 */
+    --toastify-toast-min-height: 56px;
+    --toastify-toast-width: 324px;
+  }
+
+  .Toastify__toast {
+    @apply border shadow-2xl;
+    border-radius: 6px !important;
+    font-size: 11px !important;
+    font-weight: 800 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+  }
+
+  .Toastify__toast--success {
+    @apply bg-emerald-50 border-emerald-100 text-emerald-700 !important;
+  }
+
+  .Toastify__toast--error {
+    @apply bg-rose-50 border-rose-100 text-rose-700 !important;
+  }
+
+  .Toastify__toast--info {
+    @apply bg-brand-50 border-brand-100 text-brand-600 !important;
+  }
+
+  .Toastify__toast--warning {
+    @apply bg-amber-50 border-amber-100 text-amber-700 !important;
+  }
+
+  .Toastify__progress-bar {
+    height: 3px !important;
+  }
 }
 
 @layer components {

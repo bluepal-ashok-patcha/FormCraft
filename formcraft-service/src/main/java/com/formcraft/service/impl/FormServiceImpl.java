@@ -2,6 +2,7 @@ package com.formcraft.service.impl;
 
 import com.formcraft.dto.request.FormRequest;
 import com.formcraft.dto.request.SubmissionRequest;
+import com.formcraft.enums.FormStatus;
 import com.formcraft.dto.response.FormDto;
 import com.formcraft.dto.response.ResponseDto;
 import com.formcraft.entity.Form;
@@ -28,6 +29,9 @@ import org.springframework.data.annotation.LastModifiedBy;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.springframework.data.jpa.domain.Specification;
+import jakarta.persistence.criteria.Predicate;
+import java.util.ArrayList;
 
 @Service
 @RequiredArgsConstructor
@@ -42,10 +46,21 @@ public class FormServiceImpl implements FormService {
     @Override
     @Transactional
     public FormDto createForm(FormRequest request) {
+        validateFormSchedule(request.getStartsAt(), request.getExpiresAt());
         Form form = formMapper.toEntity(request);
         // Auto-generate slug from name: "Contact Us" -> "contact-us"
         String slug = request.getName().toLowerCase().replaceAll("[^a-z0-9]+", "-").replaceAll("^-|-$", "");
         form.setSlug(slug + "-" + UUID.randomUUID().toString().substring(0, 8)); // Add random suffix for uniqueness
+        
+        // Initialize status
+        LocalDateTime now = LocalDateTime.now();
+        if (form.getStartsAt() != null && form.getStartsAt().isAfter(now)) {
+            form.setStatus(FormStatus.PLANNED);
+        } else if (form.getExpiresAt() != null && form.getExpiresAt().isBefore(now)) {
+            form.setStatus(FormStatus.INACTIVE);
+        } else {
+            form.setStatus(FormStatus.ACTIVE);
+        }
         
         Form savedForm = formRepository.save(form);
         return formMapper.toDto(savedForm);
@@ -70,8 +85,35 @@ public class FormServiceImpl implements FormService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<FormDto> getAllForms(Pageable pageable) {
-        return formRepository.findAll(pageable)
+    public Page<FormDto> getAllForms(String search, FormStatus status, LocalDateTime startDate, LocalDateTime endDate, Pageable pageable) {
+        String username = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+        
+        Specification<Form> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            
+            // Security: Only show forms created by this user
+            predicates.add(cb.equal(root.get("createdBy"), username));
+            
+            if (search != null && !search.trim().isEmpty()) {
+                predicates.add(cb.like(cb.lower(root.get("name")), "%" + search.toLowerCase() + "%"));
+            }
+            
+            if (status != null) {
+                predicates.add(cb.equal(root.get("status"), status));
+            }
+            
+            if (startDate != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), startDate));
+            }
+            
+            if (endDate != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("createdAt"), endDate));
+            }
+            
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        return formRepository.findAll(spec, pageable)
                 .map(form -> {
                     FormDto dto = formMapper.toDto(form);
                     dto.setResponseCount(formResponseRepository.countByFormId(form.getId()));
@@ -86,16 +128,8 @@ public class FormServiceImpl implements FormService {
             Form form = formRepository.findById(request.getFormId())
                     .orElseThrow(() -> new ResourceNotFoundException("Form not found with id: " + request.getFormId()));
 
-            if (!form.isActive()) {
-                throw new BadRequestException("Submission failed: This form is currently inactive.");
-            }
-
-            if (form.getStartsAt() != null && form.getStartsAt().isAfter(LocalDateTime.now())) {
-                throw new BadRequestException("Submission failed: This form is not active yet.");
-            }
-
-            if (form.getExpiresAt() != null && form.getExpiresAt().isBefore(LocalDateTime.now())) {
-                throw new BadRequestException("Submission failed: This form has expired.");
+            if (form.getStatus() != FormStatus.ACTIVE) {
+                throw new BadRequestException("Submission failed: This form is currently not active.");
             }
 
             // Validate submission against form schema
@@ -118,8 +152,24 @@ public class FormServiceImpl implements FormService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<ResponseDto> getResponsesByFormId(UUID formId, Pageable pageable) {
-        return formResponseRepository.findByFormId(formId, pageable)
+    public Page<ResponseDto> getResponsesByFormId(UUID formId, LocalDateTime startDate, LocalDateTime endDate, Pageable pageable) {
+        Specification<FormResponse> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            
+            predicates.add(cb.equal(root.get("form").get("id"), formId));
+            
+            if (startDate != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), startDate));
+            }
+            
+            if (endDate != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("createdAt"), endDate));
+            }
+            
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        return formResponseRepository.findAll(spec, pageable)
                 .map(responseMapper::toDto);
     }
 
@@ -129,7 +179,12 @@ public class FormServiceImpl implements FormService {
         Form form = formRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Form not found with id: " + id));
         
-        form.setActive(!form.isActive());
+        if (form.getStatus() == FormStatus.ACTIVE) {
+            form.setStatus(FormStatus.INACTIVE);
+        } else {
+            form.setStatus(FormStatus.ACTIVE);
+        }
+        
         Form savedForm = formRepository.save(form);
         return formMapper.toDto(savedForm);
     }
@@ -165,5 +220,57 @@ public class FormServiceImpl implements FormService {
         response.setResponseData(responses);
         FormResponse updatedResponse = formResponseRepository.save(response);
         return responseMapper.toDto(updatedResponse);
+    }
+
+    @Override
+    @Transactional
+    public void deleteForm(UUID id) {
+        if (!formRepository.existsById(id)) {
+            throw new ResourceNotFoundException("Form not found with id: " + id);
+        }
+        formRepository.deleteById(id);
+    }
+
+    @Override
+    @Transactional
+    public FormDto updateForm(UUID id, FormRequest request) {
+        validateFormSchedule(request.getStartsAt(), request.getExpiresAt());
+        Form form = formRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Form not found with id: " + id));
+        
+        form.setName(request.getName());
+        form.setSchema(request.getSchema());
+        form.setStartsAt(request.getStartsAt());
+        form.setExpiresAt(request.getExpiresAt());
+        
+        // Re-calculate status
+        LocalDateTime now = LocalDateTime.now();
+        if (form.getStartsAt() != null && form.getStartsAt().isAfter(now)) {
+            form.setStatus(FormStatus.PLANNED);
+        } else if (form.getExpiresAt() != null && form.getExpiresAt().isBefore(now)) {
+            form.setStatus(FormStatus.INACTIVE);
+        } else {
+            form.setStatus(FormStatus.ACTIVE);
+        }
+        
+        Form updatedForm = formRepository.save(form);
+        return formMapper.toDto(updatedForm);
+    }
+
+    private void validateFormSchedule(LocalDateTime startsAt, LocalDateTime expiresAt) {
+        LocalDateTime now = LocalDateTime.now().minusMinutes(5); // 5 min grace for clock drift
+        
+        if (startsAt != null && startsAt.isBefore(now)) {
+            throw new BadRequestException("Start date cannot be in the past.");
+        }
+        
+        if (expiresAt != null) {
+            if (expiresAt.isBefore(LocalDateTime.now())) {
+                throw new BadRequestException("Expiration date cannot be in the past.");
+            }
+            if (startsAt != null && expiresAt.isBefore(startsAt)) {
+                throw new BadRequestException("Expiration date must be after the start date.");
+            }
+        }
     }
 }

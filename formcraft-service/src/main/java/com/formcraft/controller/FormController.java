@@ -11,6 +11,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.format.annotation.DateTimeFormat;
+import java.time.LocalDateTime;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -46,8 +48,13 @@ public class FormController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<Page<FormDto>>> getAllForms(Pageable pageable) {
-        Page<FormDto> forms = formService.getAllForms(pageable);
+    public ResponseEntity<ApiResponse<Page<FormDto>>> getAllForms(
+            @RequestParam(name = "search", required = false) String search,
+            @RequestParam(name = "status", required = false) com.formcraft.enums.FormStatus status,
+            @RequestParam(name = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
+            @RequestParam(name = "endDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate,
+            @org.springframework.data.web.PageableDefault(sort = "createdAt", direction = org.springframework.data.domain.Sort.Direction.DESC) Pageable pageable) {
+        Page<FormDto> forms = formService.getAllForms(search, status, startDate, endDate, pageable);
         return ResponseEntity.ok(ApiResponse.success(forms, "All forms fetched successfully"));
     }
 
@@ -59,8 +66,12 @@ public class FormController {
 
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/{id}/responses")
-    public ResponseEntity<ApiResponse<Page<ResponseDto>>> getResponses(@PathVariable("id") UUID id, Pageable pageable) {
-        Page<ResponseDto> responses = formService.getResponsesByFormId(id, pageable);
+    public ResponseEntity<ApiResponse<Page<ResponseDto>>> getResponses(
+            @PathVariable("id") UUID id,
+            @RequestParam(name = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
+            @RequestParam(name = "endDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate,
+            Pageable pageable) {
+        Page<ResponseDto> responses = formService.getResponsesByFormId(id, startDate, endDate, pageable);
         return ResponseEntity.ok(ApiResponse.success(responses, "Responses fetched successfully"));
     }
 
@@ -68,14 +79,28 @@ public class FormController {
     @PutMapping("/{id}/toggle-status")
     public ResponseEntity<ApiResponse<FormDto>> toggleStatus(@PathVariable("id") UUID id) {
         FormDto updatedForm = formService.toggleFormStatus(id);
-        String status = updatedForm.isActive() ? "Activated" : "Deactivated";
-        return ResponseEntity.ok(ApiResponse.success(updatedForm, "Form " + status + " successfully"));
+        String statusLabel = updatedForm.getStatus() == com.formcraft.enums.FormStatus.ACTIVE ? "Activated" : "Deactivated";
+        return ResponseEntity.ok(ApiResponse.success(updatedForm, "Form " + statusLabel + " successfully"));
     }
 
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/{id}/schedule")
-    public ResponseEntity<ApiResponse<FormDto>> scheduleDeactivation(@PathVariable("id") UUID id, @RequestParam("days") int days) {
+    public ResponseEntity<ApiResponse<FormDto>> scheduleDeactivation(@PathVariable("id") UUID id, @RequestParam(name = "days") int days) {
         FormDto updatedForm = formService.scheduleFormDeactivation(id, days);
         return ResponseEntity.ok(ApiResponse.success(updatedForm, "Form scheduled for deactivation in " + days + " days"));
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @DeleteMapping("/{id}")
+    public ResponseEntity<ApiResponse<Void>> deleteForm(@PathVariable("id") UUID id) {
+        formService.deleteForm(id);
+        return ResponseEntity.ok(ApiResponse.success(null, "Form and all its responses deleted successfully"));
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @PutMapping("/{id}")
+    public ResponseEntity<ApiResponse<FormDto>> updateForm(@PathVariable("id") UUID id, @Valid @RequestBody FormRequest request) {
+        FormDto updatedForm = formService.updateForm(id, request);
+        return ResponseEntity.ok(ApiResponse.success(updatedForm, "Form updated successfully"));
     }
 }

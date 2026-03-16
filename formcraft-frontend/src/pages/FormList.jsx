@@ -12,9 +12,17 @@ import {
   Check,
   Plus,
   Eye,
-  ShieldCheck
+  ShieldCheck,
+  Edit,
+  X,
+  History,
+  Save,
+  Filter,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import api from '../services/api';
+import { toast } from 'react-toastify';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 
@@ -22,46 +30,139 @@ const FormList = () => {
   const navigate = useNavigate();
   const [forms, setForms] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [modal, setModal] = useState({ isOpen: false, type: '', form: null, value: '' });
+  const [statusFilter, setStatusFilter] = useState(''); // 'all', 'active', 'inactive'
+  const [dateRange, setDateRange] = useState({ start: '', end: '' });
+  const [sortField, setSortField] = useState('createdAt');
+  const [sortDir, setSortDir] = useState('desc');
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
+  const pageSize = 6;
+
+  const [modal, setModal] = useState({ isOpen: false, type: '', form: null });
+  const [editForm, setEditForm] = useState({ name: '', startsAt: '', expiresAt: '' });
   const [copiedId, setCopiedId] = useState(null);
+
+  const [stats, setStats] = useState({ totalForms: 0, activeForms: 0, totalResponses: 0 });
+
+  const now = new Date();
+  const offset = now.getTimezoneOffset() * 60000;
+  const minDateTime = new Date(now - offset).toISOString().slice(0, 16);
+
+  const fetchForms = async () => {
+    if (!loading) setRefreshing(true);
+    try {
+      const params = new URLSearchParams();
+      params.append('page', page);
+      params.append('size', pageSize);
+      
+      if (searchTerm) params.append('search', searchTerm);
+      if (statusFilter === 'active') params.append('status', 'ACTIVE');
+      if (statusFilter === 'inactive') params.append('status', 'INACTIVE');
+      if (statusFilter === 'planned') params.append('status', 'PLANNED');
+      if (dateRange.start) params.append('startDate', new Date(dateRange.start).toISOString());
+      if (dateRange.end) params.append('endDate', new Date(dateRange.end).toISOString());
+      params.append('sort', `${sortField},${sortDir}`);
+
+      const [formsRes, statsRes] = await Promise.all([
+        api.get(`/forms?${params.toString()}`),
+        api.get('/dashboard/stats')
+      ]);
+
+      setForms(formsRes.data?.content || []);
+      setTotalPages(formsRes.data?.totalPages || 0);
+      setTotalElements(formsRes.data?.totalElements || 0);
+      setStats(statsRes.data || { totalForms: 0, activeForms: 0, totalResponses: 0 });
+    } catch (err) {
+      console.error('Error fetching forms:', err);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      fetchForms();
+    }, 300);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [page, searchTerm, statusFilter, dateRange, sortField, sortDir]);
 
   const handleCopyLink = (slug, id) => {
     const link = `${window.location.origin}/f/${slug}`;
     navigator.clipboard.writeText(link);
     setCopiedId(id);
+    toast.success('Link Secured: Form URL copied to clipboard.');
     setTimeout(() => setCopiedId(null), 2000);
   };
-
-  const fetchForms = async () => {
-    try {
-      const response = await api.get('/forms?page=0&size=100');
-      // ApiResponse.data contains the Page object, we need page.content
-      setForms(response.data.content || []);
-    } catch (err) {
-      console.error('Error fetching forms:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchForms();
-  }, []);
 
   const handleToggleStatus = async (id) => {
     try {
       await api.put(`/forms/${id}/toggle-status`);
+      toast.info('Status Recalibrated: Form availability has been updated.');
       fetchForms();
     } catch (err) {
       console.error('Error toggling status:', err);
+      toast.error('System Error: Could not update form status.');
     }
   };
 
-  const filteredForms = forms.filter(f => 
-    f.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    f.slug.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const handleDeleteForm = async (id) => {
+    if (window.confirm("CRITICAL ACTION: Deleting this form will permanently remove all associated responses from the database. Portions of history will be lost. Proceed?")) {
+      try {
+        await api.delete(`/forms/${id}`);
+        toast.success('Asset Purged: Form and history have been removed.');
+        fetchForms();
+      } catch (err) {
+        console.error('Deletion failure:', err);
+        toast.error('Purge Failed: System could not remove the asset.');
+      }
+    }
+  };
+
+  const openEditModal = (form) => {
+    setModal({ isOpen: true, type: 'edit', form });
+    setEditForm({
+      name: form.name,
+      startsAt: form.startsAt ? form.startsAt.split('.')[0] : '',
+      expiresAt: form.expiresAt ? form.expiresAt.split('.')[0] : ''
+    });
+  };
+
+  const handleUpdateForm = async () => {
+    try {
+      if (editForm.startsAt && editForm.expiresAt && new Date(editForm.expiresAt) <= new Date(editForm.startsAt)) {
+        toast.error('Timeline Inconsistency: Expiration must follow initialization.');
+        return;
+      }
+      await api.put(`/forms/${modal.form.id}`, {
+        ...modal.form,
+        name: editForm.name,
+        startsAt: editForm.startsAt || null,
+        expiresAt: editForm.expiresAt || null
+      });
+      toast.success('Asset Updated: Form parameters synchronized.');
+      setModal({ isOpen: false, type: '', form: null });
+      fetchForms();
+    } catch (err) {
+      console.error('Update failure:', err);
+      toast.error('Update Interrupted: Synchronization failed.');
+    }
+  };
+
+  const handlePageChange = (newPage) => {
+    setPage(newPage);
+  };
+
+  const clearFilters = () => {
+    setSearchTerm('');
+    setStatusFilter('');
+    setDateRange({ start: '', end: '' });
+    setPage(0);
+  };
 
   if (loading) return (
     <div className="flex items-center justify-center h-[60vh]">
@@ -82,8 +183,8 @@ const FormList = () => {
         
         <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-8">
           <div className="flex items-center gap-6 flex-1">
-            <div className="w-14 h-14 bg-brand-default rounded-2xl flex items-center justify-center shadow-lg shadow-brand-default/20 shrink-0">
-              <FileText size={28} className="text-white" />
+            <div className="w-14 h-14 bg-brand-50 border border-brand-100 rounded-2xl flex items-center justify-center shadow-sm shrink-0">
+              <FileText size={18} className="text-brand-default" />
             </div>
             <div>
               <h1 className="text-2xl md:text-3xl font-black tracking-tighter mb-1 leading-none uppercase">
@@ -96,33 +197,103 @@ const FormList = () => {
           </div>
           
           <div className="flex items-center gap-4 shrink-0 w-full md:w-auto">
-            <div className="relative hidden lg:block">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
-              <input 
-                type="text" 
-                placeholder="Filter registry..." 
-                className="bg-slate-800 border border-slate-700 rounded-lg pl-10 pr-4 py-2.5 text-[10px] font-bold text-white uppercase tracking-widest focus:outline-none focus:border-brand-default w-64 transition-all"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
             <button 
               onClick={() => navigate('/builder')}
               className="px-6 bg-brand-default text-white h-11 rounded-lg font-black uppercase tracking-widest text-[11px] flex items-center justify-center gap-2 hover:bg-brand-600 transition-all shadow-lg shadow-brand-500/10 active:scale-95"
             >
-              <Plus size={16} />
+              <Plus size={14} />
               Register New Form
             </button>
           </div>
         </div>
       </motion.div>
 
+      {/* 🔍 SEARCH & DEEP FILTERS */}
+      <motion.div 
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white border border-slate-100 p-4 rounded-enterprise shadow-sm space-y-4"
+      >
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="relative flex-1 min-w-[240px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+            <input 
+              type="text" 
+              placeholder="Search by name or slug..." 
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-xs font-bold text-slate-700 focus:outline-none focus:border-brand-default transition-all"
+              value={searchTerm}
+              onChange={(e) => { setSearchTerm(e.target.value); setPage(0); }}
+            />
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <Filter size={12} className="text-slate-400" />
+            <select 
+              value={statusFilter}
+              onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
+              className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 focus:outline-none focus:border-brand-default transition-all appearance-none cursor-pointer"
+            >
+              <option value="">All Statuses</option>
+              <option value="active">Active (Live)</option>
+              <option value="inactive">Inactive (Offline)</option>
+              <option value="planned">Planned (Scheduled)</option>
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <History size={14} className="text-slate-400" />
+            <select 
+              value={`${sortField},${sortDir}`}
+              onChange={(e) => {
+                const [field, dir] = e.target.value.split(',');
+                setSortField(field);
+                setSortDir(dir);
+                setPage(0);
+              }}
+              className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 focus:outline-none focus:border-brand-default transition-all appearance-none cursor-pointer"
+            >
+              <option value="createdAt,desc">Latest First</option>
+              <option value="createdAt,asc">Oldest First</option>
+              <option value="name,asc">Name (A-Z)</option>
+              <option value="name,desc">Name (Z-A)</option>
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Calendar size={14} className="text-slate-400" />
+            <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-2">
+              <input 
+                type="date" 
+                value={dateRange.start}
+                onChange={(e) => { setDateRange({...dateRange, start: e.target.value}); setPage(0); }}
+                className="bg-transparent border-none py-2 text-[10px] font-bold text-slate-700 focus:outline-none"
+              />
+              <span className="text-slate-300 mx-1">-</span>
+              <input 
+                type="date" 
+                value={dateRange.end}
+                onChange={(e) => { setDateRange({...dateRange, end: e.target.value}); setPage(0); }}
+                className="bg-transparent border-none py-2 text-[10px] font-bold text-slate-700 focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <button 
+            onClick={clearFilters}
+            className="p-2.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
+            title="Clear All Filters"
+          >
+            <X size={18} />
+          </button>
+        </div>
+      </motion.div>
+
       {/* 📊 ANALYTIC CHIPS */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         {[
-          { label: 'Total Registry', value: forms.length, icon: FileText, color: 'blue' },
-          { label: 'Active Signals', value: forms.filter(f => f.active).length, icon: Power, color: 'emerald' },
-          { label: 'Form Responses', value: forms.reduce((acc, f) => acc + (f.responseCount || 0), 0), icon: BarChart2, color: 'orange' },
+          { label: 'Total Registry', value: stats.totalForms || totalElements, icon: FileText, color: 'blue' },
+          { label: 'Active Signals', value: stats.activeForms || 0, icon: Power, color: 'emerald' },
+          { label: 'Form Responses', value: stats.totalResponses || 0, icon: BarChart2, color: 'orange' },
           { label: 'Success Rate', value: '100%', icon: Check, color: 'purple' }
         ].map((stat, i) => (
           <motion.div 
@@ -144,13 +315,13 @@ const FormList = () => {
       </div>
 
       {/* 🕹️ ASSET GRID */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+      <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 transition-opacity duration-300 ${refreshing ? 'opacity-50' : 'opacity-100'}`}>
         <AnimatePresence>
-          {filteredForms.map((form, idx) => {
-            const now = new Date();
-            const isExpired = form.expiresAt && new Date(form.expiresAt) < now;
-            const isFuture = form.startsAt && new Date(form.startsAt) > now;
-            const isActive = form.active && !isExpired && !isFuture;
+          {forms.map((form, idx) => {
+            const status = form.status || 'INACTIVE';
+            const isLive = status === 'ACTIVE';
+            const isOffline = status === 'INACTIVE';
+            const isPlanned = status === 'PLANNED';
 
             return (
               <motion.div
@@ -160,24 +331,32 @@ const FormList = () => {
                 exit={{ opacity: 0, scale: 0.98 }}
                 transition={{ delay: idx * 0.05 }}
                 key={form.id}
-                className={`group bg-white rounded-enterprise border border-slate-100 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] hover:shadow-[0_20px_50px_-20px_rgba(0,0,0,0.08)] hover:border-brand-default/20 transition-all duration-500 flex flex-col h-full overflow-hidden relative ${!isActive ? 'opacity-80' : ''}`}
+                className={`group bg-white rounded-enterprise border border-slate-100 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] hover:shadow-[0_20px_50px_-20px_rgba(0,0,0,0.08)] hover:border-brand-default/20 transition-all duration-500 flex flex-col h-full overflow-hidden relative ${!isLive ? 'opacity-80' : ''}`}
               >
                 {/* 🛰️ CARD TOP COMMANDER */}
                 <div className="px-6 pt-6 pb-2">
                   <div className="flex items-start justify-between mb-6">
                     <div className="relative">
-                       <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-500 relative z-10 ${isActive ? 'bg-brand-50 text-brand-default border border-brand-100/50 shadow-sm shadow-brand-default/10' : 'bg-slate-50 text-slate-300 border border-slate-100'}`}>
+                       <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-500 relative z-10 ${isLive ? 'bg-brand-50 text-brand-default border border-brand-100/50 shadow-sm shadow-brand-default/10' : 'bg-slate-50 text-slate-300 border border-slate-100'}`}>
                          <FileText size={24} strokeWidth={1.5} />
                        </div>
-                       {isActive && (
+                       {isLive && (
                          <div className="absolute -inset-2 bg-brand-default/10 rounded-full blur-xl animate-pulse" />
                        )}
                     </div>
                     
                     <div className="flex flex-col items-end gap-1.5">
-                       <div className={`px-2 py-1 rounded-full text-[7px] font-black uppercase tracking-[0.2em] flex items-center gap-1.5 border ${isActive ? 'bg-emerald-50 text-emerald-600 border-emerald-100/50' : 'bg-slate-50 text-slate-400 border-slate-100'}`}>
-                          <div className={`w-1 h-1 rounded-full ${isActive ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
-                          {isActive ? 'Active' : 'Inactive'}
+                       <div className={`px-2 py-1 rounded-full text-[7px] font-black uppercase tracking-[0.2em] flex items-center gap-1.5 border shadow-sm ${
+                         isLive ? 'bg-emerald-50 text-emerald-600 border-emerald-100/50' : 
+                         isOffline ? 'bg-rose-50 text-rose-600 border-rose-100/50' :
+                         'bg-blue-50 text-blue-600 border-blue-100/50'
+                       }`}>
+                          <div className={`w-1 h-1 rounded-full ${
+                            isLive ? 'bg-emerald-500 animate-pulse' : 
+                            isOffline ? 'bg-rose-500' :
+                            'bg-blue-500'
+                          }`} />
+                          {isLive ? 'Live' : isOffline ? 'Offline' : 'Scheduled'}
                        </div>
                        <span className="text-[9px] font-bold text-slate-300 uppercase tracking-tighter">Node: {form.slug.slice(0, 4)}...</span>
                     </div>
@@ -186,7 +365,7 @@ const FormList = () => {
                   <div>
                     <h3 className="text-base font-black text-slate-900 tracking-tight leading-loose transition-colors group-hover:text-brand-default">{form.name}</h3>
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em] mb-6 flex items-center gap-2">
-                       <ShieldCheck size={10} className="text-brand-default/40" />
+                       <ShieldCheck size={8} className="text-brand-default/40" />
                        Endpoint Architecture // v2.0
                     </p>
                   </div>
@@ -195,19 +374,30 @@ const FormList = () => {
                   <div className="grid grid-cols-2 gap-px bg-slate-100 border border-slate-50 rounded-xl overflow-hidden mb-6 group-hover:border-slate-200 transition-colors">
                     <div className="bg-white p-4">
                        <div className="flex items-center gap-2 mb-2">
-                          <BarChart2 size={10} className="text-slate-300" />
+                          <BarChart2 size={8} className="text-slate-300" />
                           <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Responses</p>
                        </div>
                        <p className="text-2xl font-black text-slate-900 leading-none">{form.responseCount || 0}</p>
                     </div>
                     <div className="bg-white p-4">
                        <div className="flex items-center gap-2 mb-2">
-                          <Clock size={10} className="text-slate-300" />
-                          <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Initialized</p>
+                          <History size={8} className="text-slate-300" />
+                          <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Life Cycle</p>
                        </div>
-                       <p className="text-[10px] font-black text-slate-900 uppercase mt-2.5">
-                          {new Date(form.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                       </p>
+                       <div className="space-y-1 mt-1">
+                          <div className="flex items-center justify-between">
+                             <span className="text-[7px] font-black text-slate-400 uppercase">Start</span>
+                             <span className="text-[9px] font-bold text-slate-900 leading-none">
+                                {form.startsAt ? new Date(form.startsAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }) : 'Immediate'}
+                             </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                             <span className="text-[7px] font-black text-slate-400 uppercase">End</span>
+                             <span className="text-[9px] font-bold text-slate-900 leading-none">
+                                {form.expiresAt ? new Date(form.expiresAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }) : 'Eternal'}
+                             </span>
+                          </div>
+                       </div>
                     </div>
                   </div>
                 </div>
@@ -227,22 +417,37 @@ const FormList = () => {
                       className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-brand-default hover:bg-brand-50 transition-all"
                       title="Uplink"
                     >
-                      <Eye size={14} />
+                      <Eye size={12} />
+                    </button>
+                    <div className="w-px h-4 bg-slate-100" />
+                    <button 
+                       onClick={() => openEditModal(form)}
+                       className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-blue-500 hover:bg-blue-50 transition-all"
+                       title="Recalibrate"
+                    >
+                       <Edit size={12} />
+                    </button>
+                    <button 
+                       onClick={() => handleDeleteForm(form.id)}
+                       className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-all"
+                       title="Decommission"
+                    >
+                       <Trash2 size={12} />
                     </button>
                     <div className="w-px h-4 bg-slate-100" />
                     <button 
                        onClick={() => handleToggleStatus(form.id)}
-                       className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all ${form.active ? 'text-emerald-500 bg-emerald-50/50' : 'text-slate-300 hover:bg-slate-50'}`}
+                       className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all ${isLive ? 'text-emerald-500 bg-emerald-50/50' : 'text-slate-300 hover:bg-slate-50'}`}
                        title="Signal Power"
                     >
-                       <Power size={14} />
+                       <Power size={12} />
                     </button>
                     <button 
                        onClick={() => handleCopyLink(form.slug, form.id)}
                        className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all ${copiedId === form.id ? 'text-emerald-500 bg-emerald-50' : 'text-slate-300 hover:text-brand-default hover:bg-brand-50'}`}
                        title="Clone Link"
                     >
-                       {copiedId === form.id ? <Check size={14} /> : <Share2 size={14} />}
+                       {copiedId === form.id ? <Check size={12} /> : <Share2 size={12} />}
                     </button>
                   </div>
                 </div>
@@ -252,7 +457,43 @@ const FormList = () => {
         </AnimatePresence>
       </div>
 
-      {filteredForms.length === 0 && (
+      {/* 📟 PAGINATION CONTROLS */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between bg-white border border-slate-100 p-4 rounded-enterprise shadow-sm">
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+            Showing {forms.length} of {totalElements} entries // Page {page + 1} of {totalPages}
+          </p>
+          <div className="flex items-center gap-2">
+            <button 
+              disabled={page === 0}
+              onClick={() => handlePageChange(page - 1)}
+              className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-200 text-slate-400 hover:border-brand-default hover:text-brand-default transition-all disabled:opacity-30 disabled:hover:border-slate-200"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            
+            {[...Array(totalPages)].map((_, i) => (
+              <button 
+                key={i}
+                onClick={() => handlePageChange(i)}
+                className={`w-10 h-10 flex items-center justify-center rounded-xl text-[10px] font-black transition-all ${page === i ? 'bg-brand-default text-white shadow-lg shadow-brand-500/20' : 'bg-white border border-slate-200 text-slate-400 hover:border-brand-default hover:text-brand-default'}`}
+              >
+                {i + 1}
+              </button>
+            ))}
+
+            <button 
+              disabled={page === totalPages - 1}
+              onClick={() => handlePageChange(page + 1)}
+              className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-200 text-slate-400 hover:border-brand-default hover:text-brand-default transition-all disabled:opacity-30 disabled:hover:border-slate-200"
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {forms.length === 0 && (
         <div className="flex flex-col items-center justify-center py-32 bg-white border border-dashed border-slate-200 rounded-enterprise">
           <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-6">
             <FileText size={40} className="text-slate-200" />
@@ -260,6 +501,118 @@ const FormList = () => {
           <p className="text-slate-400 font-black uppercase tracking-[0.3em] text-xs">Registry Empty // Awaiting Signal</p>
         </div>
       )}
+
+      {/* 🛠️ ASSET RECALIBRATION MODAL (EDIT) */}
+      <AnimatePresence>
+        {modal.isOpen && modal.type === 'edit' && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setModal({ isOpen: false, type: '', form: null })}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-lg bg-white rounded-enterprise shadow-2xl overflow-hidden border border-slate-100"
+            >
+              <div className="px-8 py-6 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-brand-default rounded-xl flex items-center justify-center text-white shadow-lg shadow-brand-default/20">
+                    <History size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest leading-none">Recalibrate Asset</h3>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Lifecycle Management Protocol</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setModal({ isOpen: false, type: '', form: null })}
+                  className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-white hover:text-rose-500 transition-all"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="p-8 space-y-6">
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 block">Asset Designation</label>
+                  <input 
+                    type="text" 
+                    value={editForm.name}
+                    onChange={(e) => setEditForm({...editForm, name: e.target.value})}
+                    className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:border-brand-default transition-all"
+                    placeholder="Enter designation name..."
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 block">Initialization Date</label>
+                    <input 
+                      type="datetime-local" 
+                      value={editForm.startsAt}
+                      min={minDateTime}
+                      onKeyDown={(e) => e.preventDefault()}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val && new Date(val) < new Date(minDateTime)) return;
+                        setEditForm({...editForm, startsAt: val});
+                        if (editForm.expiresAt && val && new Date(editForm.expiresAt) < new Date(val)) {
+                          setEditForm(prev => ({...prev, startsAt: val, expiresAt: ''}));
+                        }
+                      }}
+                      className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:border-brand-default transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 block">Expiration Date</label>
+                    <input 
+                      type="datetime-local" 
+                      value={editForm.expiresAt}
+                      min={editForm.startsAt || minDateTime}
+                      onKeyDown={(e) => e.preventDefault()}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        const compareDate = editForm.startsAt || minDateTime;
+                        if (val && new Date(val) < new Date(compareDate)) return;
+                        setEditForm({...editForm, expiresAt: e.target.value});
+                      }}
+                      className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:border-brand-default transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div className="p-4 bg-amber-50 rounded-xl border border-amber-100 flex gap-3 items-start">
+                  <AlertCircle size={16} className="text-amber-600 mt-0.5" />
+                  <p className="text-[10px] font-bold text-amber-800 leading-normal uppercase">
+                    Warning: Modifying lifecycle parameters may disrupt active telemetry streams. Verify sync status before execution.
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-6 bg-slate-50 border-t border-slate-100 flex gap-3">
+                <button 
+                  onClick={() => setModal({ isOpen: false, type: '', form: null })}
+                  className="flex-1 h-12 bg-white border border-slate-200 rounded-xl text-[11px] font-black text-slate-400 uppercase tracking-widest hover:bg-slate-50 transition-all"
+                >
+                  Terminate Request
+                </button>
+                <button 
+                  onClick={handleUpdateForm}
+                  className="flex-1 h-12 bg-slate-900 text-white rounded-xl text-[11px] font-black uppercase tracking-[0.2em] shadow-xl shadow-slate-900/20 hover:bg-brand-default transition-all flex items-center justify-center gap-2 group"
+                >
+                  <Save size={16} className="group-hover:scale-110 transition-transform" />
+                  Commit Changes
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

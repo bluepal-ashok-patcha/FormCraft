@@ -13,7 +13,6 @@ public class FormMapper {
                 .name(request.getName())
                 .slug(null) // Added based on the provided snippet
                 .schema(request.getSchema())
-                .active(true) // Added based on the provided snippet
                 .startsAt(request.getStartsAt()) // Added based on the provided snippet
                 .expiresAt(request.getExpiresAt()) // Added based on the provided snippet
                 .build();
@@ -25,7 +24,7 @@ public class FormMapper {
                 .name(entity.getName())
                 .slug(entity.getSlug())
                 .schema(entity.getSchema())
-                .active(entity.isActive())
+                .status(entity.getStatus())
                 .startsAt(entity.getStartsAt()) // Added based on the provided snippet
                 .expiresAt(entity.getExpiresAt())
                 .createdAt(entity.getCreatedAt())
