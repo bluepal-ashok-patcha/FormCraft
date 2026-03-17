@@ -15,6 +15,7 @@ public class FormMapper {
                 .schema(request.getSchema())
                 .startsAt(request.getStartsAt()) // Added based on the provided snippet
                 .expiresAt(request.getExpiresAt()) // Added based on the provided snippet
+                .bannerUrl(request.getBannerUrl())
                 .build();
     }
 
@@ -29,6 +30,7 @@ public class FormMapper {
                 .expiresAt(entity.getExpiresAt())
                 .createdAt(entity.getCreatedAt())
                 .responseCount(0) // Default to 0, service can populate
+                .bannerUrl(entity.getBannerUrl())
                 .build();
     }
 }

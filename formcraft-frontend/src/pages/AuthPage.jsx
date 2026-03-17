@@ -433,7 +433,7 @@ const ErrorMessage = ({ error }) => (
         exit={{ opacity: 0, y: -10 }}
         className={`mb-6 p-4 rounded-xl flex items-center gap-3 text-[11px] font-semibold uppercase tracking-wider border ${error.startsWith('success:')
             ? 'bg-emerald-50 border-emerald-100 text-emerald-700'
-            : 'bg-rose-50 border-rose-100 text-rose-700'
+            : 'bg-red-50 border-red-100 text-red-700'
           }`}
       >
         {error.startsWith('success:') ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}

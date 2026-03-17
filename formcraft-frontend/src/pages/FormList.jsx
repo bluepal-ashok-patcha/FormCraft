@@ -25,15 +25,172 @@ import {
   LayoutGrid,
   List,
   MoreVertical,
-  ExternalLink
+  ExternalLink,
+  Palette
 } from 'lucide-react';
 import api from '../services/api';
 import { toast } from 'react-toastify';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { useSidebar } from '../context/SidebarContext';
+
+import FormPreview from '../components/FormPreview';
+
+/* ── Professional Technical Registry Card — Focal Reveal Effect ── */
+const FormCard = ({ form, idx, isLive, isOffline, onNavigateResponses, activeMenuId, setActiveMenuId, onOpenForm, onEditForm, onToggleStatus, onCopyLink, onDeleteForm }) => {
+  const [hovered, setHovered] = useState(false);
+
+  const statusConfig = isLive
+    ? { color: 'bg-emerald-500', text: 'Live', light: 'bg-emerald-50', border: 'border-emerald-100', textCol: 'text-emerald-700' }
+    : isOffline
+      ? { color: 'bg-red-600', text: 'Offline', light: 'bg-red-50', border: 'border-red-100', textCol: 'text-red-700' }
+      : { color: 'bg-amber-500', text: 'Scheduled', light: 'bg-amber-50', border: 'border-amber-100', textCol: 'text-amber-700' };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.98 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ delay: idx * 0.05 }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className="relative group bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl hover:border-brand-default/40 h-[480px] flex flex-col overflow-hidden transition-all duration-300"
+    >
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Header: Identity & Status */}
+        <div className={`p-5 flex items-start justify-between border-b border-slate-50 bg-slate-50/30 transition-all duration-500 ${hovered ? 'bg-white' : ''}`}>
+          <div className="space-y-1 truncate">
+            <h3 className="text-base font-bold text-slate-900 truncate uppercase tracking-tight">
+              {form.name}
+            </h3>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-semibold text-slate-400 font-mono tracking-wider uppercase">
+                ID: {form.slug}
+              </span>
+              <div className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-widest ${statusConfig.light} ${statusConfig.textCol} border ${statusConfig.border}`}>
+                {statusConfig.text}
+              </div>
+            </div>
+          </div>
+          <div className="relative">
+            <button
+              onClick={(e) => { e.stopPropagation(); setActiveMenuId(activeMenuId === form.id ? null : form.id); }}
+              className="p-2 text-slate-400 hover:text-slate-900 hover:bg-white rounded-xl border border-transparent hover:border-slate-200 transition-all"
+            >
+              <MoreVertical size={18} />
+            </button>
+            <AnimatePresence>
+              {activeMenuId === form.id && (
+                <>
+                  <div className="fixed inset-0 z-20" onClick={() => setActiveMenuId(null)} />
+                  <motion.div
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    className="absolute right-0 top-full mt-2 w-48 bg-white border border-slate-200 rounded-xl shadow-2xl z-30 py-2 overflow-hidden"
+                  >
+                    {[
+                      { label: 'Analyze Data', icon: BarChart2, onClick: () => onNavigateResponses(form.id) },
+                      { label: 'Edit Form', icon: Edit, onClick: () => onEditForm(form) },
+                      { label: 'Preview', icon: Eye, onClick: () => onOpenForm(form.slug) },
+                      { label: 'Copy Link', icon: Share2, onClick: () => onCopyLink(form.slug, form.id) },
+                      { label: isLive ? 'Take Offline' : 'Go Live', icon: Power, onClick: () => onToggleStatus(form.id), danger: isLive },
+                      { label: 'Delete Form', icon: Trash2, onClick: () => onDeleteForm(form), danger: true }
+                    ].map((item, i) => (
+                      <button
+                        key={i}
+                        onClick={(e) => { e.stopPropagation(); item.onClick(); setActiveMenuId(null); }}
+                        className={`w-full px-4 py-2 text-left flex items-center gap-3 text-[10px] font-bold uppercase tracking-widest transition-colors ${item.danger ? 'text-red-600 hover:bg-red-50' : 'text-slate-600 hover:bg-slate-50'}`}
+                      >
+                        <item.icon size={14} />
+                        {item.label}
+                      </button>
+                    ))}
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+
+        {/* 📟 Focal Viewport: The Miniature Form */}
+        <div
+          className="relative bg-slate-50 border-b border-slate-100 overflow-hidden transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)]"
+          style={{ height: hovered ? '320px' : '180px' }}
+        >
+          <div className={`w-full h-full transition-transform duration-1000 ${hovered ? 'scale-105' : 'scale-100'}`}>
+            <FormPreview
+              fields={form.schema?.fields || []}
+              name={form.name}
+              bannerUrl={form.bannerUrl}
+            />
+          </div>
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-900/5 to-transparent pointer-events-none" />
+        </div>
+
+        {/* 📊 Data & Interaction Section */}
+        <div className={`flex-1 flex flex-col justify-between transition-all duration-500 ${hovered ? 'p-4' : 'p-5'}`}>
+          <div className={`transition-all duration-500 ${hovered ? 'opacity-0 -translate-y-4 h-0 overflow-hidden' : 'opacity-100'}`}>
+            <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+              <div className="space-y-1">
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Captured Yield</p>
+                <div className="flex items-center gap-2">
+                  <h4 className="text-2xl font-black text-slate-900 leading-none">{form.responseCount || 0}</h4>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase">Reports</span>
+                </div>
+              </div>
+
+              <div className="row-span-2 flex flex-col justify-center space-y-4 border-l border-slate-100 pl-6">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 text-brand-default">
+                    <Clock size={12} />
+                    <p className="text-[9px] font-bold uppercase tracking-widest">Initialization</p>
+                  </div>
+                  <p className="text-[11px] font-bold text-slate-700 truncate">
+                    {form.startsAt ? new Date(form.startsAt).toLocaleString('en-US', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Immediate Start'}
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 text-slate-400">
+                    <Calendar size={12} />
+                    <p className="text-[9px] font-bold uppercase tracking-widest">Termination</p>
+                  </div>
+                  <p className="text-[11px] font-bold text-slate-700 truncate">
+                    {form.expiresAt ? new Date(form.expiresAt).toLocaleString('en-US', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Infinite Lifecycle'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Logic Blocks</p>
+                <div className="flex items-center gap-2">
+                  <h4 className="text-xl font-bold text-slate-800 leading-none">{form.schema?.fields?.length || 0}</h4>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase">Elements</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className={`mt-auto flex items-center justify-between transition-all duration-500 ${hovered ? 'pt-0 border-none' : 'pt-5 border-t border-slate-50'}`}>
+            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+              Record: {new Date(form.createdAt).toLocaleDateString()}
+            </p>
+            <button
+              onClick={() => onNavigateResponses(form.id)}
+              className="flex items-center gap-2 text-brand-default hover:text-brand-700 transition-all group/btn"
+            >
+              <span className="text-[10px] font-extrabold uppercase tracking-widest">Open Analytics</span>
+              <ArrowRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
 
 const FormList = () => {
   const navigate = useNavigate();
+  const { sidebarCollapsed } = useSidebar();
   const [forms, setForms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -48,7 +205,7 @@ const FormList = () => {
   const pageSize = 6;
 
   const [modal, setModal] = useState({ isOpen: false, type: '', form: null });
-  const [editForm, setEditForm] = useState({ name: '', startsAt: '', expiresAt: '' });
+  const [editForm, setEditForm] = useState({ name: '', startsAt: '', expiresAt: '', bannerUrl: '' });
   const [copiedId, setCopiedId] = useState(null);
 
   const [stats, setStats] = useState({ totalForms: 0, activeForms: 0, totalResponses: 0 });
@@ -118,16 +275,20 @@ const FormList = () => {
     }
   };
 
-  const handleDeleteForm = async (id) => {
-    if (window.confirm("CRITICAL ACTION: Deleting this form will permanently remove all associated responses from the database. Portions of history will be lost. Proceed?")) {
-      try {
-        await api.delete(`/forms/${id}`);
-        toast.success('Asset Purged: Form and history have been removed.');
-        fetchForms();
-      } catch (err) {
-        console.error('Deletion failure:', err);
-        toast.error('Purge Failed: System could not remove the asset.');
-      }
+  const handleDeleteForm = (form) => {
+    setModal({ isOpen: true, type: 'delete', form });
+  };
+
+  const executeDelete = async () => {
+    const id = modal.form.id;
+    try {
+      await api.delete(`/forms/${id}`);
+      toast.success('Asset Purged: Form and history have been removed.');
+      setModal({ isOpen: false, type: '', form: null });
+      fetchForms();
+    } catch (err) {
+      console.error('Deletion failure:', err);
+      toast.error('Purge Failed: System could not remove the asset.');
     }
   };
 
@@ -136,7 +297,8 @@ const FormList = () => {
     setEditForm({
       name: form.name,
       startsAt: form.startsAt ? form.startsAt.split('.')[0] : '',
-      expiresAt: form.expiresAt ? form.expiresAt.split('.')[0] : ''
+      expiresAt: form.expiresAt ? form.expiresAt.split('.')[0] : '',
+      bannerUrl: form.bannerUrl || ''
     });
   };
 
@@ -150,7 +312,8 @@ const FormList = () => {
         ...modal.form,
         name: editForm.name,
         startsAt: editForm.startsAt || null,
-        expiresAt: editForm.expiresAt || null
+        expiresAt: editForm.expiresAt || null,
+        bannerUrl: editForm.bannerUrl || null
       });
       toast.success('Asset Updated: Form parameters synchronized.');
       setModal({ isOpen: false, type: '', form: null });
@@ -158,6 +321,27 @@ const FormList = () => {
     } catch (err) {
       console.error('Update failure:', err);
       toast.error('Update Interrupted: Synchronization failed.');
+    }
+  };
+
+  const handleBannerUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await api.post('/images/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      const url = response.url || response.data?.url;
+      setEditForm(prev => ({ ...prev, bannerUrl: url }));
+      toast.success('Asset Synchronized: Banner uploaded successfully.');
+    } catch (err) {
+      toast.error('Uplink Failed: Could not transmit asset to cloud registry.');
     }
   };
 
@@ -212,6 +396,18 @@ const FormList = () => {
               <Plus size={14} />
               Register New Form
             </button>
+            {/* The following buttons seem to be misplaced from a FormBuilder component's tab navigation */}
+            {/* I'm commenting them out as they don't fit the context of FormList's header */}
+            {/* <Clock size={14} />
+            <span>Schedule</span>
+            </button>
+            <button
+                onClick={() => setActiveTab('theme')}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition-all ${activeTab === 'theme' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+            >
+                <Palette size={14} />
+                <span>Appearance</span>
+            </button> */}
           </div>
         </div>
       </motion.div>
@@ -305,7 +501,7 @@ const FormList = () => {
 
           <button
             onClick={clearFilters}
-            className="p-2.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
+            className="p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
             title="Clear All Filters"
           >
             <X size={18} />
@@ -319,7 +515,7 @@ const FormList = () => {
           { label: 'Total Registry', value: stats.totalForms || totalElements, icon: FileText, color: 'blue' },
           { label: 'Active Assets', value: stats.activeForms || 0, icon: Power, color: 'emerald' },
           { label: 'Form Responses', value: stats.totalResponses || 0, icon: BarChart2, color: 'orange' },
-          { label: 'Success Rate', value: '100%', icon: Check, color: 'purple' }
+          { label: 'Offline Assets', value: (stats.totalForms || 0) - (stats.activeForms || 0), icon: X, color: 'rose' }
         ].map((stat, i) => (
           <motion.div
             key={stat.label}
@@ -348,168 +544,29 @@ const FormList = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+              className={`grid grid-cols-1 md:grid-cols-2 gap-4 ${
+                !sidebarCollapsed 
+                  ? 'lg:grid-cols-3' 
+                  : 'lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5'
+              }`}
             >
-              {forms.map((form, idx) => {
-                const status = form.status || 'INACTIVE';
-                const isLive = status === 'ACTIVE';
-                const isOffline = status === 'INACTIVE';
-
-                return (
-                  <motion.div
-                    layout
-                    initial={{ opacity: 0, scale: 0.98 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.98 }}
-                    transition={{ delay: idx * 0.05 }}
-                    key={form.id}
-                    className={`group bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-xl hover:border-brand-default/30 transition-all duration-500 flex flex-col h-full overflow-hidden relative ${!isLive ? 'opacity-90' : ''}`}
-                  >
-                    {/* 🛰️ PREMIUM CARD HEADER */}
-                    <div className="p-5 pb-1">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="p-2.5 rounded-xl transition-all duration-500 bg-brand-50 text-brand-default">
-                          <FileText size={18} />
-                        </div>
-                        
-                        <div className={`px-2 py-0.5 rounded-md text-[7px] font-semibold uppercase tracking-[0.2em] flex items-center gap-1.5 border shadow-sm ${isLive ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
-                            isOffline ? 'bg-rose-50 text-rose-600 border-rose-100' :
-                              'bg-blue-50 text-blue-600 border-blue-100'
-                          }`}>
-                          <div className={`w-1 h-1 rounded-full ${isLive ? 'bg-emerald-500 animate-pulse' : isOffline ? 'bg-rose-500' : 'bg-blue-500'}`} />
-                          {isLive ? 'Live' : isOffline ? 'Offline' : 'Scheduled'}
-                        </div>
-                      </div>
-
-                      <div className="mb-3">
-                        <h3 className="text-base font-semibold text-slate-800 uppercase tracking-tight mb-0.5 group-hover:text-brand-default transition-colors">{form.name}</h3>
-                        <div className="flex items-center gap-2">
-                          <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest flex items-center gap-1">
-                            <History size={10} className="text-brand-default/40" />
-                            Ref: {form.slug}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* 📊 TELEMETRY MODULE */}
-                      <div className="flex flex-col gap-2.5 mb-4">
-                        <div className="flex items-center justify-between p-3 bg-slate-50/50 rounded-xl border border-slate-100 group-hover:bg-white group-hover:border-brand-default/10 transition-all duration-500 shadow-sm">
-                          <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 bg-white rounded-lg border border-slate-100 flex items-center justify-center text-brand-default shadow-sm group-hover:scale-110 transition-transform">
-                              <BarChart2 size={14} />
-                            </div>
-                            <div>
-                               <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest mb-0.5">Total Submissions</p>
-                               <p className="text-xl font-bold text-slate-900 leading-none">{form.responseCount || 0}</p>
-                            </div>
-                          </div>
-                          <div className="w-1 h-6 bg-slate-100 rounded-full" />
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-2.5">
-                          <div className="p-2.5 bg-slate-50/30 rounded-xl border border-slate-100/50 group-hover:bg-white transition-all">
-                            <div className="flex items-center gap-1.5 mb-1.5">
-                               <Clock size={10} className="text-brand-default/40" />
-                               <p className="text-[8px] font-semibold text-slate-400 uppercase tracking-widest">Launch</p>
-                            </div>
-                            <p className="text-[9px] font-semibold text-slate-700 uppercase tracking-tighter leading-tight">
-                              {form.startsAt ? new Date(form.startsAt).toLocaleString('en-US', { day: '2-digit', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true }) : 'Immediate'}
-                            </p>
-                          </div>
-                          <div className="p-2.5 bg-slate-50/30 rounded-xl border border-slate-100/50 group-hover:bg-white transition-all">
-                            <div className="flex items-center gap-1.5 mb-1.5">
-                               <Calendar size={10} className="text-brand-default/40" />
-                               <p className="text-[8px] font-semibold text-slate-400 uppercase tracking-widest">Expiration</p>
-                            </div>
-                            <p className="text-[9px] font-semibold text-slate-700 uppercase tracking-tighter leading-tight">
-                              {form.expiresAt ? new Date(form.expiresAt).toLocaleString('en-US', { day: '2-digit', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true }) : 'Eternal'}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* CONTROL PANEL FOOTER */}
-                    <div className="mt-auto px-5 py-3 bg-slate-50/50 border-t border-slate-50 flex items-center justify-between">
-                      <button
-                        onClick={() => navigate(`/forms/${form.id}/responses`)}
-                        className="px-3 py-1.5 bg-brand-50 text-brand-default border border-brand-100/50 rounded-lg flex items-center gap-1.5 transition-all group/btn hover:bg-brand-default hover:text-white"
-                      >
-                        <span className="text-[11px] font-semibold uppercase tracking-widest">View Responses</span>
-                        <ArrowRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
-                      </button>
-
-                      <div className="flex items-center gap-1">
-                        <div className="relative">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setActiveMenuId(activeMenuId === form.id ? null : form.id);
-                            }}
-                            className={`p-1.5 rounded-lg transition-all ${activeMenuId === form.id ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-brand-default hover:bg-white'}`}
-                          >
-                            <MoreVertical size={14} />
-                          </button>
-
-                          <AnimatePresence>
-                            {activeMenuId === form.id && (
-                              <>
-                                <div 
-                                  className="fixed inset-0 z-20" 
-                                  onClick={() => setActiveMenuId(null)} 
-                                />
-                                <motion.div
-                                  initial={{ opacity: 0, scale: 0.95, y: -10 }}
-                                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                                  exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                                  className="absolute right-0 bottom-full mb-2 w-48 bg-white border border-slate-100 rounded-xl shadow-2xl z-30 py-2"
-                                >
-                                  <button
-                                    onClick={() => { window.open(`/f/${form.slug}`, '_blank'); setActiveMenuId(null); }}
-                                    className="w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-slate-50 transition-colors"
-                                  >
-                                    <Eye size={14} className="text-slate-400" />
-                                    <span className="text-[10px] font-semibold text-slate-600 uppercase tracking-widest">Open Form</span>
-                                  </button>
-                                  <button
-                                    onClick={() => { openEditModal(form); setActiveMenuId(null); }}
-                                    className="w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-slate-50 transition-colors"
-                                  >
-                                    <Edit size={14} className="text-blue-500" />
-                                    <span className="text-[10px] font-semibold text-slate-600 uppercase tracking-widest">Edit Form</span>
-                                  </button>
-                                  <button
-                                    onClick={() => { handleToggleStatus(form.id); setActiveMenuId(null); }}
-                                    className="w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-slate-50 transition-colors"
-                                  >
-                                    <Power size={14} className={isLive ? 'text-emerald-500' : 'text-slate-400'} />
-                                    <span className="text-[10px] font-semibold text-slate-600 uppercase tracking-widest">{isLive ? 'Deactivate' : 'Activate'}</span>
-                                  </button>
-                                  <button
-                                    onClick={() => { handleCopyLink(form.slug, form.id); setActiveMenuId(null); }}
-                                    className="w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-slate-50 transition-colors"
-                                  >
-                                    <Share2 size={14} className="text-amber-500" />
-                                    <span className="text-[10px] font-semibold text-slate-600 uppercase tracking-widest">Copy Link</span>
-                                  </button>
-                                  <div className="h-px bg-slate-50 my-1" />
-                                  <button
-                                    onClick={() => { handleDeleteForm(form.id); setActiveMenuId(null); }}
-                                    className="w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-rose-50 transition-colors group"
-                                  >
-                                    <Trash2 size={14} className="text-rose-500" />
-                                    <span className="text-[10px] font-semibold text-rose-500 uppercase tracking-widest">Delete Form</span>
-                                  </button>
-                                </motion.div>
-                              </>
-                            )}
-                          </AnimatePresence>
-                        </div>
-                      </div>
-                    </div>
-                  </motion.div>
-                );
-              })}
+              {forms.map((form, idx) => (
+                <FormCard
+                  key={form.id}
+                  form={form}
+                  idx={idx}
+                  isLive={form.status === 'ACTIVE'}
+                  isOffline={form.status === 'INACTIVE'}
+                  onNavigateResponses={(id) => navigate(`/forms/${id}/responses`)}
+                  activeMenuId={activeMenuId}
+                  setActiveMenuId={setActiveMenuId}
+                  onOpenForm={(slug) => window.open(`/f/${slug}`, '_blank')}
+                  onEditForm={openEditModal}
+                  onToggleStatus={handleToggleStatus}
+                  onCopyLink={handleCopyLink}
+                  onDeleteForm={handleDeleteForm}
+                />
+              ))}
             </motion.div>
           ) : (
             <motion.div
@@ -539,10 +596,10 @@ const FormList = () => {
                       <tr key={form.id} className="group hover:bg-slate-50/50 transition-colors">
                         <td className="px-6 py-4">
                           <div className={`w-fit px-2 py-1 rounded-md text-[9px] font-semibold uppercase tracking-[0.2em] flex items-center gap-1.5 border shadow-sm ${isLive ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
-                              isOffline ? 'bg-rose-50 text-rose-600 border-rose-100' :
-                                'bg-blue-50 text-blue-600 border-blue-100'
+                            isOffline ? 'bg-red-50 text-red-600 border-red-100' :
+                              'bg-blue-50 text-blue-600 border-blue-100'
                             }`}>
-                            <div className={`w-1 h-1 rounded-full ${isLive ? 'bg-emerald-500 animate-pulse' : isOffline ? 'bg-rose-500' : 'bg-blue-500'}`} />
+                            <div className={`w-1 h-1 rounded-full ${isLive ? 'bg-emerald-500 animate-pulse' : isOffline ? 'bg-red-600' : 'bg-blue-500'}`} />
                             {isLive ? 'Live' : isOffline ? 'Offline' : 'Scheduled'}
                           </div>
                         </td>
@@ -554,25 +611,25 @@ const FormList = () => {
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
-                             <BarChart2 size={12} className="text-brand-default" />
-                             <span className="text-sm font-semibold text-slate-900">{form.responseCount || 0}</span>
-                             <span className="text-[9px] font-medium text-slate-400 uppercase tracking-widest">Responses</span>
+                            <BarChart2 size={12} className="text-brand-default" />
+                            <span className="text-sm font-semibold text-slate-900">{form.responseCount || 0}</span>
+                            <span className="text-[9px] font-medium text-slate-400 uppercase tracking-widest">Responses</span>
                           </div>
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-4">
                             <div>
-                               <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Launch</p>
-                               <p className="text-[11px] font-semibold text-slate-700 uppercase tracking-tighter">
-                                 {form.startsAt ? new Date(form.startsAt).toLocaleString('en-US', { day: '2-digit', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true }) : 'Immediate'}
-                               </p>
+                              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Launch</p>
+                              <p className="text-[11px] font-semibold text-slate-700 uppercase tracking-tighter">
+                                {form.startsAt ? new Date(form.startsAt).toLocaleString('en-US', { day: '2-digit', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true }) : 'Immediate'}
+                              </p>
                             </div>
                             <div className="w-px h-6 bg-slate-100" />
                             <div>
-                               <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Expiry</p>
-                               <p className="text-[11px] font-semibold text-slate-700 uppercase tracking-tighter">
-                                 {form.expiresAt ? new Date(form.expiresAt).toLocaleString('en-US', { day: '2-digit', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true }) : 'Eternal'}
-                               </p>
+                              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Expiry</p>
+                              <p className="text-[11px] font-semibold text-slate-700 uppercase tracking-tighter">
+                                {form.expiresAt ? new Date(form.expiresAt).toLocaleString('en-US', { day: '2-digit', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true }) : 'Eternal'}
+                              </p>
                             </div>
                           </div>
                         </td>
@@ -584,7 +641,7 @@ const FormList = () => {
                             >
                               View Responses
                             </button>
-                            
+
                             <div className="relative">
                               <button
                                 onClick={(e) => {
@@ -599,9 +656,9 @@ const FormList = () => {
                               <AnimatePresence>
                                 {activeMenuId === form.id && (
                                   <>
-                                    <div 
-                                      className="fixed inset-0 z-20" 
-                                      onClick={() => setActiveMenuId(null)} 
+                                    <div
+                                      className="fixed inset-0 z-20"
+                                      onClick={() => setActiveMenuId(null)}
                                     />
                                     <motion.div
                                       initial={{ opacity: 0, scale: 0.95, y: -10 }}
@@ -639,11 +696,11 @@ const FormList = () => {
                                       </button>
                                       <div className="h-px bg-slate-50 my-1" />
                                       <button
-                                        onClick={() => { handleDeleteForm(form.id); setActiveMenuId(null); }}
-                                        className="w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-rose-50 transition-colors group"
+                                        onClick={() => { handleDeleteForm(form); setActiveMenuId(null); }}
+                                        className="w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-red-50 transition-colors group"
                                       >
-                                        <Trash2 size={14} className="text-rose-500" />
-                                        <span className="text-[11px] font-semibold text-rose-500 uppercase tracking-widest">Delete Form</span>
+                                        <Trash2 size={14} className="text-red-500" />
+                                        <span className="text-[11px] font-semibold text-red-500 uppercase tracking-widest">Delete Form</span>
                                       </button>
                                     </motion.div>
                                   </>
@@ -729,32 +786,70 @@ const FormList = () => {
                   <div className="w-10 h-10 bg-brand-default rounded-xl flex items-center justify-center text-white shadow-lg shadow-brand-default/20">
                     <History size={20} />
                   </div>
-                   <div>
+                  <div>
                     <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-widest leading-none">Recalibrate Asset</h3>
                     <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mt-1">Lifecycle Management Protocol</p>
                   </div>
                 </div>
                 <button
                   onClick={() => setModal({ isOpen: false, type: '', form: null })}
-                  className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-white hover:text-rose-500 transition-all"
+                  className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-white hover:text-red-600 transition-all"
                 >
                   <X size={20} />
                 </button>
               </div>
 
               <div className="p-8 space-y-6">
-                 <div>
+                <div>
                   <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-2 block">Asset Designation</label>
                   <input
                     type="text"
                     value={editForm.name}
                     onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
                     className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:outline-none focus:border-brand-default transition-all"
-                    placeholder="Enter designation name..."
                   />
                 </div>
 
-                 <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-3">
+                  <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1 block">Form Banner Image</label>
+                  <div className="relative group aspect-[21/9] rounded-xl overflow-hidden bg-slate-50 border-2 border-dashed border-slate-200 hover:border-brand-default transition-all">
+                    {editForm.bannerUrl ? (
+                      <>
+                        <img src={editForm.bannerUrl} alt="Banner" className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                          <label className="p-2 bg-white text-slate-900 rounded-lg cursor-pointer hover:scale-110 transition-transform">
+                            <Edit size={16} />
+                            <input type="file" className="hidden" onChange={handleBannerUpload} accept="image/*" />
+                          </label>
+                          <button
+                            onClick={() => setEditForm(prev => ({ ...prev, bannerUrl: '' }))}
+                            className="p-2 bg-red-600 text-white rounded-lg hover:scale-110 transition-transform"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <label className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer">
+                        <Plus size={24} className="text-slate-300 mb-2" />
+                        <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Upload Banner</span>
+                        <input type="file" className="hidden" onChange={handleBannerUpload} accept="image/*" />
+                      </label>
+                    )}
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest">Banner URL (Advanced)</label>
+                    <input
+                      type="text"
+                      value={editForm.bannerUrl}
+                      onChange={(e) => setEditForm({ ...editForm, bannerUrl: e.target.value })}
+                      className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:border-brand-default transition-all"
+                      placeholder="https://..."
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-2 block">Initialization Date</label>
                     <input
@@ -773,7 +868,7 @@ const FormList = () => {
                       className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:outline-none focus:border-brand-default transition-all"
                     />
                   </div>
-                   <div>
+                  <div>
                     <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-2 block">Expiration Date</label>
                     <input
                       type="datetime-local"
@@ -812,6 +907,69 @@ const FormList = () => {
                 >
                   <Save size={16} className="group-hover:scale-110 transition-transform" />
                   Commit Changes
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* 🗑️ PURGE CONFIRMATION MODAL (DELETE) */}
+        {modal.isOpen && modal.type === 'delete' && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setModal({ isOpen: false, type: '', form: null })}
+              className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-md bg-white rounded-enterprise shadow-2xl overflow-hidden border border-slate-100"
+            >
+              <div className="px-8 py-6 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-red-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-red-500/20">
+                    <Trash2 size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-widest leading-none">Delete Form</h3>
+                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mt-1">Confirm permanent deletion</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setModal({ isOpen: false, type: '', form: null })}
+                  className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-white hover:text-red-500 transition-all"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="p-10 flex flex-col items-center text-center">
+                <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mb-6 text-red-500 shadow-inner">
+                  <AlertCircle size={32} />
+                </div>
+                <h3 className="text-base font-bold text-slate-900 uppercase tracking-[0.15em] mb-3">Are you sure?</h3>
+                <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest leading-loose max-w-xs">
+                  Deleting <span className="text-slate-900 font-black underline decoration-red-200">{modal.form.name}</span> will remove all its data and responses. This action cannot be reversed.
+                </p>
+              </div>
+
+              <div className="p-6 bg-slate-50 border-t border-slate-100 flex gap-3">
+                <button
+                  onClick={() => setModal({ isOpen: false, type: '', form: null })}
+                  className="flex-1 h-12 bg-white border border-slate-200 rounded-xl text-[11px] font-bold text-slate-400 uppercase tracking-widest hover:bg-slate-50 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={executeDelete}
+                  className="flex-1 h-12 bg-red-600 text-white rounded-xl text-[11px] font-bold uppercase tracking-[0.2em] shadow-xl shadow-red-900/20 hover:bg-red-700 transition-all flex items-center justify-center gap-2 group"
+                >
+                  <ShieldCheck size={16} className="group-hover:scale-110 transition-transform" />
+                  Delete
                 </button>
               </div>
             </motion.div>

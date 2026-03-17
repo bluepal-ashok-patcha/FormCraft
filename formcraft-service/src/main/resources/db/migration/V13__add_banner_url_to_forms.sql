@@ -1,0 +1,1 @@
+ALTER TABLE forms ADD COLUMN banner_url VARCHAR(255);

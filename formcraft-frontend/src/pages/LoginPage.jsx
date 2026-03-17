@@ -53,9 +53,9 @@ const LoginPage = () => {
               <motion.div 
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="mb-6 p-4 bg-rose-50 border border-rose-100 text-rose-600 rounded-xl text-sm font-medium flex gap-3 items-center"
+                className="mb-6 p-4 bg-red-50 border border-red-100 text-red-600 rounded-xl text-sm font-medium flex gap-3 items-center"
               >
-                <div className="w-1.5 h-1.5 bg-rose-500 rounded-full animate-pulse" />
+                <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
                 {error}
               </motion.div>
             )}

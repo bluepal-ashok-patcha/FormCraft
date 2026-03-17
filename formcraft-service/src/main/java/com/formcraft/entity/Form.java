@@ -47,4 +47,7 @@ public class Form extends BaseEntity {
 
     @OneToMany(mappedBy = "form", cascade = CascadeType.ALL, orphanRemoval = true)
     private java.util.List<FormResponse> responses;
+
+    @Column(name = "banner_url")
+    private String bannerUrl;
 }

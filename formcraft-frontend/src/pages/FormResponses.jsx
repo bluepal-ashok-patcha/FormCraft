@@ -205,7 +205,7 @@ const FormResponses = () => {
 
         <button 
           onClick={clearFilters}
-          className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
+          className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
           title="Reset Sequence"
         >
           <X size={18} />
@@ -376,7 +376,7 @@ const FormResponses = () => {
                                   setDeleteConfirm({ isOpen: true, id: resp.id });
                                   setActiveMenuId(null);
                                 }}
-                                className="w-full px-4 py-2 text-left text-[11px] font-semibold text-rose-500 hover:bg-rose-50 flex items-center gap-2 uppercase tracking-widest"
+                                className="w-full px-4 py-2 text-left text-[11px] font-semibold text-red-600 hover:bg-red-50 flex items-center gap-2 uppercase tracking-widest"
                               >
                                 <Trash2 size={12} />
                                 Delete
@@ -532,7 +532,7 @@ const FormResponses = () => {
                           </button>
                           <button 
                              onClick={() => setDeleteConfirm({ isOpen: true, id: selectedResponse.id })}
-                             className="btn-danger h-9 px-4 text-[11px] font-semibold flex items-center gap-2 rounded-[4px] bg-white border-rose-200 text-rose-500 hover:bg-rose-50"
+                             className="btn-danger h-9 px-4 text-[11px] font-semibold flex items-center gap-2 rounded-[4px] bg-white border-red-200 text-red-600 hover:bg-red-50"
                           >
                             <Trash2 size={14} />
                             Delete
@@ -591,7 +591,7 @@ const FormResponses = () => {
               exit={{ opacity: 0, scale: 0.95 }}
               className="relative w-full max-w-sm bg-white rounded-[6px] shadow-2xl p-6 border border-slate-100"
             >
-              <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center mb-4">
+              <div className="w-12 h-12 rounded-full bg-red-50 text-red-600 flex items-center justify-center mb-4">
                 <Trash2 size={24} />
               </div>
               <h3 className="text-base font-semibold text-slate-900 uppercase tracking-tight">Erase Submission?</h3>
@@ -611,7 +611,7 @@ const FormResponses = () => {
                       toast.error('Erase Failed: Broadcast failure - unable to delete record.');
                     }
                   }}
-                  className="flex-1 h-10 bg-rose-500 text-white rounded-[4px] text-[11px] font-semibold uppercase tracking-widest hover:bg-rose-600 transition-all shadow-lg shadow-rose-500/20"
+                  className="flex-1 h-10 bg-red-600 text-white rounded-[4px] text-[11px] font-semibold uppercase tracking-widest hover:bg-red-700 transition-all shadow-lg shadow-red-500/20"
                 >
                   Confirm Erase
                 </button>

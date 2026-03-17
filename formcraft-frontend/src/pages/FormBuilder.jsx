@@ -30,7 +30,8 @@ import {
   Copy,
   Link as LinkIcon,
   Sparkles,
-  Layout
+  Layout,
+  Edit
 } from 'lucide-react';
 import { motion, Reorder, AnimatePresence } from 'framer-motion';
 import api from '../services/api';
@@ -53,17 +54,18 @@ const FormBuilder = () => {
   const location = useLocation();
   const [formName, setFormName] = useState('');
   const [fields, setFields] = useState([]);
-  const [selectedField, setSelectedField] = useState(null);
+  const [selectedField, setSelectedField] = useState(null); // id or 'header'
   const [loading, setLoading] = useState(false);
-  const [previewMode, setPreviewMode] = useState(false);
   const [modal, setModal] = useState({ isOpen: false, title: '', message: '', type: 'info' });
   const [nameError, setNameError] = useState(false);
   const [previewResponses, setPreviewResponses] = useState({});
+  const [activeHeader, setActiveHeader] = useState(false);
   
   // Scheduling State
   const [startsAt, setStartsAt] = useState('');
   const [expiresAt, setExpiresAt] = useState('');
-  const [activeTab, setActiveTab] = useState('components'); // components, scheduling
+  const [bannerUrl, setBannerUrl] = useState('');
+  const [activeTab, setActiveTab] = useState('components'); // components, scheduling, theme
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [showGallery, setShowGallery] = useState(false);
   const [showSaveTemplateModal, setShowSaveTemplateModal] = useState(false);
@@ -108,6 +110,7 @@ const FormBuilder = () => {
     };
     setFields([...fields, newField]);
     setSelectedField(newField.id);
+    setActiveHeader(false);
   };
 
   const updateField = (id, updates) => {
@@ -136,7 +139,8 @@ const FormBuilder = () => {
         name: formName,
         schema: { fields },
         startsAt: startsAt || null,
-        expiresAt: expiresAt || null
+        expiresAt: expiresAt || null,
+        bannerUrl: bannerUrl || null
       };
       const response = await api.post('/forms', payload);
       toast.success('Strategy Encoded: Your form has been saved successfully.');
@@ -195,8 +199,13 @@ const FormBuilder = () => {
           'Content-Type': 'multipart/form-data',
         },
       });
-      setTemplateData(prev => ({ ...prev, thumbnailUrl: response.url }));
-      toast.success('Asset Synchronized: Visual profile uploaded to Cloudinary registry.');
+      const url = response.url || response.data?.url;
+      if (showSaveTemplateModal) {
+        setTemplateData(prev => ({ ...prev, thumbnailUrl: url }));
+      } else {
+        setBannerUrl(url);
+      }
+      toast.success('Asset Synchronized: Visual profile uploaded successfully.');
     } catch (err) {
       toast.error('Uplink Failed: Could not transmit asset to cloud registry.');
     } finally {
@@ -214,6 +223,7 @@ const FormBuilder = () => {
     });
     setFields(normalizedFields);
     setFormName(template.name);
+    setBannerUrl(template.thumbnailUrl || '');
     setShowGallery(false);
     toast.success('Registry Synchronized: Architecture deployed from blueprint.');
   };
@@ -225,14 +235,14 @@ const FormBuilder = () => {
       {/* Build Header */}
       <div className="flex items-center justify-between gap-6 mb-6">
         <div className="flex-1 flex items-center gap-4 bg-white p-2 pl-5 rounded-2xl border border-slate-200 shadow-sm">
-            <div className={`p-2.5 rounded-xl transition-all ${nameError ? 'bg-rose-500 text-white' : 'bg-brand-default text-white'}`}>
+            <div className={`p-2.5 rounded-xl transition-all ${nameError ? 'bg-red-600 text-white' : 'bg-brand-default text-white'}`}>
                 <Layers size={20} />
             </div>
             <div className="flex-1 min-w-0">
                 <input 
                     type="text" 
                     placeholder="Enter Form Name..."
-                    className={`bg-transparent border-none outline-none text-xl font-semibold w-full placeholder:text-slate-300 ${nameError ? 'text-rose-500' : 'text-slate-800'}`}
+                    className={`bg-transparent border-none outline-none text-xl font-semibold w-full placeholder:text-slate-300 ${nameError ? 'text-red-600' : 'text-slate-800'}`}
                     value={formName}
                     onChange={(e) => {
                         setFormName(e.target.value);
@@ -240,25 +250,18 @@ const FormBuilder = () => {
                     }}
                 />
                 <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">{previewMode ? 'Preview Mode' : 'Editor Mode'}</span>
+                    <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Strategic Architecture Editor</span>
                 </div>
             </div>
             <div className="flex items-center gap-2 pr-2">
                 <button 
                     onClick={() => setShowGallery(true)}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold text-brand-default hover:bg-brand-50 transition-all"
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold text-brand-default hover:bg-brand-50 transition-all border border-transparent hover:border-brand-100"
                 >
                     <Sparkles size={14} />
-                    <span>Asset Library</span>
+                    <span>Blueprints</span>
                 </button>
                 <div className="w-px h-6 bg-slate-100 mx-1" />
-                <button 
-                    onClick={() => setPreviewMode(!previewMode)}
-                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all ${previewMode ? 'bg-brand-default text-white shadow-lg shadow-brand-500/20' : 'text-slate-500 hover:bg-slate-50'}`}
-                >
-                    {previewMode ? <Code size={14} /> : <Eye size={14} />}
-                    <span>{previewMode ? 'Edit Mode' : 'Preview'}</span>
-                </button>
                 <button 
                     onClick={() => setShowSaveTemplateModal(true)}
                     disabled={fields.length === 0}
@@ -279,10 +282,9 @@ const FormBuilder = () => {
         </div>
       </div>
 
-      <div className="flex-1 flex gap-6 overflow-hidden">
+      <div className="flex-1 flex gap-0 overflow-hidden bg-[#F0EBF8] rounded-3xl border border-slate-200">
         {/* Left Sidebar */}
-        {!previewMode && (
-          <aside className="w-80 flex flex-col gap-6 overflow-hidden">
+        <aside className="w-80 flex flex-col gap-6 overflow-hidden bg-white border-r border-slate-200 p-6 z-20 shadow-xl">
             <div className="flex bg-white p-1 rounded-xl border border-slate-200">
                 <button 
                     onClick={() => setActiveTab('components')}
@@ -297,6 +299,13 @@ const FormBuilder = () => {
                 >
                     <Clock size={14} />
                     <span>Schedule</span>
+                </button>
+                <button 
+                    onClick={() => setActiveTab('theme')}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition-all ${activeTab === 'theme' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                >
+                    <Palette size={14} />
+                    <span>Appearance</span>
                 </button>
             </div>
 
@@ -328,7 +337,7 @@ const FormBuilder = () => {
                                 </button>
                             ))}
                         </motion.div>
-                    ) : (
+                    ) : activeTab === 'scheduling' ? (
                         <motion.div 
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
@@ -376,14 +385,56 @@ const FormBuilder = () => {
                                 </div>
                             </div>
                         </motion.div>
+                    ) : (
+                        <motion.div 
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            className="space-y-6 bg-white p-6 rounded-2xl border border-slate-200"
+                        >
+                            <h4 className="text-xs font-semibold text-slate-900 uppercase tracking-widest flex items-center gap-2 mb-4">
+                                <Palette size={14} className="text-brand-default" />
+                                Form Theme
+                            </h4>
+                            <div className="space-y-6">
+                                <div className="space-y-3">
+                                    <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider pl-1">Banner Image</label>
+                                    <div className="space-y-4">
+                                        <div className="relative group aspect-[3/1] rounded-xl overflow-hidden bg-slate-50 border-2 border-dashed border-slate-200 hover:border-brand-default transition-all">
+                                            {bannerUrl ? (
+                                                <>
+                                                    <img src={bannerUrl} alt="Banner" className="w-full h-full object-cover" />
+                                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                                        <label className="p-2 bg-white text-slate-900 rounded-lg cursor-pointer hover:scale-110 transition-transform">
+                                                            <Edit size={16} />
+                                                            <input type="file" className="hidden" onChange={handleImageUpload} accept="image/*" />
+                                                        </label>
+                                                        <button 
+                                                            onClick={() => setBannerUrl('')}
+                                                            className="p-2 bg-red-600 text-white rounded-lg hover:scale-110 transition-transform"
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <label className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer">
+                                                    <Plus size={24} className="text-slate-300 mb-2" />
+                                                    <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Upload Banner</span>
+                                                    <input type="file" className="hidden" onChange={handleImageUpload} accept="image/*" />
+                                                </label>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </motion.div>
                     )}
                 </AnimatePresence>
             </div>
           </aside>
-        )}
 
-        {/* Work Area */}
-        <main 
+          <main 
             onDragOver={(e) => {
                 e.preventDefault();
                 setIsDraggingOver(true);
@@ -396,253 +447,302 @@ const FormBuilder = () => {
                 const fieldType = e.dataTransfer.getData('fieldType');
                 if (fieldType) addField(fieldType);
             }}
-            className={`flex-1 bg-white rounded-enterprise border-2 shadow-sm p-8 overflow-y-auto relative transition-all duration-200 ${
-                previewMode ? 'max-w-3xl mx-auto' : ''
-            } ${isDraggingOver ? 'border-dashed border-brand-default bg-brand-50/20 ring-4 ring-brand-500/5' : 'border-slate-200'}`}
-        >
-            {fields.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-center opacity-40">
-                    <MousePointer2 className="text-slate-300 mb-4" size={48} />
-                    <p className="text-sm font-semibold text-slate-400 mb-6">Drag or click a field on the left to start building.</p>
-                    <button 
-                        onClick={() => setShowGallery(true)}
-                        className="flex items-center gap-2 px-6 py-3 bg-brand-default text-white rounded-xl text-[10px] font-semibold uppercase tracking-widest shadow-lg shadow-brand-500/20 hover:scale-105 transition-all"
-                    >
-                        <Sparkles size={14} />
-                        Initialize from Blueprint
-                    </button>
-                </div>
-            ) : (
-                <div className="max-w-xl mx-auto py-4">
-                  {!previewMode ? (
-                    <Reorder.Group axis="y" values={fields} onReorder={setFields} className="space-y-4">
-                      {fields.map((field, idx) => {
-                        const Icon = FIELD_TYPES.find(t => t.type === field.type)?.icon;
-                        return (
-                          <Reorder.Item 
-                            key={field.id} 
-                            value={field}
-                            className={`group bg-white rounded-2xl border-2 transition-all p-6 cursor-move ${
-                              selectedField === field.id ? 'border-brand-default ring-4 ring-brand-500/5' : 'border-slate-50 hover:border-slate-200'
-                            }`}
-                            onClick={() => setSelectedField(field.id)}
-                          >
-                            <div className="flex items-start justify-between">
-                              <div className="flex items-center gap-3">
-                                <div className={`p-2 rounded-lg ${selectedField === field.id ? 'bg-brand-default text-white' : 'bg-slate-100 text-slate-400'}`}>
-                                  {Icon && <Icon size={16} />}
-                                </div>
-                                <div>
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Field {idx + 1}</span>
-                                    {field.required && <span className="text-rose-500 text-sm">*</span>}
-                                  </div>
-                                  <h4 className="text-sm font-semibold text-slate-800">{field.label}</h4>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                                <GripVertical size={16} className="text-slate-300" />
-                                <button 
-                                  onClick={(e) => { e.stopPropagation(); removeField(field.id); }}
-                                  className="p-1.5 text-slate-300 hover:text-rose-500 transition-all"
-                                >
-                                  <X size={18} />
-                                </button>
-                              </div>
-                            </div>
-                          </Reorder.Item>
-                        );
-                      })}
-                    </Reorder.Group>
-                  ) : (
-                    <div className="space-y-8">
-                      <div className="border-b border-slate-100 pb-6">
-                        <h2 className="text-2xl font-semibold text-slate-800">{formName || 'Untitled Form'}</h2>
-                        <p className="text-slate-500 text-sm mt-1">Form Preview Mode</p>
-                      </div>
-                      <div className="space-y-6">
-                        {fields.map((field) => (
-                          <div key={field.id} className="space-y-2">
-                            <label className="block text-sm font-semibold text-slate-700">
-                              {field.label}
-                              {field.required && <span className="text-rose-500 ml-1">*</span>}
-                            </label>
-                            {field.type === 'textarea' ? (
-                              <textarea 
-                                className="input-field min-h-[100px]" 
-                                placeholder={field.placeholder} 
-                                value={previewResponses[field.id] || ''}
-                                onChange={(e) => setPreviewResponses({...previewResponses, [field.id]: e.target.value})}
-                              />
-                            ) : field.type === 'dropdown' ? (
-                              <select 
-                                className="input-field bg-slate-50"
-                                value={previewResponses[field.id] || ''}
-                                onChange={(e) => setPreviewResponses({...previewResponses, [field.id]: e.target.value})}
-                              >
-                                <option value="">{field.placeholder || 'Select an option'}</option>
-                                {(field.options || []).map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                              </select>
-                            ) : field.type === 'date' ? (
-                              <input 
-                                type="date" 
-                                className="input-field" 
-                                value={previewResponses[field.id] || ''}
-                                onChange={(e) => setPreviewResponses({...previewResponses, [field.id]: e.target.value})}
-                              />
-                            ) : field.type === 'radio' ? (
-                              <div className="space-y-2">
-                                {(field.options || []).map(opt => (
-                                  <label key={opt} className="flex items-center gap-2 p-3 bg-slate-50 border border-slate-100 rounded-xl cursor-pointer hover:bg-slate-100 transition-colors">
-                                    <input 
-                                      type="radio" 
-                                      name={`preview-${field.id}`}
-                                      checked={previewResponses[field.id] === opt}
-                                      onChange={() => setPreviewResponses({...previewResponses, [field.id]: opt})}
-                                      className="w-4 h-4 text-brand-default" 
-                                    />
-                                    <span className="text-sm font-medium text-slate-600">{opt}</span>
-                                  </label>
-                                ))}
-                              </div>
-                            ) : field.type === 'checkbox' ? (
-                              <div className="space-y-2">
-                                {(field.options || []).map(opt => (
-                                  <label key={opt} className="flex items-center gap-2 p-3 bg-slate-50 border border-slate-100 rounded-xl cursor-pointer hover:bg-slate-100 transition-colors">
-                                    <input 
-                                      type="checkbox" 
-                                      checked={(previewResponses[field.id] || []).includes(opt)}
-                                      onChange={(e) => {
-                                        const current = previewResponses[field.id] || [];
-                                        const next = e.target.checked 
-                                          ? [...current, opt] 
-                                          : current.filter(val => val !== opt);
-                                        setPreviewResponses({...previewResponses, [field.id]: next});
-                                      }}
-                                      className="w-4 h-4 text-brand-default rounded" 
-                                    />
-                                    <span className="text-sm font-medium text-slate-600">{opt}</span>
-                                  </label>
-                                ))}
-                              </div>
-                            ) : (
-                               <input 
-                                 type={field.type === 'number' ? 'number' : field.type === 'email' ? 'email' : 'text'} 
-                                 className="input-field" 
-                                 placeholder={field.placeholder} 
-                                 value={previewResponses[field.id] || ''}
-                                 onChange={(e) => setPreviewResponses({...previewResponses, [field.id]: e.target.value})}
-                               />
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                      <div className="pt-6 border-t border-slate-100">
-                        <button className="btn-primary w-full h-12" disabled>Submit Form</button>
-                      </div>
+            className={`flex-1 overflow-y-auto relative transition-all duration-200 p-4 md:p-8 ${isDraggingOver ? 'bg-brand-50/20' : ''}`}
+          >
+            <div className="max-w-2xl mx-auto space-y-4 py-8">
+                {fields.length === 0 ? (
+                    <div className="h-[60vh] flex flex-col items-center justify-center text-center opacity-40">
+                        <MousePointer2 className="text-slate-300 mb-4" size={48} />
+                        <p className="text-sm font-semibold text-slate-400 mb-6">Build your strategy by adding components from the sidebar.</p>
+                        <button 
+                            onClick={() => setShowGallery(true)}
+                            className="flex items-center gap-2 px-6 py-3 bg-brand-default text-white rounded-xl text-[10px] font-semibold uppercase tracking-widest shadow-lg shadow-brand-500/20 hover:scale-105 transition-all"
+                        >
+                            <Sparkles size={14} />
+                            Deploy Blueprint
+                        </button>
                     </div>
-                  )}
-                </div>
-              )}
-        </main>
-
-        {/* Properties Inspector */}
-        {!previewMode && (
-          <aside className="w-80 flex flex-col gap-6 overflow-hidden">
-            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm flex-1 flex flex-col overflow-hidden">
-                <div className="p-5 border-b border-slate-100 bg-slate-50/50">
-                    <h3 className="text-xs font-semibold text-slate-800 uppercase tracking-widest flex items-center gap-2">
-                        <Settings2 size={16} className="text-brand-default" />
-                        Field Settings
-                    </h3>
-                </div>
-
-                <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                    {activeField ? (
-                        <>
-                            <div className="space-y-4">
-                                <div className="space-y-1.5">
-                                    <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest ml-1">Label</label>
-                                    <input 
-                                        type="text" 
-                                        className="w-full bg-slate-50 border border-slate-100 rounded-xl py-2.5 px-4 text-xs font-semibold text-slate-800 outline-none"
-                                        value={activeField.label}
-                                        onChange={(e) => updateField(activeField.id, { label: e.target.value })}
-                                    />
-                                </div>
-                                <div className="space-y-1.5">
-                                    <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest ml-1">Placeholder</label>
-                                    <input 
-                                        type="text" 
-                                        className="w-full bg-slate-50 border border-slate-100 rounded-xl py-2.5 px-4 text-xs font-semibold text-slate-800 outline-none"
-                                        value={activeField.placeholder}
-                                        onChange={(e) => updateField(activeField.id, { placeholder: e.target.value })}
-                                    />
-                                </div>
-                            </div>
-
-                            <button 
-                                onClick={() => updateField(activeField.id, { required: !activeField.required })}
-                                className="w-full flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100"
-                            >
-                                <span className="text-[10px] font-semibold text-slate-600 uppercase tracking-widest">Required Field</span>
-                                <div className={`w-10 h-5 rounded-full relative transition-all ${activeField.required ? 'bg-brand-default' : 'bg-slate-300'}`}>
-                                    <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${activeField.required ? 'left-6' : 'left-1'}`} />
-                                </div>
-                            </button>
-
-                            {(activeField.type === 'dropdown' || activeField.type === 'radio' || activeField.type === 'checkbox') && (
-                                <div className="space-y-3">
-                                    <div className="flex items-center justify-between">
-                                        <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Choices</label>
-                                        <button 
-                                            onClick={() => {
-                                                const currentOptions = activeField.options || [];
-                                                updateField(activeField.id, { options: [...currentOptions, `Option ${currentOptions.length + 1}`] });
-                                            }}
-                                            className="text-brand-default"
-                                        >
-                                            <Plus size={16} />
-                                        </button>
+                ) : (
+                    <>
+                        {/* Header Editor */}
+                        <div 
+                          onClick={() => { setActiveHeader(true); setSelectedField(null); }}
+                          className={`group relative bg-white shadow-sm border overflow-hidden rounded-xl transition-all ${activeHeader ? 'border-brand-default ring-4 ring-brand-500/5' : 'border-slate-200'}`}
+                        >
+                          {bannerUrl && (
+                              <div className="w-full h-40 md:h-48 overflow-hidden relative group">
+                                  <img src={bannerUrl} alt="Banner" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                                  {activeHeader && (
+                                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center gap-3">
+                                      <label className="p-3 bg-white text-slate-900 rounded-xl cursor-pointer hover:scale-110 transition-transform">
+                                          <Edit size={20} />
+                                          <input type="file" className="hidden" onChange={handleImageUpload} accept="image/*" />
+                                      </label>
+                                      <button 
+                                          onClick={() => setBannerUrl('')}
+                                          className="p-3 bg-red-600 text-white rounded-xl hover:scale-110 transition-transform"
+                                      >
+                                          <Trash2 size={20} />
+                                      </button>
                                     </div>
-                                    <div className="space-y-2">
-                                        {(activeField.options || []).map((opt, idx) => (
-                                            <div key={idx} className="flex gap-2">
+                                  )}
+                              </div>
+                          )}
+
+                          {!bannerUrl && <div className="h-2.5 w-full bg-brand-default" />}
+                          
+                          {activeHeader && (
+                            <div className="absolute top-4 right-4 flex gap-2">
+                               {!bannerUrl && (
+                                 <label className="p-2 bg-slate-50 text-slate-400 rounded-lg cursor-pointer hover:bg-brand-50 hover:text-brand-default transition-all shadow-sm border border-slate-100">
+                                   <Palette size={14} />
+                                   <input type="file" className="hidden" onChange={handleImageUpload} accept="image/*" />
+                                 </label>
+                               )}
+                            </div>
+                          )}
+
+                          <div className="p-8">
+                              {activeHeader ? (
+                                <input 
+                                  type="text" 
+                                  className="text-3xl font-normal text-slate-900 w-full bg-transparent border-b-2 border-slate-100 focus:border-brand-default outline-none pb-2"
+                                  value={formName}
+                                  onChange={(e) => setFormName(e.target.value)}
+                                  placeholder="Form Title"
+                                  autoFocus
+                                />
+                              ) : (
+                                <h1 className="text-3xl font-normal text-slate-900 mb-2">{formName || 'Untitled Form'}</h1>
+                              )}
+                              <p className="text-sm text-slate-600 font-normal mt-2 italic opacity-60">Strategic Form Portal // Design Mode</p>
+                          </div>
+                        </div>
+
+                        {/* Fields Canvas */}
+                        <Reorder.Group axis="y" values={fields} onReorder={setFields} className="space-y-4">
+                            {fields.map((field, idx) => {
+                                const isActive = selectedField === field.id;
+                                const fieldTypeObj = FIELD_TYPES.find(t => t.type === field.type);
+                                
+                                return (
+                                    <Reorder.Item 
+                                        key={field.id} 
+                                        value={field}
+                                        dragListener={isActive}
+                                        onClick={(e) => { e.stopPropagation(); setSelectedField(field.id); setActiveHeader(false); }}
+                                        className={`group bg-white rounded-xl border shadow-sm space-y-6 transition-all relative ${
+                                            isActive ? 'border-brand-default ring-4 ring-brand-500/5 p-8' : 'border-slate-200 p-8 cursor-pointer hover:border-slate-300'
+                                        }`}
+                                    >
+                                        {/* Drag Handle (Google Forms style top center) */}
+                                        {isActive && (
+                                          <div className="absolute top-2 left-0 right-0 flex justify-center opacity-40 hover:opacity-100 cursor-move">
+                                              <GripVertical size={16} className="rotate-90" />
+                                          </div>
+                                        )}
+
+                                        <div className="space-y-4">
+                                            {isActive ? (
+                                              <div className="flex gap-4">
+                                                  <input 
+                                                    className="flex-1 text-base font-normal text-slate-900 bg-slate-50 border-b-2 border-slate-200 focus:border-brand-default outline-none px-2 py-1"
+                                                    value={field.label}
+                                                    onChange={(e) => updateField(field.id, { label: e.target.value })}
+                                                    placeholder="Question"
+                                                  />
+                                                  <div className="flex items-center gap-2 bg-slate-50 px-3 rounded-lg border border-slate-100">
+                                                      {fieldTypeObj && <fieldTypeObj.icon size={16} className="text-slate-400" />}
+                                                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{fieldTypeObj?.label}</span>
+                                                  </div>
+                                              </div>
+                                            ) : (
+                                              <label className="text-base font-normal text-slate-900 flex items-center gap-1">
+                                                {field.label}
+                                                {field.required && <span className="text-red-500">*</span>}
+                                              </label>
+                                            )}
+                                        </div>
+                                            
+                                        <div className="relative">
+                                            {field.type === 'textarea' ? (
+                                                <textarea 
+                                                    readOnly={!isActive}
+                                                    className={`w-full bg-transparent border-b-2 border-slate-200 outline-none transition-all py-3 px-1 text-sm font-semibold text-slate-700 min-h-[50px] resize-none ${isActive ? 'focus:border-brand-default cursor-text' : 'cursor-pointer'}`} 
+                                                    placeholder={field.placeholder || "Long answer text"} 
+                                                />
+                                            ) : field.type === 'dropdown' ? (
+                                                <div className="space-y-3">
+                                                  {isActive ? (
+                                                    <div className="space-y-3 pl-2">
+                                                      {(field.options || []).map((opt, oIdx) => (
+                                                        <div key={oIdx} className="flex items-center gap-3 group/opt">
+                                                           <span className="text-slate-300 text-xs font-mono">{oIdx + 1}.</span>
+                                                           <input 
+                                                              type="text" 
+                                                              className="flex-1 bg-transparent border-b border-transparent focus:border-slate-200 outline-none text-sm font-semibold text-slate-700"
+                                                              value={opt}
+                                                              onChange={(e) => {
+                                                                  const newOpts = [...(field.options || [])];
+                                                                  newOpts[oIdx] = e.target.value;
+                                                                  updateField(field.id, { options: newOpts });
+                                                              }}
+                                                           />
+                                                           <button 
+                                                              onClick={() => {
+                                                                  const newOpts = (field.options || []).filter((_, i) => i !== oIdx);
+                                                                  updateField(field.id, { options: newOpts });
+                                                              }}
+                                                              className="opacity-0 group-hover/opt:opacity-100 text-slate-300 hover:text-red-600 transition-all"
+                                                           >
+                                                              <X size={14} />
+                                                           </button>
+                                                        </div>
+                                                      ))}
+                                                      <button 
+                                                          onClick={() => {
+                                                              const currentOptions = field.options || [];
+                                                              updateField(field.id, { options: [...currentOptions, `Option ${currentOptions.length + 1}`] });
+                                                          }}
+                                                          className="flex items-center gap-2 text-brand-default text-[10px] font-bold uppercase tracking-widest pl-6 hover:translate-x-1 transition-transform"
+                                                      >
+                                                          <Plus size={14} /> Add Option
+                                                      </button>
+                                                    </div>
+                                                  ) : (
+                                                    <div className="relative">
+                                                      <select disabled className="w-full bg-transparent border-b-2 border-slate-200 py-3 px-1 text-sm font-semibold text-slate-700 appearance-none pointer-events-none">
+                                                          <option value="">{field.placeholder || 'Choose an option'}</option>
+                                                      </select>
+                                                      <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-300" size={16} />
+                                                    </div>
+                                                  )}
+                                                </div>
+                                            ) : field.type === 'date' ? (
+                                                <input 
+                                                    type="date" 
+                                                    readOnly
+                                                    className="w-full bg-transparent border-b-2 border-slate-200 py-3 px-1 text-sm font-semibold text-slate-700 pointer-events-none" 
+                                                />
+                                            ) : field.type === 'radio' || field.type === 'checkbox' ? (
+                                                <div className="space-y-4">
+                                                    {(field.options || []).map((opt, oIdx) => (
+                                                        <div key={oIdx} className="flex items-center gap-3 group/opt">
+                                                            <div className={`h-5 w-5 border border-slate-300 ${field.type === 'radio' ? 'rounded-full' : 'rounded'}`} />
+                                                            {isActive ? (
+                                                              <input 
+                                                                  type="text" 
+                                                                  className="flex-1 bg-transparent border-b border-transparent focus:border-slate-200 outline-none text-sm font-semibold text-slate-700"
+                                                                  value={opt}
+                                                                  onChange={(e) => {
+                                                                      const newOpts = [...(field.options || [])];
+                                                                      newOpts[oIdx] = e.target.value;
+                                                                      updateField(field.id, { options: newOpts });
+                                                                  }}
+                                                              />
+                                                            ) : (
+                                                              <span className="text-sm font-normal text-slate-700">{opt}</span>
+                                                            )}
+                                                            {isActive && (
+                                                              <button 
+                                                                  onClick={() => {
+                                                                      const newOpts = (field.options || []).filter((_, i) => i !== oIdx);
+                                                                      updateField(field.id, { options: newOpts });
+                                                                  }}
+                                                                  className="opacity-0 group-hover/opt:opacity-100 text-slate-300 hover:text-red-600 transition-all"
+                                                              >
+                                                                  <X size={14} />
+                                                              </button>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                    {isActive && (
+                                                      <button 
+                                                          onClick={() => {
+                                                              const currentOptions = field.options || [];
+                                                              updateField(field.id, { options: [...currentOptions, `Option ${currentOptions.length + 1}`] });
+                                                          }}
+                                                          className="flex items-center gap-2 text-brand-default text-[10px] font-bold uppercase tracking-widest pl-8 hover:translate-x-1 transition-transform"
+                                                      >
+                                                          <Plus size={14} /> Add Option
+                                                      </button>
+                                                    )}
+                                                </div>
+                                            ) : (
                                                 <input 
                                                     type="text" 
-                                                    className="flex-1 bg-slate-50 border border-slate-100 rounded-xl py-2 px-3 text-[11px] font-semibold text-slate-600 outline-none"
-                                                    value={opt}
-                                                    onChange={(e) => {
-                                                        const newOpts = [...(activeField.options || [])];
-                                                        newOpts[idx] = e.target.value;
-                                                        updateField(activeField.id, { options: newOpts });
-                                                    }}
+                                                    readOnly={!isActive}
+                                                    className={`w-full bg-transparent border-b-2 border-slate-200 outline-none transition-all py-3 px-1 text-sm font-semibold text-slate-700 ${isActive ? 'focus:border-brand-default cursor-text' : 'cursor-pointer'}`} 
+                                                    placeholder={isActive && field.placeholder ? field.placeholder : "Short answer text"} 
                                                 />
+                                            )}
+                                        </div>
+
+                                        {/* Contextual Footer (Only Active) */}
+                                        {isActive && (
+                                          <motion.div 
+                                            initial={{ opacity: 0, y: 10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            className="pt-6 mt-6 border-t border-slate-100 flex items-center justify-end gap-6"
+                                          >
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Placeholder</span>
+                                                <input 
+                                                  className="bg-slate-50 border border-slate-100 rounded px-2 py-1 text-[10px] font-semibold text-slate-700 w-32 focus:border-brand-default outline-none"
+                                                  value={field.placeholder}
+                                                  onChange={(e) => updateField(field.id, { placeholder: e.target.value })}
+                                                />
+                                            </div>
+                                            <div className="w-px h-6 bg-slate-100" />
+                                            <button 
+                                                onClick={() => {
+                                                  const newField = { ...field, id: Math.random().toString(36).substr(2, 9) };
+                                                  setFields([...fields, newField]);
+                                                  setSelectedField(newField.id);
+                                                }}
+                                                className="p-2 text-slate-400 hover:text-brand-default hover:bg-brand-50 rounded-lg transition-all"
+                                                title="Duplicate"
+                                            >
+                                                <Copy size={18} />
+                                            </button>
+                                            <button 
+                                                onClick={() => removeField(field.id)}
+                                                className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                                title="Remove"
+                                            >
+                                                <Trash2 size={18} />
+                                            </button>
+                                            <div className="w-px h-6 bg-slate-100" />
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">Required</span>
                                                 <button 
-                                                    onClick={() => {
-                                                        const newOpts = (activeField.options || []).filter((_, i) => i !== idx);
-                                                        updateField(activeField.id, { options: newOpts });
-                                                    }}
-                                                    className="text-slate-300 hover:text-rose-500"
+                                                    onClick={() => updateField(field.id, { required: !field.required })}
+                                                    className={`w-10 h-5 rounded-full relative transition-all ${field.required ? 'bg-brand-default' : 'bg-slate-300'}`}
                                                 >
-                                                    <X size={14} />
+                                                    <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${field.required ? 'left-6' : 'left-1'}`} />
                                                 </button>
                                             </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-                        </>
-                    ) : (
-                        <div className="h-full flex flex-col items-center justify-center opacity-20 text-center py-20">
-                            <Palette size={40} className="mb-4" />
-                            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Select a field to edit its properties</p>
+                                          </motion.div>
+                                        )}
+                                    </Reorder.Item>
+                                );
+                            })}
+                        </Reorder.Group>
+                        
+                        {/* Branding Footer (Non-editable) */}
+                        <div className="flex justify-between items-center flex-row-reverse px-2 pt-12 pb-20">
+                            <button disabled className="px-6 h-10 bg-brand-default opacity-40 text-white rounded font-medium text-sm cursor-not-allowed">
+                                Final Submission
+                            </button>
+                            <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-medium uppercase tracking-widest opacity-60">
+                                <ShieldCheck size={12} />
+                                <span>FormCraft Protected Framework</span>
+                            </div>
                         </div>
-                    )}
-                </div>
+                    </>
+                )}
             </div>
-          </aside>
-        )}
+          </main>
       </div>
 
       <Modal
@@ -668,7 +768,7 @@ const FormBuilder = () => {
       >
         <div className="space-y-6">
           <div className="flex items-center gap-4">
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 shadow-sm border ${modal.type === 'error' ? 'bg-rose-50 border-rose-100 text-rose-500' : 'bg-brand-50 border-brand-100 text-brand-default'}`}>
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 shadow-sm border ${modal.type === 'error' ? 'bg-red-50 border-red-100 text-red-600' : 'bg-brand-50 border-brand-100 text-brand-default'}`}>
               {modal.type === 'error' ? <AlertCircle size={20} /> : <CheckCircle2 size={20} />}
             </div>
             <div>

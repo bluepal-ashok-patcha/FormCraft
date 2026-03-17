@@ -1,6 +1,7 @@
 import React from 'react';
 
-const FormPreview = ({ fields = [], name, thumbnailUrl }) => {
+const FormPreview = ({ fields = [], name, bannerUrl, thumbnailUrl }) => {
+  const displayUrl = bannerUrl || thumbnailUrl;
   const previewFields = fields.slice(0, 5);
 
   return (
@@ -21,10 +22,10 @@ const FormPreview = ({ fields = [], name, thumbnailUrl }) => {
 
         <div className="bg-slate-50 min-h-full">
           {/* Banner image (like Google Forms cover photo) */}
-          {thumbnailUrl && (
+          {displayUrl && (
             <div className="w-full h-40 overflow-hidden">
               <img
-                src={thumbnailUrl}
+                src={displayUrl}
                 alt={name}
                 className="w-full h-full object-cover"
               />
@@ -35,7 +36,7 @@ const FormPreview = ({ fields = [], name, thumbnailUrl }) => {
             {/* Title card */}
             <div
               className={`bg-white rounded-xl border border-slate-200 px-5 py-4 mb-3 shadow-sm ${
-                thumbnailUrl ? 'border-t-4 border-t-brand-default' : 'border-l-4 border-l-brand-default'
+                displayUrl ? 'border-t-4 border-t-brand-default' : 'border-l-4 border-l-brand-default'
               }`}
             >
               <h2 className="text-lg font-bold text-slate-800 leading-tight">{name || 'Form Preview'}</h2>
@@ -52,7 +53,7 @@ const FormPreview = ({ fields = [], name, thumbnailUrl }) => {
                   {/* Label */}
                   <label className="block text-sm font-medium text-slate-700 mb-2">
                     {field.label || `Field ${idx + 1}`}
-                    {field.required && <span className="text-rose-500 ml-1">*</span>}
+                    {field.required && <span className="text-red-500 ml-1">*</span>}
                   </label>
 
                   {/* Actual Input element per type */}

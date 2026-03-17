@@ -248,6 +248,7 @@ public class FormServiceImpl implements FormService {
         form.setSchema(request.getSchema());
         form.setStartsAt(request.getStartsAt());
         form.setExpiresAt(request.getExpiresAt());
+        form.setBannerUrl(request.getBannerUrl());
         
         // Re-calculate status
         LocalDateTime now = LocalDateTime.now();

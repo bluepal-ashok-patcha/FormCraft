@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useSidebar } from '../context/SidebarContext';
 import { 
   LayoutDashboard, 
   PlusSquare, 
@@ -38,9 +39,9 @@ const SidebarLink = ({ to, icon: Icon, label, active, collapsed }) => (
 
 const MainLayout = ({ children }) => {
   const { user, logout } = useAuth();
+  const { sidebarCollapsed, setSidebarCollapsed } = useSidebar();
   const location = useLocation();
   const navigate = useNavigate();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const handleLogout = async () => {
     await logout();
@@ -140,7 +141,7 @@ const MainLayout = ({ children }) => {
           <div className={`${sidebarCollapsed ? 'p-2' : 'p-4'} mt-auto border-t border-slate-50`}>
             <button 
               onClick={handleLogout}
-              className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3 px-4'} py-2.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-all rounded-lg font-semibold uppercase text-[10px] tracking-widest`}
+              className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3 px-4'} py-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all rounded-lg font-semibold uppercase text-[10px] tracking-widest`}
             >
               <div className="w-6 flex items-center justify-center shrink-0">
                 <LogOut size={18} />

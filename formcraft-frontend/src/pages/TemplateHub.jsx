@@ -15,6 +15,7 @@ import {
 import api from '../services/api';
 import { toast } from 'react-toastify';
 import { useAuth } from '../context/AuthContext';
+import { useSidebar } from '../context/SidebarContext';
 import CategoryManager from '../components/CategoryManager';
 import FormPreview from '../components/FormPreview';
 
@@ -36,8 +37,8 @@ const TemplateCard = ({ template, user, onDeploy, onPromote, onRequestPromotion 
       {/* ── Preview panel — grows from ~36% to 100% on hover ── */}
       <div
         style={{
-          height: hovered ? '100%' : '36%',
-          transition: 'height 0.45s cubic-bezier(0.4, 0, 0.2, 1)',
+          height: hovered ? '100.1%' : '38%',
+          transition: 'height 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
           flexShrink: 0,
           overflow: 'hidden',
           position: 'relative',
@@ -156,6 +157,7 @@ const TemplateCard = ({ template, user, onDeploy, onPromote, onRequestPromotion 
 
 const TemplateHub = () => {
   const { user } = useAuth();
+  const { sidebarCollapsed } = useSidebar();
   const navigate = useNavigate();
   const [templates, setTemplates] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -329,7 +331,11 @@ const TemplateHub = () => {
             <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Adjust your filters or query to explore other assets</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 ${
+            !sidebarCollapsed 
+              ? 'lg:grid-cols-3' 
+              : 'lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5'
+          }`}>
             {filteredTemplates.map((template) => (
               <TemplateCard
                 key={template.id}

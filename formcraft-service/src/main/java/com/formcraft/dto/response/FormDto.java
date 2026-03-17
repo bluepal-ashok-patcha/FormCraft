@@ -18,4 +18,5 @@ public class FormDto {
     private LocalDateTime startsAt;
     private LocalDateTime createdAt;
     private long responseCount;
+    private String bannerUrl;
 }
