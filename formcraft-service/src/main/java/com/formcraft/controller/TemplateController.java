@@ -28,8 +28,9 @@ public class TemplateController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<TemplateDTO>>> getAllVisibleTemplates() {
-        List<TemplateDTO> templates = templateService.getAllVisibleTemplates();
+    public ResponseEntity<ApiResponse<List<TemplateDTO>>> getAllVisibleTemplates(
+            @RequestParam(name = "global", required = false) String filter) {
+        List<TemplateDTO> templates = templateService.getAllVisibleTemplates(filter);
         return ResponseEntity.ok(ApiResponse.success(templates, "Templates fetched successfully"));
     }
 
@@ -57,6 +58,13 @@ public class TemplateController {
     public ResponseEntity<ApiResponse<Void>> deleteCategory(@PathVariable("id") Integer id) {
         templateService.deleteCategory(id);
         return ResponseEntity.ok(ApiResponse.success(null, "Category deleted successfully"));
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/{id}/request-promotion")
+    public ResponseEntity<ApiResponse<TemplateDTO>> requestGlobalPromotion(@PathVariable("id") UUID id) {
+        TemplateDTO requested = templateService.requestGlobalPromotion(id);
+        return ResponseEntity.ok(ApiResponse.success(requested, "Promotion to Global Asset requested successfully"));
     }
 
     @PreAuthorize("hasRole('SUPER_ADMIN')")

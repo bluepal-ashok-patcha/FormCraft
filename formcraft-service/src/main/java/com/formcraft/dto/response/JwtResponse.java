@@ -1,6 +1,7 @@
 package com.formcraft.dto.response;
 
 import lombok.Data;
+import java.util.List;
 
 @Data
 public class JwtResponse {
@@ -10,4 +11,5 @@ public class JwtResponse {
     private String username;
     private String email;
     private String fullName;
+    private List<String> roles;
 }

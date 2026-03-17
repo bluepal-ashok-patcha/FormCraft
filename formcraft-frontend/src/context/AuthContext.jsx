@@ -18,9 +18,9 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (usernameOrEmail, password) => {
     const response = await api.post('/auth/login', { usernameOrEmail, password });
-    const { accessToken, refreshToken, username, email, fullName } = response.data;
+    const { accessToken, refreshToken, username, email, fullName, roles } = response.data;
     
-    const userInfo = { username, email, fullName, role: 'ROLE_ADMIN' }; 
+    const userInfo = { username, email, fullName, roles }; 
     
     localStorage.setItem('token', accessToken);
     localStorage.setItem('refreshToken', refreshToken);

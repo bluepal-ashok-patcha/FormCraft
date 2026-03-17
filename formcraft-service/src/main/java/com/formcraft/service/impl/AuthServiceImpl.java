@@ -56,6 +56,9 @@ public class AuthServiceImpl implements AuthService {
         jwtResponse.setUsername(user.getUsername());
         jwtResponse.setEmail(user.getEmail());
         jwtResponse.setFullName(user.getFullName());
+        jwtResponse.setRoles(user.getRoles().stream()
+                .map(role -> role.getName().name())
+                .collect(java.util.stream.Collectors.toList()));
         
         return jwtResponse;
     }

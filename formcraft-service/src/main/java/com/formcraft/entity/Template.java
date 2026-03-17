@@ -42,6 +42,10 @@ public class Template extends BaseEntity {
     @Column(name = "is_global")
     private boolean global = false;
 
+    @Builder.Default
+    @Column(name = "requested_for_global")
+    private boolean requestedForGlobal = false;
+
     @Column(name = "thumbnail_url")
     private String thumbnailUrl;
 }

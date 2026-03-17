@@ -15,5 +15,7 @@ public interface TemplateRepository extends JpaRepository<Template, UUID> {
     @Query("SELECT t FROM Template t WHERE t.global = true OR t.createdBy = :createdBy")
     List<Template> findAllVisible(@Param("createdBy") String createdBy);
     
-    List<Template> findByGlobalTrue();
+    List<Template> findByGlobal(boolean global);
+    
+    List<Template> findByRequestedForGlobalTrueAndGlobalFalse();
 }

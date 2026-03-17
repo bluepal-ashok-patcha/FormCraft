@@ -31,7 +31,7 @@ const FormResponses = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const isAdmin = user?.role === 'ROLE_ADMIN';
+  const isAdmin = user?.roles?.includes('ROLE_ADMIN') || user?.roles?.includes('ROLE_SUPER_ADMIN');
   const [form, setForm] = useState(null);
   const [responses, setResponses] = useState([]);
   const [loading, setLoading] = useState(true);

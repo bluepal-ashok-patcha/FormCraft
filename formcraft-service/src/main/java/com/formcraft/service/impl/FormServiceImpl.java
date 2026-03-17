@@ -91,8 +91,14 @@ public class FormServiceImpl implements FormService {
         Specification<Form> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
             
-            // Security: Only show forms created by this user
-            predicates.add(cb.equal(root.get("createdBy"), username));
+            // Security: Standard Admins only see their own. Super Admins see EVERYTHING.
+            boolean isSuperAdmin = org.springframework.security.core.context.SecurityContextHolder.getContext()
+                    .getAuthentication().getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_SUPER_ADMIN"));
+            
+            if (!isSuperAdmin) {
+                predicates.add(cb.equal(root.get("createdBy"), username));
+            }
             
             if (search != null && !search.trim().isEmpty()) {
                 predicates.add(cb.like(cb.lower(root.get("name")), "%" + search.toLowerCase() + "%"));

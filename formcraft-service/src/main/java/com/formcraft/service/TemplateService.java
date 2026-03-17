@@ -7,10 +7,11 @@ import java.util.UUID;
 
 public interface TemplateService {
     TemplateDTO createTemplate(TemplateDTO templateDTO);
-    List<TemplateDTO> getAllVisibleTemplates();
+    List<TemplateDTO> getAllVisibleTemplates(String filter);
     TemplateDTO getTemplateById(UUID id);
     void deleteTemplate(UUID id);
     TemplateDTO promoteToGlobal(UUID id);
+    TemplateDTO requestGlobalPromotion(UUID id);
     List<CategoryDTO> getAllCategories();
     CategoryDTO createCategory(CategoryDTO categoryDTO);
     void deleteCategory(Integer id);

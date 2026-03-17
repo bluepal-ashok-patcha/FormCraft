@@ -90,7 +90,9 @@ const MainLayout = ({ children }) => {
           <div className="flex items-center gap-3">
             <div className="text-right hidden sm:block">
               <p className="text-xs font-semibold text-slate-900 leading-none">{user?.fullName || user?.username}</p>
-              <p className="text-[10px] text-slate-400 mt-1">Admin Console</p>
+              <p className="text-[10px] text-slate-400 mt-1">
+                {user?.roles?.includes('ROLE_SUPER_ADMIN') ? 'Super Admin Console' : 'Admin Console'}
+              </p>
             </div>
             <div className="w-9 h-9 rounded-md bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-500 transition-all hover:border-brand-default hover:text-brand-default cursor-pointer">
               <User size={14} />

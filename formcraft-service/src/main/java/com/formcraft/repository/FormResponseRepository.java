@@ -23,4 +23,14 @@ public interface FormResponseRepository extends JpaRepository<FormResponse, UUID
     java.util.List<Object[]> findResponseStatsByCreatedBy(@Param("username") String username, @Param("startDate") java.time.LocalDateTime startDate);
 
     long countByFormCreatedByAndCreatedAtGreaterThanEqual(String username, java.time.LocalDateTime startDate);
+    
+    java.util.List<FormResponse> findTop5ByOrderByCreatedAtDesc();
+
+    @org.springframework.data.jpa.repository.Query("SELECT COUNT(DISTINCT fr.form.id) FROM FormResponse fr")
+    long countActiveForms();
+
+    @org.springframework.data.jpa.repository.Query("SELECT CAST(fr.createdAt AS date) as date, COUNT(fr) as count FROM FormResponse fr WHERE fr.createdAt >= :startDate GROUP BY CAST(fr.createdAt AS date) ORDER BY CAST(fr.createdAt AS date) ASC")
+    java.util.List<Object[]> findGlobalResponseStats(@Param("startDate") java.time.LocalDateTime startDate);
+
+    long countByCreatedAtGreaterThanEqual(java.time.LocalDateTime startDate);
 }

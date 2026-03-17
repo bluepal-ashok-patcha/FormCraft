@@ -1,61 +1,142 @@
 import React from 'react';
-import { motion } from 'framer-motion';
 
-const FormPreview = ({ fields = [], name }) => {
-  // Show max 4 fields to keep it clean
-  const previewFields = fields.slice(0, 4);
+const FormPreview = ({ fields = [], name, thumbnailUrl }) => {
+  const previewFields = fields.slice(0, 5);
 
   return (
-    <div className="w-full h-full bg-white p-4 flex flex-col gap-3 overflow-hidden select-none pointer-events-none">
-      {/* Form Title Header (Decorative) */}
-      <div className="h-1.5 w-1/3 bg-slate-200 rounded-full mb-1" />
-      
-      <div className="space-y-4">
-        {previewFields.map((field, idx) => (
-          <motion.div 
-            key={idx}
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: idx * 0.1 }}
-            className="space-y-1.5"
-          >
-            {/* Label Placeholder */}
-            <div className="flex items-center justify-between">
-              <div className="h-1 w-20 bg-slate-100 rounded-full" />
-              {field.required && <div className="w-1 h-1 bg-brand-default rounded-full" />}
+    <div className="w-full h-full overflow-hidden relative bg-slate-50 select-none pointer-events-none">
+      {/* Scale the real form down to fit the card thumbnail — like Google Forms/Sheets */}
+      <div
+        style={{
+          transform: 'scale(0.45)',
+          transformOrigin: 'top left',
+          width: '222%',
+          position: 'absolute',
+          top: 0,
+          left: 0,
+        }}
+      >
+        {/* Google Forms style top brand accent bar */}
+        <div className="h-3 w-full bg-brand-default" />
+
+        <div className="bg-slate-50 min-h-full">
+          {/* Banner image (like Google Forms cover photo) */}
+          {thumbnailUrl && (
+            <div className="w-full h-40 overflow-hidden">
+              <img
+                src={thumbnailUrl}
+                alt={name}
+                className="w-full h-full object-cover"
+              />
             </div>
-            
-            {/* Input Placeholder based on type */}
-            <div className="w-full rounded-md border border-slate-50 bg-slate-50/30 h-6 flex items-center px-2">
-              {field.type === 'SELECT' || field.type === 'RADIO' || field.type === 'CHECKBOX' ? (
-                <div className="flex gap-1.5 w-full">
-                  <div className="w-2 h-2 rounded-sm bg-slate-100" />
-                  <div className="h-0.5 w-10 bg-slate-100/50 rounded-full mt-1" />
+          )}
+
+          <div className="p-4">
+            {/* Title card */}
+            <div
+              className={`bg-white rounded-xl border border-slate-200 px-5 py-4 mb-3 shadow-sm ${
+                thumbnailUrl ? 'border-t-4 border-t-brand-default' : 'border-l-4 border-l-brand-default'
+              }`}
+            >
+              <h2 className="text-lg font-bold text-slate-800 leading-tight">{name || 'Form Preview'}</h2>
+              <p className="text-xs text-slate-400 mt-1">Fill out this form</p>
+            </div>
+
+            {/* Real form fields */}
+            <div className="space-y-3">
+              {previewFields.map((field, idx) => (
+                <div
+                  key={idx}
+                  className="bg-white rounded-xl border border-slate-100 px-5 py-4 shadow-sm"
+                >
+                  {/* Label */}
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    {field.label || `Field ${idx + 1}`}
+                    {field.required && <span className="text-rose-500 ml-1">*</span>}
+                  </label>
+
+                  {/* Actual Input element per type */}
+                  {field.type === 'TEXTAREA' ? (
+                    <textarea
+                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-400 bg-slate-50 resize-none"
+                      rows={2}
+                      placeholder={field.placeholder || 'Your answer'}
+                      readOnly
+                    />
+                  ) : field.type === 'SELECT' ? (
+                    <select
+                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-400 bg-slate-50"
+                      disabled
+                    >
+                      <option>{field.placeholder || 'Choose an option'}</option>
+                      {(field.options || []).map((opt, i) => (
+                        <option key={i}>{opt}</option>
+                      ))}
+                    </select>
+                  ) : field.type === 'RADIO' ? (
+                    <div className="space-y-1.5">
+                      {(field.options || ['Option 1', 'Option 2']).slice(0, 3).map((opt, i) => (
+                        <label key={i} className="flex items-center gap-2 text-sm text-slate-500">
+                          <input type="radio" name={`field_${idx}`} className="accent-brand-default" readOnly />
+                          {opt}
+                        </label>
+                      ))}
+                    </div>
+                  ) : field.type === 'CHECKBOX' ? (
+                    <div className="space-y-1.5">
+                      {(field.options || ['Option 1', 'Option 2']).slice(0, 3).map((opt, i) => (
+                        <label key={i} className="flex items-center gap-2 text-sm text-slate-500">
+                          <input type="checkbox" className="accent-brand-default rounded" readOnly />
+                          {opt}
+                        </label>
+                      ))}
+                    </div>
+                  ) : field.type === 'DATE' ? (
+                    <input
+                      type="date"
+                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-400 bg-slate-50"
+                      readOnly
+                    />
+                  ) : field.type === 'NUMBER' ? (
+                    <input
+                      type="number"
+                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-400 bg-slate-50"
+                      placeholder={field.placeholder || '0'}
+                      readOnly
+                    />
+                  ) : (
+                    <input
+                      type={field.type === 'EMAIL' ? 'email' : 'text'}
+                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-400 bg-slate-50"
+                      placeholder={field.placeholder || 'Your answer'}
+                      readOnly
+                    />
+                  )}
                 </div>
-              ) : field.type === 'TEXTAREA' ? (
-                <div className="flex flex-col gap-1 w-full pt-1">
-                  <div className="h-0.5 w-full bg-slate-100/50 rounded-full" />
-                  <div className="h-0.5 w-2/3 bg-slate-100/50 rounded-full" />
+              ))}
+
+              {previewFields.length === 0 && (
+                <div className="bg-white rounded-xl border border-slate-100 px-5 py-4 shadow-sm">
+                  <div className="h-3 w-24 bg-slate-200 rounded mb-2" />
+                  <div className="h-8 w-full bg-slate-50 border border-slate-100 rounded-lg" />
                 </div>
-              ) : (
-                <div className="h-0.5 w-1/2 bg-slate-100/50 rounded-full" />
               )}
             </div>
-          </motion.div>
-        ))}
-        
-        {/* If fewer than 4 fields, add a fake one */}
-        {previewFields.length < 3 && (
-           <div className="space-y-1.5 opacity-50">
-             <div className="h-1 w-16 bg-slate-100 rounded-full" />
-             <div className="w-full rounded-md border border-slate-50 bg-slate-100/20 h-6" />
-           </div>
-        )}
-      </div>
 
-      {/* Submit Button Placeholder */}
-      <div className="mt-auto flex justify-end">
-        <div className="w-12 h-4 bg-slate-900/5 rounded-md" />
+            {/* Submit button */}
+            <div className="mt-4 flex items-center gap-3">
+              <button
+                className="px-6 py-2 bg-brand-default text-white text-sm font-semibold rounded-lg opacity-80"
+                disabled
+              >
+                Submit
+              </button>
+              <button className="px-4 py-2 text-brand-default text-sm font-medium opacity-60" disabled>
+                Clear form
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

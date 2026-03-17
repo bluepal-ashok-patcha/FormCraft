@@ -12,6 +12,9 @@ public interface FormRepository extends JpaRepository<Form, UUID>, org.springfra
     long countByCreatedBy(String username);
     long countByCreatedByAndStatus(String username, com.formcraft.enums.FormStatus status);
     java.util.List<Form> findTop5ByCreatedByOrderByCreatedAtDesc(String username);
+    
+    long countByStatus(com.formcraft.enums.FormStatus status);
+    java.util.List<Form> findTop5ByOrderByCreatedAtDesc();
 
     @org.springframework.data.jpa.repository.Modifying
     @org.springframework.data.jpa.repository.Query("UPDATE Form f SET f.status = 'INACTIVE' WHERE f.status = 'ACTIVE' AND f.expiresAt IS NOT NULL AND f.expiresAt < :now")

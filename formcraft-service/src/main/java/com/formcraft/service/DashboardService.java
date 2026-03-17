@@ -27,21 +27,23 @@ public class DashboardService {
     @Transactional(readOnly = true)
     public DashboardStatsResponse getDashboardStats(String range) {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        boolean isSuperAdmin = SecurityContextHolder.getContext().getAuthentication().getAuthorities()
+                .stream().anyMatch(a -> a.getAuthority().equals("ROLE_SUPER_ADMIN"));
         
-        long totalForms = formRepository.countByCreatedBy(username);
-        long totalResponses = formResponseRepository.countByFormCreatedBy(username);
-        long activeForms = formRepository.countByCreatedByAndStatus(username, com.formcraft.enums.FormStatus.ACTIVE);
+        long totalForms = isSuperAdmin ? formRepository.count() : formRepository.countByCreatedBy(username);
+        long totalResponses = isSuperAdmin ? formResponseRepository.count() : formResponseRepository.countByFormCreatedBy(username);
+        long activeForms = isSuperAdmin ? formRepository.countByStatus(com.formcraft.enums.FormStatus.ACTIVE) : formRepository.countByCreatedByAndStatus(username, com.formcraft.enums.FormStatus.ACTIVE);
         
         LocalDateTime startOfToday = LocalDateTime.now().withHour(0).withMinute(0).withSecond(0).withNano(0);
-        long responsesToday = formResponseRepository.countByFormCreatedByAndCreatedAtGreaterThanEqual(username, startOfToday);
+        long responsesToday = isSuperAdmin ? formResponseRepository.countByCreatedAtGreaterThanEqual(startOfToday) : formResponseRepository.countByFormCreatedByAndCreatedAtGreaterThanEqual(username, startOfToday);
         
         double rate = totalForms > 0 ? (double) activeForms / totalForms * 100 : 0;
         double avgResponses = totalForms > 0 ? (double) totalResponses / totalForms : 0;
         
         // Recently created forms
-        List<Form> recentForms = formRepository.findTop5ByCreatedByOrderByCreatedAtDesc(username);
+        List<Form> recentForms = isSuperAdmin ? formRepository.findTop5ByOrderByCreatedAtDesc() : formRepository.findTop5ByCreatedByOrderByCreatedAtDesc(username);
         // Recent responses
-        List<FormResponse> recentResponses = formResponseRepository.findTop5ByFormCreatedByOrderByCreatedAtDesc(username);
+        List<FormResponse> recentResponses = isSuperAdmin ? formResponseRepository.findTop5ByOrderByCreatedAtDesc() : formResponseRepository.findTop5ByFormCreatedByOrderByCreatedAtDesc(username);
         
         List<DashboardStatsResponse.RecentActivity> activities = new ArrayList<>();
         
@@ -73,7 +75,7 @@ public class DashboardService {
         };
         
         LocalDateTime rangeStart = LocalDateTime.now().minusDays(days);
-        List<Object[]> stats = formResponseRepository.findResponseStatsByCreatedBy(username, rangeStart);
+        List<Object[]> stats = isSuperAdmin ? formResponseRepository.findGlobalResponseStats(rangeStart) : formResponseRepository.findResponseStatsByCreatedBy(username, rangeStart);
         
         List<DashboardStatsResponse.ChartData> chartData = stats.stream()
                 .map(s -> DashboardStatsResponse.ChartData.builder()

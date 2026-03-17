@@ -20,6 +20,7 @@ public class TemplateDTO {
     private CategoryDTO category;
     private Map<String, Object> schema;
     private boolean global;
+    private boolean requestedForGlobal;
     private LocalDateTime createdAt;
     private String createdBy;
     private String thumbnailUrl;
