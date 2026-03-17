@@ -84,7 +84,7 @@ const FormViewer = () => {
   if (loading) return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-10">
       <Loader2 className="animate-spin text-blue-500 mb-4" size={48} />
-      <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">Initializing Secure Link...</p>
+      <p className="text-slate-400 font-semibold uppercase tracking-widest text-xs">Initializing Secure Link...</p>
     </div>
   );
 
@@ -98,13 +98,13 @@ const FormViewer = () => {
         <div className="w-20 h-20 bg-emerald-500 text-white rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-xl shadow-emerald-500/20 rotate-6">
           <CheckCircle2 size={40} />
         </div>
-        <h2 className="text-3xl font-black text-slate-900 mb-4 tracking-tight">Transmission Complete</h2>
+        <h2 className="text-3xl font-semibold text-slate-900 mb-4 tracking-tight">Transmission Complete</h2>
         <p className="text-slate-500 font-medium mb-10 leading-relaxed">
           Your data has been successfully encrypted and synchronized with our enterprise repository.
         </p>
         <button 
           onClick={() => window.location.reload()}
-          className="w-full btn-primary py-4 rounded-2xl font-bold"
+          className="w-full btn-primary py-4 rounded-2xl font-semibold"
         >
           New Submission
         </button>
@@ -127,7 +127,7 @@ const FormViewer = () => {
           {isPlanned ? <Calendar size={40} /> : <AlertCircle size={40} />}
         </div>
         
-        <h2 className="text-2xl font-black text-slate-900 mb-2 uppercase tracking-tight">
+        <h2 className="text-2xl font-semibold text-slate-900 mb-2 uppercase tracking-tight">
           {isPlanned ? 'Opening Soon' : 
            isInactive ? 'Form Closed' : 
            'Form Not Found'}
@@ -137,7 +137,7 @@ const FormViewer = () => {
            isInactive ? 'This form is currently not accepting responses.' : 
            error || "We couldn't find the form you're looking for or it may have been removed."}
         </p>
-        <Link to="/" className="inline-flex items-center gap-2 text-brand-default font-black uppercase tracking-widest text-[10px] hover:gap-3 transition-all">
+        <Link to="/" className="inline-flex items-center gap-2 text-brand-default font-semibold uppercase tracking-widest text-[10px] hover:gap-3 transition-all">
           Go to Homepage <ArrowRight size={14} />
         </Link>
       </motion.div>
@@ -164,12 +164,12 @@ const FormViewer = () => {
                <ShieldCheck className="text-white relative z-10" size={32} strokeWidth={1.5} />
             </div>
             <div className="space-y-1">
-               <span className="text-[10px] font-black uppercase text-brand-default tracking-[0.4em] block">Secure Intake Protocol</span>
-               <h1 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tighter uppercase">{form.name}</h1>
+               <span className="text-[10px] font-semibold uppercase text-brand-default tracking-[0.4em] block">Secure Intake Protocol</span>
+               <h1 className="text-3xl md:text-4xl font-semibold text-slate-900 tracking-tighter uppercase">{form.name}</h1>
             </div>
             <div className="mt-6 flex items-center gap-2 px-4 py-1.5 bg-white border border-slate-200 rounded-full shadow-sm">
                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-               <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Connection: AES-256 Encrypted</span>
+               <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">Connection: AES-256 Encrypted</span>
             </div>
         </div>
 
@@ -189,11 +189,11 @@ const FormViewer = () => {
               {form.schema?.fields?.map((field) => (
                 <div key={field.id} className="space-y-4 group">
                   <div className="flex justify-between items-center">
-                    <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2 group-focus-within:text-brand-default transition-colors">
+                    <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2 group-focus-within:text-brand-default transition-colors">
                       {field.label}
                       {field.required && <span className="text-rose-500">*</span>}
                     </label>
-                    <span className="text-[9px] font-black text-slate-300 uppercase tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity">Field Type: {field.type}</span>
+                    <span className="text-[9px] font-semibold text-slate-300 uppercase tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity">Field Type: {field.type}</span>
                   </div>
                   
                   <div className="relative">
@@ -276,7 +276,7 @@ const FormViewer = () => {
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full h-16 bg-slate-900 hover:bg-black text-white rounded-2xl text-[13px] font-black uppercase tracking-[0.3em] flex items-center justify-center gap-3 transition-all active:scale-[0.98] shadow-2xl relative group overflow-hidden"
+                className="w-full h-16 bg-slate-900 hover:bg-black text-white rounded-2xl text-[13px] font-semibold uppercase tracking-[0.3em] flex items-center justify-center gap-3 transition-all active:scale-[0.98] shadow-2xl relative group overflow-hidden"
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-brand-default to-emerald-500 opacity-0 group-hover:opacity-10 transition-opacity duration-700" />
                 {submitting ? (
@@ -291,7 +291,7 @@ const FormViewer = () => {
               
               <div className="flex items-center gap-3">
                  <div className="w-10 h-[1px] bg-slate-200" />
-                 <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">End of Protocol</span>
+                 <span className="text-[10px] font-semibold text-slate-300 uppercase tracking-widest">End of Protocol</span>
                  <div className="w-10 h-[1px] bg-slate-200" />
               </div>
             </div>
@@ -304,11 +304,11 @@ const FormViewer = () => {
               <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/1a/ISO_logo_ISO_9001_certified.svg/1024px-ISO_logo_ISO_9001_certified.svg.png" alt="ISO" className="h-8 grayscale brightness-150" />
               <div className="w-px h-6 bg-slate-200" />
               <div className="flex flex-col items-start">
-                 <span className="text-[9px] font-black text-slate-900 uppercase">System Integrity</span>
-                 <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">Verified Node // 2026</span>
+                 <span className="text-[9px] font-semibold text-slate-900 uppercase">System Integrity</span>
+                 <span className="text-[8px] font-semibold text-slate-400 uppercase tracking-tighter">Verified Node // 2026</span>
               </div>
            </div>
-           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em] border-t border-slate-200 pt-8 w-full max-w-xs">
+           <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.1em] border-t border-slate-200 pt-8 w-full max-w-xs">
               Powered by <span className="text-slate-900">FormCraft Intel</span>
            </p>
         </footer>

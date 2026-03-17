@@ -25,7 +25,7 @@ public class DashboardService {
     private final FormResponseRepository formResponseRepository;
 
     @Transactional(readOnly = true)
-    public DashboardStatsResponse getDashboardStats() {
+    public DashboardStatsResponse getDashboardStats(String range) {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         
         long totalForms = formRepository.countByCreatedBy(username);
@@ -34,15 +34,15 @@ public class DashboardService {
         
         LocalDateTime startOfToday = LocalDateTime.now().withHour(0).withMinute(0).withSecond(0).withNano(0);
         long responsesToday = formResponseRepository.countByFormCreatedByAndCreatedAtGreaterThanEqual(username, startOfToday);
-
+        
         double rate = totalForms > 0 ? (double) activeForms / totalForms * 100 : 0;
         double avgResponses = totalForms > 0 ? (double) totalResponses / totalForms : 0;
-
+        
         // Recently created forms
         List<Form> recentForms = formRepository.findTop5ByCreatedByOrderByCreatedAtDesc(username);
         // Recent responses
         List<FormResponse> recentResponses = formResponseRepository.findTop5ByFormCreatedByOrderByCreatedAtDesc(username);
-
+        
         List<DashboardStatsResponse.RecentActivity> activities = new ArrayList<>();
         
         recentForms.forEach(f -> activities.add(DashboardStatsResponse.RecentActivity.builder()
@@ -53,7 +53,7 @@ public class DashboardService {
                 .timeAgo(getTimeAgo(f.getCreatedAt()))
                 .timestamp(f.getCreatedAt())
                 .build()));
-
+                
         recentResponses.forEach(r -> activities.add(DashboardStatsResponse.RecentActivity.builder()
                 .id(r.getId().toString())
                 .type("RESPONSE_RECEIVED")
@@ -62,12 +62,18 @@ public class DashboardService {
                 .timeAgo(getTimeAgo(r.getCreatedAt()))
                 .timestamp(r.getCreatedAt())
                 .build()));
-
+                
         activities.sort((a, b) -> b.getTimestamp().compareTo(a.getTimestamp()));
-
-        // Chart Data (Last 7 days)
-        LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);
-        List<Object[]> stats = formResponseRepository.findResponseStatsByCreatedBy(username, sevenDaysAgo);
+        
+        // Chart Data based on range
+        int days = switch (range != null ? range.toLowerCase() : "") {
+            case "30d" -> 30;
+            case "90d" -> 90;
+            default -> 7;
+        };
+        
+        LocalDateTime rangeStart = LocalDateTime.now().minusDays(days);
+        List<Object[]> stats = formResponseRepository.findResponseStatsByCreatedBy(username, rangeStart);
         
         List<DashboardStatsResponse.ChartData> chartData = stats.stream()
                 .map(s -> DashboardStatsResponse.ChartData.builder()
@@ -75,7 +81,7 @@ public class DashboardService {
                         .count(((Number) s[1]).longValue())
                         .build())
                 .collect(Collectors.toList());
-
+                
         return DashboardStatsResponse.builder()
                 .totalForms(totalForms)
                 .totalResponses(totalResponses)

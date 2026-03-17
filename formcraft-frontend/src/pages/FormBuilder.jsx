@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { 
   Type, 
   Hash, 
@@ -27,12 +28,15 @@ import {
   AlertCircle,
   Download,
   Copy,
-  Link as LinkIcon
+  Link as LinkIcon,
+  Sparkles,
+  Layout
 } from 'lucide-react';
 import { motion, Reorder, AnimatePresence } from 'framer-motion';
 import api from '../services/api';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
+import TemplateGallery from '../components/TemplateGallery';
 
 const FIELD_TYPES = [
   { type: 'text', label: 'Short Answer', icon: Type, description: 'Basic text input' },
@@ -46,6 +50,7 @@ const FIELD_TYPES = [
 ];
 
 const FormBuilder = () => {
+  const location = useLocation();
   const [formName, setFormName] = useState('');
   const [fields, setFields] = useState([]);
   const [selectedField, setSelectedField] = useState(null);
@@ -60,6 +65,33 @@ const FormBuilder = () => {
   const [expiresAt, setExpiresAt] = useState('');
   const [activeTab, setActiveTab] = useState('components'); // components, scheduling
   const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const [showGallery, setShowGallery] = useState(false);
+  const [showSaveTemplateModal, setShowSaveTemplateModal] = useState(false);
+  const [templateData, setTemplateData] = useState({ name: '', description: '', categoryId: '', thumbnailUrl: '' });
+  const [availableCategories, setAvailableCategories] = useState([]);
+  const [uploadLoading, setUploadLoading] = useState(false);
+
+  useEffect(() => {
+    fetchCategories();
+    // Handle incoming template from Template Hub
+    if (location.state?.template) {
+      handleSelectTemplate(location.state.template);
+      // Clear location state to prevent reload reset issues
+      window.history.replaceState({}, document.title);
+    }
+  }, []);
+
+  const fetchCategories = async () => {
+    try {
+      const response = await api.get('/templates/categories');
+      setAvailableCategories(response.data);
+      if (response.data.length > 0) {
+        setTemplateData(prev => ({ ...prev, categoryId: response.data[0].id }));
+      }
+    } catch (err) {
+      console.error('Failed to synchronize categories registry.');
+    }
+  };
 
   const now = new Date();
   const offset = now.getTimezoneOffset() * 60000;
@@ -115,12 +147,75 @@ const FormBuilder = () => {
         type: 'success',
         form: response.data 
       });
-    } catch (err) {
-      console.error(err);
-      toast.error('Save Interrupted: We could not save your form. Please check your connection.');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSaveAsTemplate = async () => {
+    if (fields.length === 0) {
+      toast.error('Architecture Required: Cannot save an empty configuration as a blueprint.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const payload = {
+        name: templateData.name || formName,
+        description: templateData.description,
+        category: { id: templateData.categoryId },
+        schema: { fields },
+        thumbnailUrl: templateData.thumbnailUrl
+      };
+      await api.post('/templates', payload);
+      toast.success('Blueprint Encoded: Architecture saved to private asset registry.');
+      setShowSaveTemplateModal(false);
+    } catch (err) {
+      toast.error('Uplink Interrupted: Could not save blueprint.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Strategic Filtering: Only image assets are permitted for blueprint visual identities.');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    setUploadLoading(true);
+    try {
+      const response = await api.post('/images/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      setTemplateData(prev => ({ ...prev, thumbnailUrl: response.url }));
+      toast.success('Asset Synchronized: Visual profile uploaded to Cloudinary registry.');
+    } catch (err) {
+      toast.error('Uplink Failed: Could not transmit asset to cloud registry.');
+    } finally {
+      setUploadLoading(false);
+    }
+  };
+
+  const handleSelectTemplate = (template) => {
+    // Normalize fields to ensure multi-choice fields have an options array
+    const normalizedFields = (template.schema.fields || []).map(f => {
+      if (['dropdown', 'radio', 'checkbox'].includes(f.type) && !f.options) {
+        return { ...f, options: ['Option 1', 'Option 2'] };
+      }
+      return f;
+    });
+    setFields(normalizedFields);
+    setFormName(template.name);
+    setShowGallery(false);
+    toast.success('Registry Synchronized: Architecture deployed from blueprint.');
   };
 
   const activeField = fields.find(f => f.id === selectedField);
@@ -137,7 +232,7 @@ const FormBuilder = () => {
                 <input 
                     type="text" 
                     placeholder="Enter Form Name..."
-                    className={`bg-transparent border-none outline-none text-xl font-bold w-full placeholder:text-slate-300 ${nameError ? 'text-rose-500' : 'text-slate-800'}`}
+                    className={`bg-transparent border-none outline-none text-xl font-semibold w-full placeholder:text-slate-300 ${nameError ? 'text-rose-500' : 'text-slate-800'}`}
                     value={formName}
                     onChange={(e) => {
                         setFormName(e.target.value);
@@ -145,21 +240,37 @@ const FormBuilder = () => {
                     }}
                 />
                 <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{previewMode ? 'Preview Mode' : 'Editor Mode'}</span>
+                    <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">{previewMode ? 'Preview Mode' : 'Editor Mode'}</span>
                 </div>
             </div>
             <div className="flex items-center gap-2 pr-2">
                 <button 
+                    onClick={() => setShowGallery(true)}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold text-brand-default hover:bg-brand-50 transition-all"
+                >
+                    <Sparkles size={14} />
+                    <span>Asset Library</span>
+                </button>
+                <div className="w-px h-6 bg-slate-100 mx-1" />
+                <button 
                     onClick={() => setPreviewMode(!previewMode)}
-                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${previewMode ? 'bg-brand-default text-white shadow-lg shadow-brand-500/20' : 'text-slate-500 hover:bg-slate-50'}`}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all ${previewMode ? 'bg-brand-default text-white shadow-lg shadow-brand-500/20' : 'text-slate-500 hover:bg-slate-50'}`}
                 >
                     {previewMode ? <Code size={14} /> : <Eye size={14} />}
                     <span>{previewMode ? 'Edit Mode' : 'Preview'}</span>
                 </button>
                 <button 
+                    onClick={() => setShowSaveTemplateModal(true)}
+                    disabled={fields.length === 0}
+                    className="flex items-center justify-center p-2.5 text-slate-400 hover:text-brand-default hover:bg-brand-50 rounded-xl transition-all disabled:opacity-30"
+                    title="Save as Blueprint"
+                >
+                    <Layout size={18} />
+                </button>
+                <button 
                     onClick={handleSave} 
                     disabled={loading || fields.length === 0}
-                    className="flex items-center gap-2 px-6 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-black transition-all shadow-lg shadow-slate-900/10 disabled:opacity-50"
+                    className="flex items-center gap-2 px-6 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-semibold hover:bg-black transition-all shadow-lg shadow-slate-900/10 disabled:opacity-50"
                 >
                     {loading ? <Clock className="animate-spin" size={14} /> : <Save size={14} />}
                     <span>{loading ? 'Saving...' : 'Save Form'}</span>
@@ -175,14 +286,14 @@ const FormBuilder = () => {
             <div className="flex bg-white p-1 rounded-xl border border-slate-200">
                 <button 
                     onClick={() => setActiveTab('components')}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'components' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition-all ${activeTab === 'components' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                 >
                     <Plus size={14} />
                     <span>Add Fields</span>
                 </button>
                 <button 
                     onClick={() => setActiveTab('scheduling')}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'scheduling' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition-all ${activeTab === 'scheduling' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                 >
                     <Clock size={14} />
                     <span>Schedule</span>
@@ -210,7 +321,7 @@ const FormBuilder = () => {
                                         <ft.icon size={18} />
                                     </div>
                                     <div className="flex-1">
-                                        <span className="block text-xs font-bold text-slate-800">{ft.label}</span>
+                                        <span className="block text-xs font-semibold text-slate-800">{ft.label}</span>
                                         <span className="block text-[10px] text-slate-400 font-medium leading-tight mt-0.5">{ft.description}</span>
                                     </div>
                                     <Plus size={14} className="text-slate-200 group-hover:text-brand-default mt-1" />
@@ -224,16 +335,16 @@ const FormBuilder = () => {
                             exit={{ opacity: 0, y: -10 }}
                             className="space-y-6 bg-white p-6 rounded-2xl border border-slate-200"
                         >
-                            <h4 className="text-xs font-bold text-slate-900 uppercase tracking-widest flex items-center gap-2 mb-4">
+                            <h4 className="text-xs font-semibold text-slate-900 uppercase tracking-widest flex items-center gap-2 mb-4">
                                 <Calendar size={14} className="text-brand-default" />
                                 Availability
                             </h4>
                             <div className="space-y-4">
                                 <div className="space-y-1.5">
-                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider pl-1">Starts At</label>
+                                    <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider pl-1">Starts At</label>
                                     <input 
                                         type="datetime-local" 
-                                        className="w-full bg-slate-50 border border-slate-100 rounded-xl py-2.5 px-3 text-xs font-bold text-slate-700 outline-none"
+                                        className="w-full bg-slate-50 border border-slate-100 rounded-xl py-2.5 px-3 text-xs font-semibold text-slate-700 outline-none"
                                         value={startsAt}
                                         min={minDateTime}
                                         onKeyDown={(e) => e.preventDefault()}
@@ -248,10 +359,10 @@ const FormBuilder = () => {
                                     />
                                 </div>
                                 <div className="space-y-1.5">
-                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider pl-1">Ends At</label>
+                                    <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider pl-1">Ends At</label>
                                     <input 
                                         type="datetime-local" 
-                                        className="w-full bg-slate-50 border border-slate-100 rounded-xl py-2.5 px-3 text-xs font-bold text-slate-700 outline-none"
+                                        className="w-full bg-slate-50 border border-slate-100 rounded-xl py-2.5 px-3 text-xs font-semibold text-slate-700 outline-none"
                                         value={expiresAt}
                                         min={startsAt || minDateTime}
                                         onKeyDown={(e) => e.preventDefault()}
@@ -292,7 +403,14 @@ const FormBuilder = () => {
             {fields.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-center opacity-40">
                     <MousePointer2 className="text-slate-300 mb-4" size={48} />
-                    <p className="text-sm font-bold text-slate-400">Drag or click a field on the left to start building.</p>
+                    <p className="text-sm font-semibold text-slate-400 mb-6">Drag or click a field on the left to start building.</p>
+                    <button 
+                        onClick={() => setShowGallery(true)}
+                        className="flex items-center gap-2 px-6 py-3 bg-brand-default text-white rounded-xl text-[10px] font-semibold uppercase tracking-widest shadow-lg shadow-brand-500/20 hover:scale-105 transition-all"
+                    >
+                        <Sparkles size={14} />
+                        Initialize from Blueprint
+                    </button>
                 </div>
             ) : (
                 <div className="max-w-xl mx-auto py-4">
@@ -316,10 +434,10 @@ const FormBuilder = () => {
                                 </div>
                                 <div>
                                   <div className="flex items-center gap-2">
-                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Field {idx + 1}</span>
+                                    <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Field {idx + 1}</span>
                                     {field.required && <span className="text-rose-500 text-sm">*</span>}
                                   </div>
-                                  <h4 className="text-sm font-bold text-slate-800">{field.label}</h4>
+                                  <h4 className="text-sm font-semibold text-slate-800">{field.label}</h4>
                                 </div>
                               </div>
                               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
@@ -339,13 +457,13 @@ const FormBuilder = () => {
                   ) : (
                     <div className="space-y-8">
                       <div className="border-b border-slate-100 pb-6">
-                        <h2 className="text-2xl font-black text-slate-800">{formName || 'Untitled Form'}</h2>
+                        <h2 className="text-2xl font-semibold text-slate-800">{formName || 'Untitled Form'}</h2>
                         <p className="text-slate-500 text-sm mt-1">Form Preview Mode</p>
                       </div>
                       <div className="space-y-6">
                         {fields.map((field) => (
                           <div key={field.id} className="space-y-2">
-                            <label className="block text-sm font-bold text-slate-700">
+                            <label className="block text-sm font-semibold text-slate-700">
                               {field.label}
                               {field.required && <span className="text-rose-500 ml-1">*</span>}
                             </label>
@@ -363,7 +481,7 @@ const FormBuilder = () => {
                                 onChange={(e) => setPreviewResponses({...previewResponses, [field.id]: e.target.value})}
                               >
                                 <option value="">{field.placeholder || 'Select an option'}</option>
-                                {field.options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                {(field.options || []).map(opt => <option key={opt} value={opt}>{opt}</option>)}
                               </select>
                             ) : field.type === 'date' ? (
                               <input 
@@ -374,7 +492,7 @@ const FormBuilder = () => {
                               />
                             ) : field.type === 'radio' ? (
                               <div className="space-y-2">
-                                {field.options.map(opt => (
+                                {(field.options || []).map(opt => (
                                   <label key={opt} className="flex items-center gap-2 p-3 bg-slate-50 border border-slate-100 rounded-xl cursor-pointer hover:bg-slate-100 transition-colors">
                                     <input 
                                       type="radio" 
@@ -389,7 +507,7 @@ const FormBuilder = () => {
                               </div>
                             ) : field.type === 'checkbox' ? (
                               <div className="space-y-2">
-                                {field.options.map(opt => (
+                                {(field.options || []).map(opt => (
                                   <label key={opt} className="flex items-center gap-2 p-3 bg-slate-50 border border-slate-100 rounded-xl cursor-pointer hover:bg-slate-100 transition-colors">
                                     <input 
                                       type="checkbox" 
@@ -433,7 +551,7 @@ const FormBuilder = () => {
           <aside className="w-80 flex flex-col gap-6 overflow-hidden">
             <div className="bg-white rounded-3xl border border-slate-200 shadow-sm flex-1 flex flex-col overflow-hidden">
                 <div className="p-5 border-b border-slate-100 bg-slate-50/50">
-                    <h3 className="text-xs font-bold text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                    <h3 className="text-xs font-semibold text-slate-800 uppercase tracking-widest flex items-center gap-2">
                         <Settings2 size={16} className="text-brand-default" />
                         Field Settings
                     </h3>
@@ -444,19 +562,19 @@ const FormBuilder = () => {
                         <>
                             <div className="space-y-4">
                                 <div className="space-y-1.5">
-                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Label</label>
+                                    <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest ml-1">Label</label>
                                     <input 
                                         type="text" 
-                                        className="w-full bg-slate-50 border border-slate-100 rounded-xl py-2.5 px-4 text-xs font-bold text-slate-800 outline-none"
+                                        className="w-full bg-slate-50 border border-slate-100 rounded-xl py-2.5 px-4 text-xs font-semibold text-slate-800 outline-none"
                                         value={activeField.label}
                                         onChange={(e) => updateField(activeField.id, { label: e.target.value })}
                                     />
                                 </div>
                                 <div className="space-y-1.5">
-                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Placeholder</label>
+                                    <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest ml-1">Placeholder</label>
                                     <input 
                                         type="text" 
-                                        className="w-full bg-slate-50 border border-slate-100 rounded-xl py-2.5 px-4 text-xs font-bold text-slate-800 outline-none"
+                                        className="w-full bg-slate-50 border border-slate-100 rounded-xl py-2.5 px-4 text-xs font-semibold text-slate-800 outline-none"
                                         value={activeField.placeholder}
                                         onChange={(e) => updateField(activeField.id, { placeholder: e.target.value })}
                                     />
@@ -467,7 +585,7 @@ const FormBuilder = () => {
                                 onClick={() => updateField(activeField.id, { required: !activeField.required })}
                                 className="w-full flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100"
                             >
-                                <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">Required Field</span>
+                                <span className="text-[10px] font-semibold text-slate-600 uppercase tracking-widest">Required Field</span>
                                 <div className={`w-10 h-5 rounded-full relative transition-all ${activeField.required ? 'bg-brand-default' : 'bg-slate-300'}`}>
                                     <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${activeField.required ? 'left-6' : 'left-1'}`} />
                                 </div>
@@ -476,30 +594,33 @@ const FormBuilder = () => {
                             {(activeField.type === 'dropdown' || activeField.type === 'radio' || activeField.type === 'checkbox') && (
                                 <div className="space-y-3">
                                     <div className="flex items-center justify-between">
-                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Choices</label>
+                                        <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Choices</label>
                                         <button 
-                                            onClick={() => updateField(activeField.id, { options: [...activeField.options, `Option ${activeField.options.length + 1}`] })}
+                                            onClick={() => {
+                                                const currentOptions = activeField.options || [];
+                                                updateField(activeField.id, { options: [...currentOptions, `Option ${currentOptions.length + 1}`] });
+                                            }}
                                             className="text-brand-default"
                                         >
                                             <Plus size={16} />
                                         </button>
                                     </div>
                                     <div className="space-y-2">
-                                        {activeField.options.map((opt, idx) => (
+                                        {(activeField.options || []).map((opt, idx) => (
                                             <div key={idx} className="flex gap-2">
                                                 <input 
                                                     type="text" 
-                                                    className="flex-1 bg-slate-50 border border-slate-100 rounded-xl py-2 px-3 text-[11px] font-bold text-slate-600 outline-none"
+                                                    className="flex-1 bg-slate-50 border border-slate-100 rounded-xl py-2 px-3 text-[11px] font-semibold text-slate-600 outline-none"
                                                     value={opt}
                                                     onChange={(e) => {
-                                                        const newOpts = [...activeField.options];
+                                                        const newOpts = [...(activeField.options || [])];
                                                         newOpts[idx] = e.target.value;
                                                         updateField(activeField.id, { options: newOpts });
                                                     }}
                                                 />
                                                 <button 
                                                     onClick={() => {
-                                                        const newOpts = activeField.options.filter((_, i) => i !== idx);
+                                                        const newOpts = (activeField.options || []).filter((_, i) => i !== idx);
                                                         updateField(activeField.id, { options: newOpts });
                                                     }}
                                                     className="text-slate-300 hover:text-rose-500"
@@ -515,7 +636,7 @@ const FormBuilder = () => {
                     ) : (
                         <div className="h-full flex flex-col items-center justify-center opacity-20 text-center py-20">
                             <Palette size={40} className="mb-4" />
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Select a field to edit its properties</p>
+                            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Select a field to edit its properties</p>
                         </div>
                     )}
                 </div>
@@ -532,13 +653,13 @@ const FormBuilder = () => {
           <div className="flex gap-3 w-full">
             <button 
                 onClick={() => setModal({ ...modal, isOpen: false })}
-                className="flex-1 h-11 bg-slate-50 text-slate-500 rounded-xl text-[10px] font-black uppercase tracking-widest border border-slate-100 hover:bg-slate-100 transition-all"
+                className="flex-1 h-11 bg-slate-50 text-slate-500 rounded-xl text-[10px] font-semibold uppercase tracking-widest border border-slate-100 hover:bg-slate-100 transition-all"
             >
                 Dismiss
             </button>
             <button 
                 onClick={() => setModal({ ...modal, isOpen: false })}
-                className="flex-1 btn-primary h-11 text-[10px] font-black uppercase tracking-[0.2em]"
+                className="flex-1 btn-primary h-11 text-[10px] font-semibold uppercase tracking-[0.2em]"
             >
                 Ready for Uplink
             </button>
@@ -552,18 +673,18 @@ const FormBuilder = () => {
             </div>
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight leading-none">{modal.title}</h3>
+                <h3 className="text-lg font-semibold text-slate-900 uppercase tracking-tight leading-none">{modal.title}</h3>
                 {modal.type === 'success' && (
-                  <span className="bg-emerald-50 text-emerald-600 border border-emerald-100 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest">Encoded</span>
+                  <span className="bg-emerald-50 text-emerald-600 border border-emerald-100 px-2 py-0.5 rounded text-[8px] font-semibold uppercase tracking-widest">Encoded</span>
                 )}
               </div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest opacity-80 leading-tight">
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest opacity-80 leading-tight">
                 {modal.type === 'error' ? 'Operational Halt' : 'Transaction Complete'} // {new Date().toLocaleTimeString()}
               </p>
             </div>
           </div>
 
-          <p className="text-sm font-bold text-slate-600 leading-relaxed border-l-2 border-slate-100 pl-4">
+          <p className="text-sm font-semibold text-slate-600 leading-relaxed border-l-2 border-slate-100 pl-4">
             {modal.message}
           </p>
 
@@ -572,7 +693,7 @@ const FormBuilder = () => {
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <LinkIcon size={10} className="text-brand-default" />
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Public Uplink</span>
+                        <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Public Uplink</span>
                     </div>
                 </div>
                 
@@ -580,7 +701,7 @@ const FormBuilder = () => {
                     <input 
                         readOnly 
                         value={`${window.location.origin}/f/${modal.form.slug}`}
-                        className="w-full bg-white border border-slate-200 rounded-xl pl-4 pr-12 py-3.5 text-xs font-bold text-slate-800 outline-none shadow-sm focus:border-brand-default transition-all"
+                        className="w-full bg-white border border-slate-200 rounded-xl pl-4 pr-12 py-3.5 text-xs font-semibold text-slate-800 outline-none shadow-sm focus:border-brand-default transition-all"
                     />
                     <button 
                         onClick={() => {
@@ -596,12 +717,121 @@ const FormBuilder = () => {
 
                 <div className="flex items-center gap-3 pt-2">
                     <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Signal status: ACTIVE // BROADCASTING</span>
+                    <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-[0.2em]">Signal status: ACTIVE // BROADCASTING</span>
                 </div>
             </div>
           )}
         </div>
       </Modal>
+
+      {/* Save as Template Modal */}
+      <Modal
+        isOpen={showSaveTemplateModal}
+        onClose={() => setShowSaveTemplateModal(false)}
+        title="Blueprint Encoding"
+        footer={
+          <div className="flex gap-3 w-full">
+            <button 
+                onClick={() => setShowSaveTemplateModal(false)}
+                className="flex-1 h-11 bg-slate-50 text-slate-500 rounded-xl text-[10px] font-semibold uppercase tracking-widest border border-slate-100"
+            >
+                Abort
+            </button>
+            <button 
+                onClick={handleSaveAsTemplate}
+                disabled={loading || !templateData.name}
+                className="flex-1 btn-primary h-11 text-[10px] font-semibold uppercase tracking-[0.2em] shadow-lg shadow-brand-500/20"
+            >
+                {loading ? 'Processing...' : 'Secure Blueprint'}
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-6">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-brand-50 rounded-xl flex items-center justify-center text-brand-default border border-brand-100">
+               <Layout size={20} />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-slate-900 uppercase tracking-tight leading-none">Save to Registry</h3>
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mt-1">Convert Architecture to Asset</p>
+            </div>
+          </div>
+
+          <div className="space-y-4 pt-4 border-t border-slate-50">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Blueprint Designation</label>
+              <input 
+                type="text" 
+                placeholder="Ex. Customer Satisfaction v2..."
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-semibold text-slate-800 outline-none focus:border-brand-default transition-all"
+                value={templateData.name}
+                onChange={(e) => setTemplateData({...templateData, name: e.target.value})}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Strategic Category</label>
+              <select 
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-semibold text-slate-800 outline-none focus:border-brand-default transition-all"
+                value={templateData.categoryId}
+                onChange={(e) => setTemplateData({...templateData, categoryId: e.target.value})}
+              >
+                 {availableCategories.map(cat => (
+                   <option key={cat.id} value={cat.id}>{cat.label}</option>
+                 ))}
+              </select>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Protocol Description</label>
+              <textarea 
+                rows="3"
+                placeholder="Describe the utility and deployment scope of this template..."
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-semibold text-slate-800 outline-none focus:border-brand-default transition-all resize-none"
+                value={templateData.description}
+                onChange={(e) => setTemplateData({...templateData, description: e.target.value})}
+              />
+            </div>
+
+            <div className="space-y-1.5 pt-2">
+              <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Visual Identity (Cloudinary)</label>
+              <div className="flex gap-4">
+                <div className="flex-1 space-y-2">
+                  <div className="relative">
+                    <input 
+                      type="text" 
+                      placeholder="Image URL auto-populates on upload..."
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-4 pr-4 py-3 text-[10px] font-semibold text-slate-800 outline-none focus:border-brand-default transition-all"
+                      value={templateData.thumbnailUrl}
+                      onChange={(e) => setTemplateData({...templateData, thumbnailUrl: e.target.value})}
+                    />
+                  </div>
+                  <div className="flex items-center gap-3">
+                     <label className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-brand-50 hover:bg-brand-100 text-brand-default rounded-xl text-[9px] font-semibold uppercase tracking-widest cursor-pointer transition-all border border-brand-100">
+                      {uploadLoading ? <Clock size={12} className="animate-spin" /> : <Plus size={12} />}
+                      <span>{uploadLoading ? 'Uploading...' : 'Upload Image'}</span>
+                      <input type="file" className="hidden" onChange={handleImageUpload} accept="image/*" disabled={uploadLoading} />
+                    </label>
+                  </div>
+                </div>
+                {templateData.thumbnailUrl && (
+                  <div className="w-24 h-24 rounded-2xl border border-slate-100 overflow-hidden bg-slate-50 shrink-0">
+                    <img src={templateData.thumbnailUrl} alt="Preview" className="w-full h-full object-cover" />
+                  </div>
+                )}
+              </div>
+              <p className="text-[8px] font-semibold text-slate-400 uppercase tracking-widest ml-1">Deploy a visual profile to distinguish this blueprint</p>
+            </div>
+          </div>
+        </div>
+      </Modal>
+
+      <TemplateGallery 
+        isOpen={showGallery}
+        onClose={() => setShowGallery(false)}
+        onSelect={handleSelectTemplate}
+      />
     </div>
   );
 };

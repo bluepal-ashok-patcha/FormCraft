@@ -62,7 +62,7 @@ const LoginPage = () => {
 
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2 ml-1">Identity</label>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2 ml-1">Identity</label>
                 <div className="relative group">
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={20} />
                   <input
@@ -77,7 +77,7 @@ const LoginPage = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2 ml-1">Master Key</label>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2 ml-1">Master Key</label>
                 <div className="relative group">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={20} />
                   <input
@@ -98,13 +98,13 @@ const LoginPage = () => {
                   </div>
                   <span className="text-sm text-slate-500 font-medium group-hover:text-slate-700 transition-colors">Keep me signed in</span>
                 </label>
-                <a href="#" className="text-sm text-blue-600 font-bold hover:text-blue-700 transition-colors">Forgot Key?</a>
+                <a href="#" className="text-sm text-blue-600 font-semibold hover:text-blue-700 transition-colors">Forgot Key?</a>
               </div>
 
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-4 bg-slate-900 text-white rounded-enterprise font-bold flex items-center justify-center gap-3 transition-all active:scale-[0.98] hover:bg-black shadow-xl shadow-slate-900/20 group h-14"
+                className="w-full py-4 bg-slate-900 text-white rounded-enterprise font-semibold flex items-center justify-center gap-3 transition-all active:scale-[0.98] hover:bg-black shadow-xl shadow-slate-900/20 group h-14"
               >
                 {loading ? (
                   <Loader2 className="animate-spin" size={22} />
@@ -119,7 +119,7 @@ const LoginPage = () => {
 
             <div className="mt-8 text-center bg-slate-50 p-6 rounded-3xl border border-slate-100">
               <p className="text-sm text-slate-500 font-medium mb-3">New to the cluster?</p>
-              <Link to="/register" className="text-slate-900 font-bold hover:text-black transition-colors flex items-center justify-center gap-2">
+              <Link to="/register" className="text-slate-900 font-semibold hover:text-black transition-colors flex items-center justify-center gap-2">
                 Provision New Access
                 <ArrowRight size={16} />
               </Link>
@@ -130,10 +130,10 @@ const LoginPage = () => {
         <div className="mt-8 flex items-center justify-center gap-6 text-slate-400 font-medium tracking-wide border-t border-white/5 pt-8">
           <div className="flex items-center gap-2 grayscale hover:grayscale-0 transition-all cursor-crosshair">
             <Shield size={16} />
-            <span className="text-xs uppercase font-bold">Encrypted Endpoints</span>
+            <span className="text-xs uppercase font-semibold">Encrypted Endpoints</span>
           </div>
           <div className="w-1 h-1 bg-white/20 rounded-full" />
-          <p className="text-[10px] uppercase font-bold tracking-[0.2em]">v2.4.0 Core-Pulse</p>
+          <p className="text-[10px] uppercase font-semibold tracking-[0.2em]">v2.4.0 Core-Pulse</p>
         </div>
       </motion.div>
     </div>

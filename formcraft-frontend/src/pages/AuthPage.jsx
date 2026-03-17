@@ -111,8 +111,8 @@ const FormNodeAnimation = ({ color = '#4f46e5' }) => {
             <Layers className="text-indigo-600" size={32} strokeWidth={2.5} />
           </div>
           <div className="text-center">
-            <h1 className="text-3xl font-black text-slate-900 tracking-tighter">FORMCRAFT</h1>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Digital Architecture</p>
+            <h1 className="text-3xl font-bold text-slate-900 tracking-tighter">FORMCRAFT</h1>
+            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mt-1">Digital Architecture</p>
           </div>
         </motion.div>
       </div>
@@ -183,7 +183,7 @@ const FormModule = ({ icon: Icon, label, x, y, delay, color, mouseX, mouseY, con
           <Icon size={18} className="text-slate-400 group-hover:text-indigo-600 transition-colors" />
         </div>
         <div className="pr-2">
-          <p className="text-[10px] font-black text-slate-800 uppercase tracking-tight">{label}</p>
+          <p className="text-[10px] font-semibold text-slate-800 uppercase tracking-tight">{label}</p>
           <div className="flex gap-1 mt-0.5">
             <div className="w-12 h-1 bg-slate-100 rounded-full overflow-hidden">
               <motion.div
@@ -407,7 +407,7 @@ const AuthPage = () => {
       </AnimatePresence>
 
       <footer className="fixed bottom-6 left-0 right-0 flex justify-center pointer-events-none opacity-40">
-        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.4em]">
+        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.4em]">
           &copy; {new Date().getFullYear()} FormCraft Inc. // System Active
         </p>
       </footer>
@@ -419,8 +419,8 @@ const AuthPage = () => {
 
 const AuthHeader = ({ title, subtitle }) => (
   <div className="mb-10">
-    <h2 className="text-4xl font-black text-slate-900 tracking-tighter mb-2">{title}</h2>
-    <p className="text-slate-400 text-sm font-bold tracking-tight">{subtitle}</p>
+    <h2 className="text-4xl font-bold text-slate-900 tracking-tighter mb-2">{title}</h2>
+    <p className="text-slate-400 text-sm font-semibold tracking-tight">{subtitle}</p>
   </div>
 );
 
@@ -431,7 +431,7 @@ const ErrorMessage = ({ error }) => (
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -10 }}
-        className={`mb-6 p-4 rounded-xl flex items-center gap-3 text-[11px] font-black uppercase tracking-wider border ${error.startsWith('success:')
+        className={`mb-6 p-4 rounded-xl flex items-center gap-3 text-[11px] font-semibold uppercase tracking-wider border ${error.startsWith('success:')
             ? 'bg-emerald-50 border-emerald-100 text-emerald-700'
             : 'bg-rose-50 border-rose-100 text-rose-700'
           }`}
@@ -446,8 +446,8 @@ const ErrorMessage = ({ error }) => (
 const InputField = ({ label, icon: Icon, type = 'text', placeholder, value, onChange, forgot }) => (
   <div className="space-y-2 group">
     <div className="flex items-center justify-between px-1">
-      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest group-focus-within:text-indigo-600 transition-colors">{label}</label>
-      {forgot && <button type="button" className="text-[10px] font-bold text-indigo-600 hover:text-indigo-700 transition-colors uppercase tracking-widest">Forgot?</button>}
+      <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest group-focus-within:text-indigo-600 transition-colors">{label}</label>
+      {forgot && <button type="button" className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-700 transition-colors uppercase tracking-widest">Forgot?</button>}
     </div>
     <div className="relative">
       <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-indigo-600 transition-colors">
@@ -457,7 +457,7 @@ const InputField = ({ label, icon: Icon, type = 'text', placeholder, value, onCh
         type={type}
         required
         placeholder={placeholder}
-        className="w-full h-14 bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-4 text-sm font-bold text-slate-900 outline-none focus:bg-white focus:border-indigo-600 focus:ring-4 focus:ring-indigo-500/10 transition-all placeholder:text-slate-300"
+        className="w-full h-14 bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-4 text-sm font-semibold text-slate-900 outline-none focus:bg-white focus:border-indigo-600 focus:ring-4 focus:ring-indigo-500/10 transition-all placeholder:text-slate-300"
         value={value}
         onChange={onChange}
       />
@@ -469,7 +469,7 @@ const SubmitButton = ({ loading, text }) => (
   <button
     type="submit"
     disabled={loading}
-    className="w-full h-14 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-[0.4em] flex items-center justify-center gap-3 hover:bg-slate-800 transition-all active:scale-[0.98] shadow-xl shadow-slate-200 mt-8"
+    className="w-full h-14 bg-slate-900 text-white rounded-2xl font-semibold text-xs uppercase tracking-[0.4em] flex items-center justify-center gap-3 hover:bg-slate-800 transition-all active:scale-[0.98] shadow-xl shadow-slate-200 mt-8"
   >
     {loading ? (
       <Loader2 className="animate-spin" size={20} />
@@ -488,10 +488,10 @@ const AuthToggle = ({ onToggle, label, action }) => (
       onClick={onToggle}
       className="group flex flex-col items-center gap-2 mx-auto"
     >
-      <span className="text-[10px] font-bold text-slate-300 uppercase tracking-[0.3em] group-hover:text-slate-400 transition-colors">
+      <span className="text-[10px] font-semibold text-slate-300 uppercase tracking-[0.3em] group-hover:text-slate-400 transition-colors">
         {label}
       </span>
-      <span className="text-xs font-black text-indigo-600 uppercase tracking-widest border-b-2 border-transparent group-hover:border-indigo-600 py-1 transition-all">
+      <span className="text-xs font-semibold text-indigo-600 uppercase tracking-widest border-b-2 border-transparent group-hover:border-indigo-600 py-1 transition-all">
         {action}
       </span>
     </button>

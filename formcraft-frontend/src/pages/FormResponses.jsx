@@ -149,17 +149,17 @@ const FormResponses = () => {
               <ArrowLeft size={18} />
             </button>
             <div>
-              <h1 className="text-xl md:text-xl font-black tracking-tighter mb-1 leading-none uppercase">
+              <h1 className="text-xl md:text-xl font-semibold tracking-tighter mb-1 leading-none uppercase">
                 {form?.name} <span className="text-brand-500 text-sm ml-2">// DATA CORE</span>
               </h1>
-              <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest opacity-80">
+              <p className="text-slate-500 text-[10px] font-semibold uppercase tracking-widest opacity-80">
                 Inbound Payload Logs <span className="mx-2 text-slate-700">|</span> UUID: {id?.substring(0, 8)}
               </p>
             </div>
           </div>
           
           <div className="flex items-center gap-4 shrink-0 w-full md:w-auto">
-            <button className="px-5 bg-brand-default text-white h-10 rounded-md font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 hover:bg-brand-600 transition-all shadow-lg shadow-brand-500/10">
+            <button className="px-5 bg-brand-default text-white h-10 rounded-md font-semibold uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 hover:bg-brand-600 transition-all shadow-lg shadow-brand-500/10">
               <Download size={14} />
               Export
             </button>
@@ -178,7 +178,7 @@ const FormResponses = () => {
           <input 
             type="text" 
             placeholder="Search within loaded payloads..." 
-            className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-10 pr-4 py-2 text-xs font-bold text-slate-700 focus:outline-none focus:border-brand-default transition-all"
+            className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-10 pr-4 py-2 text-xs font-semibold text-slate-700 focus:outline-none focus:border-brand-default transition-all"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -191,14 +191,14 @@ const FormResponses = () => {
               type="date" 
               value={dateRange.start}
               onChange={(e) => { setDateRange({...dateRange, start: e.target.value}); setPage(0); }}
-              className="bg-transparent border-none py-2 text-[10px] font-bold text-slate-700 focus:outline-none"
+              className="bg-transparent border-none py-2 text-[10px] font-semibold text-slate-700 focus:outline-none"
             />
             <span className="text-slate-300 mx-1">-</span>
             <input 
               type="date" 
               value={dateRange.end}
               onChange={(e) => { setDateRange({...dateRange, end: e.target.value}); setPage(0); }}
-              className="bg-transparent border-none py-2 text-[10px] font-bold text-slate-700 focus:outline-none"
+              className="bg-transparent border-none py-2 text-[10px] font-semibold text-slate-700 focus:outline-none"
             />
           </div>
         </div>
@@ -224,8 +224,8 @@ const FormResponses = () => {
               <FileSpreadsheet size={20} />
             </div>
             <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Responses</p>
-              <h4 className="text-2xl font-black text-slate-900 tracking-tight">{totalElements}</h4>
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">Total Responses</p>
+              <h4 className="text-2xl font-semibold text-slate-900 tracking-tight">{totalElements}</h4>
             </div>
           </motion.div>
 
@@ -239,17 +239,17 @@ const FormResponses = () => {
               <History size={20} />
             </div>
             <div className="flex-1">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Life Cycle Schedule</p>
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-2">Life Cycle Schedule</p>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Initiation</p>
-                  <p className="text-xs font-black text-slate-900 truncate">
+                  <p className="text-[8px] font-semibold text-slate-400 uppercase tracking-tighter">Initiation</p>
+                  <p className="text-xs font-semibold text-slate-900 truncate">
                     {form?.startsAt ? new Date(form.startsAt).toLocaleDateString() : 'IMMEDIATE'}
                   </p>
                 </div>
                 <div>
-                  <p className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Decommission</p>
-                  <p className="text-xs font-black text-slate-900 truncate">
+                  <p className="text-[8px] font-semibold text-slate-400 uppercase tracking-tighter">Decommission</p>
+                  <p className="text-xs font-semibold text-slate-900 truncate">
                     {form?.expiresAt ? new Date(form.expiresAt).toLocaleDateString() : 'ETERNAL'}
                   </p>
                 </div>
@@ -267,8 +267,8 @@ const FormResponses = () => {
               <Calendar size={20} />
             </div>
             <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Launch Date</p>
-              <h4 className="text-xl font-black text-slate-900 tracking-tight">
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">Launch Date</p>
+              <h4 className="text-xl font-semibold text-slate-900 tracking-tight">
                 {form?.createdAt ? new Date(form.createdAt).toLocaleDateString() : '-'}
               </h4>
             </div>
@@ -288,13 +288,13 @@ const FormResponses = () => {
                   <TableIcon size={16} />
                </div>
                 <div>
-                  <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">Response Records</h3>
-                  <p className="text-[9px] text-slate-400 font-bold uppercase mt-1 tracking-widest">Last Updated at {new Date().toLocaleTimeString()}</p>
+                  <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-widest">Response Records</h3>
+                  <p className="text-[9px] text-slate-400 font-semibold uppercase mt-1 tracking-widest">Last Updated at {new Date().toLocaleTimeString()}</p>
                 </div>
              </div>
              <div className="flex bg-slate-50 rounded-lg p-1 border border-slate-200">
-               <button className="px-3 py-1.5 text-[9px] font-black text-white bg-slate-900 rounded-md uppercase tracking-widest shadow-sm">Tabular</button>
-               <button className="px-3 py-1.5 text-[9px] font-black text-slate-400 hover:text-slate-600 uppercase tracking-widest transition-colors">Grid View</button>
+               <button className="px-3 py-1.5 text-[9px] font-semibold text-white bg-slate-900 rounded-md uppercase tracking-widest shadow-sm">Tabular</button>
+               <button className="px-3 py-1.5 text-[9px] font-semibold text-slate-400 hover:text-slate-600 uppercase tracking-widest transition-colors">Grid View</button>
              </div>
           </div>
 
@@ -302,12 +302,12 @@ const FormResponses = () => {
           <table className="w-full text-left border-collapse min-w-[900px]">
             <thead>
               <tr className="border-b border-slate-100">
-                <th className="px-8 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Record Profile</th>
+                <th className="px-8 py-4 text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Record Profile</th>
                 {headers.map(h => (
-                  <th key={h} className="px-8 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{h}</th>
+                  <th key={h} className="px-8 py-4 text-[11px] font-semibold text-slate-400 uppercase tracking-widest">{h}</th>
                 ))}
-                <th className="px-8 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-right">Receipt Details</th>
-                <th className="px-8 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-center">Actions</th>
+                <th className="px-8 py-4 text-[11px] font-semibold text-slate-400 uppercase tracking-widest text-right">Receipt Details</th>
+                <th className="px-8 py-4 text-[11px] font-semibold text-slate-400 uppercase tracking-widest text-center">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -323,10 +323,10 @@ const FormResponses = () => {
                   >
                     <td className="px-8 py-5">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-brand-50 text-brand-default flex items-center justify-center text-[10px] font-black font-mono shadow-sm border border-brand-100/50 group-hover:bg-brand-default group-hover:text-white transition-all">
+                        <div className="w-8 h-8 rounded-lg bg-brand-50 text-brand-default flex items-center justify-center text-[10px] font-semibold font-mono shadow-sm border border-brand-100/50 group-hover:bg-brand-default group-hover:text-white transition-all">
                           {resp.id.split('-')[0].charAt(0).toUpperCase()}
                         </div>
-                        <span className="text-[11px] font-bold text-slate-500 font-mono tracking-tight">#{resp.id.split('-')[0].toUpperCase()}</span>
+                        <span className="text-[11px] font-semibold text-slate-500 font-mono tracking-tight">#{resp.id.split('-')[0].toUpperCase()}</span>
                       </div>
                     </td>
                     {headers.map(h => (
@@ -337,7 +337,7 @@ const FormResponses = () => {
                       </td>
                     ))}
                     <td className="px-8 py-5 text-right whitespace-nowrap">
-                        <span className="text-[11px] font-bold text-slate-700 uppercase tracking-tight">
+                        <span className="text-[11px] font-semibold text-slate-700 uppercase tracking-tight">
                           {new Date(resp.submittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           <span className="mx-2 text-slate-300">|</span>
                           {new Date(resp.submittedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
@@ -366,7 +366,7 @@ const FormResponses = () => {
                                   setIsEditing(true);
                                   setActiveMenuId(null);
                                 }}
-                                className="w-full px-4 py-2 text-left text-[11px] font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-2 uppercase tracking-widest"
+                                className="w-full px-4 py-2 text-left text-[11px] font-semibold text-slate-600 hover:bg-slate-50 flex items-center gap-2 uppercase tracking-widest"
                               >
                                 <Edit size={12} className="text-blue-500" />
                                 Edit Rep
@@ -376,7 +376,7 @@ const FormResponses = () => {
                                   setDeleteConfirm({ isOpen: true, id: resp.id });
                                   setActiveMenuId(null);
                                 }}
-                                className="w-full px-4 py-2 text-left text-[11px] font-bold text-rose-500 hover:bg-rose-50 flex items-center gap-2 uppercase tracking-widest"
+                                className="w-full px-4 py-2 text-left text-[11px] font-semibold text-rose-500 hover:bg-rose-50 flex items-center gap-2 uppercase tracking-widest"
                               >
                                 <Trash2 size={12} />
                                 Delete
@@ -396,7 +396,7 @@ const FormResponses = () => {
                 <div className="w-20 h-20 bg-slate-900 rounded-full flex items-center justify-center mb-6">
                     <ClipboardList size={40} className="text-white" />
                 </div>
-                <p className="text-slate-900 font-black uppercase tracking-[0.3em] text-xs">Awaiting Signal...</p>
+                <p className="text-slate-900 font-semibold uppercase tracking-[0.3em] text-xs">Awaiting Signal...</p>
             </div>
           )}
         </div>
@@ -404,7 +404,7 @@ const FormResponses = () => {
         {/* Pagination Console */}
         {totalPages > 1 && (
           <div className="p-6 px-8 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Index {page + 1} // Level {totalPages}</p>
+            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Index {page + 1} // Level {totalPages}</p>
             <div className="flex gap-3">
               <button 
                 disabled={page === 0}
@@ -451,8 +451,8 @@ const FormResponses = () => {
                     <TableIcon size={16} />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-slate-900 uppercase tracking-tight">Response Inspector</h3>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">ID: #{selectedResponse.id.split('-')[0].toUpperCase()}</p>
+                    <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-tight">Response Inspector</h3>
+                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mt-0.5">ID: #{selectedResponse.id.split('-')[0].toUpperCase()}</p>
                   </div>
                 </div>
                 <button 
@@ -470,7 +470,7 @@ const FormResponses = () => {
               <div className="p-6 max-h-[60vh] overflow-y-auto custom-scrollbar space-y-5">
                 {form?.schema?.fields?.map((field) => (
                   <div key={field.label} className="space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{field.label}</label>
+                    <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest px-1">{field.label}</label>
                     {isEditing ? (
                       <input 
                         className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-[4px] text-sm font-medium focus:outline-none focus:border-brand-default transition-all"
@@ -494,9 +494,9 @@ const FormResponses = () => {
                   <div className="mt-6 p-4 bg-slate-50 rounded-lg border border-slate-100 flex items-center justify-between">
                      <div className="flex items-center gap-2">
                         <Clock size={14} className="text-slate-400" />
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Received: {new Date(selectedResponse.submittedAt).toLocaleString()}</span>
+                        <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Received: {new Date(selectedResponse.submittedAt).toLocaleString()}</span>
                      </div>
-                     <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest flex items-center gap-1">
+                     <span className="text-[10px] font-semibold text-emerald-500 uppercase tracking-widest flex items-center gap-1">
                         <div className="w-1 h-1 bg-emerald-500 rounded-full" />
                         Verified
                      </span>
@@ -511,7 +511,7 @@ const FormResponses = () => {
                     setSelectedResponse(null);
                     setIsEditing(false);
                   }}
-                  className="text-[11px] font-bold text-slate-400 hover:text-slate-600 uppercase tracking-widest mr-auto"
+                  className="text-[11px] font-semibold text-slate-400 hover:text-slate-600 uppercase tracking-widest mr-auto"
                 >
                   Dismiss
                 </button>
@@ -525,14 +525,14 @@ const FormResponses = () => {
                               setEditData({ ...selectedResponse.responseData });
                               setIsEditing(true);
                             }}
-                            className="btn-secondary h-9 px-4 text-[11px] font-bold flex items-center gap-2 rounded-[4px] bg-white border-slate-200 hover:border-brand-default"
+                            className="btn-secondary h-9 px-4 text-[11px] font-semibold flex items-center gap-2 rounded-[4px] bg-white border-slate-200 hover:border-brand-default"
                           >
                             <Edit size={14} />
                             Edit
                           </button>
                           <button 
                              onClick={() => setDeleteConfirm({ isOpen: true, id: selectedResponse.id })}
-                             className="btn-danger h-9 px-4 text-[11px] font-bold flex items-center gap-2 rounded-[4px] bg-white border-rose-200 text-rose-500 hover:bg-rose-50"
+                             className="btn-danger h-9 px-4 text-[11px] font-semibold flex items-center gap-2 rounded-[4px] bg-white border-rose-200 text-rose-500 hover:bg-rose-50"
                           >
                             <Trash2 size={14} />
                             Delete
@@ -554,14 +554,14 @@ const FormResponses = () => {
                              toast.error('Update Failed: ' + (err.response?.data?.message || err.message));
                            }
                         }}
-                        className="btn-primary h-9 px-4 text-[11px] font-bold flex items-center gap-2 rounded-[4px]"
+                        className="btn-primary h-9 px-4 text-[11px] font-semibold flex items-center gap-2 rounded-[4px]"
                       >
                         <Save size={14} />
                         Save
                       </button>
                       <button 
                         onClick={() => setIsEditing(false)}
-                        className="btn-secondary h-9 px-4 text-[11px] font-bold rounded-[4px] bg-white"
+                        className="btn-secondary h-9 px-4 text-[11px] font-semibold rounded-[4px] bg-white"
                       >
                         Cancel
                       </button>
@@ -594,7 +594,7 @@ const FormResponses = () => {
               <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center mb-4">
                 <Trash2 size={24} />
               </div>
-              <h3 className="text-base font-bold text-slate-900 uppercase tracking-tight">Erase Submission?</h3>
+              <h3 className="text-base font-semibold text-slate-900 uppercase tracking-tight">Erase Submission?</h3>
               <p className="text-xs text-slate-500 mt-2 leading-relaxed">
                 You are about to permanently remove this payload from the database. This action is irreversible.
               </p>
@@ -611,13 +611,13 @@ const FormResponses = () => {
                       toast.error('Erase Failed: Broadcast failure - unable to delete record.');
                     }
                   }}
-                  className="flex-1 h-10 bg-rose-500 text-white rounded-[4px] text-[11px] font-black uppercase tracking-widest hover:bg-rose-600 transition-all shadow-lg shadow-rose-500/20"
+                  className="flex-1 h-10 bg-rose-500 text-white rounded-[4px] text-[11px] font-semibold uppercase tracking-widest hover:bg-rose-600 transition-all shadow-lg shadow-rose-500/20"
                 >
                   Confirm Erase
                 </button>
                 <button 
                   onClick={() => setDeleteConfirm({ isOpen: false, id: null })}
-                  className="flex-1 h-10 bg-slate-50 text-slate-500 rounded-[4px] text-[11px] font-black uppercase tracking-widest border border-slate-100 hover:bg-slate-100 transition-all"
+                  className="flex-1 h-10 bg-slate-50 text-slate-500 rounded-[4px] text-[11px] font-semibold uppercase tracking-widest border border-slate-100 hover:bg-slate-100 transition-all"
                 >
                   Cancel
                 </button>

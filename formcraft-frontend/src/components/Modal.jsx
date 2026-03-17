@@ -25,7 +25,7 @@ const Modal = ({ isOpen, onClose, title, children, footer, maxWidth = 'max-w-md'
             >
               {/* Header */}
               <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                <h3 className="text-base font-bold text-slate-800">{title}</h3>
+                <h3 className="text-base font-semibold text-slate-800">{title}</h3>
                 <button
                   onClick={onClose}
                   className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-all"

@@ -13,7 +13,8 @@ import {
   Search,
   Menu,
   ChevronLeft,
-  Square
+  Square,
+  Sparkles
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'react-toastify';
@@ -64,10 +65,11 @@ const MainLayout = ({ children }) => {
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest">
+            <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-widest">
               {location.pathname === '/dashboard' ? 'Dashboard' : 
                location.pathname === '/builder' ? 'Form Architect' :
-               location.pathname === '/forms' ? 'Asset Management' : 'Interface'}
+               location.pathname === '/forms' ? 'Asset Management' : 
+               location.pathname === '/templates' ? 'Blueprint Library' : 'Interface'}
             </h2>
             <div className="hidden md:flex items-center bg-slate-100/80 rounded-md px-3 py-1.5 gap-2 border border-slate-200/50">
               <Search size={12} className="text-slate-400" />
@@ -87,7 +89,7 @@ const MainLayout = ({ children }) => {
           <div className="h-6 w-px bg-slate-100"></div>
           <div className="flex items-center gap-3">
             <div className="text-right hidden sm:block">
-              <p className="text-xs font-bold text-slate-900 leading-none">{user?.fullName || user?.username}</p>
+              <p className="text-xs font-semibold text-slate-900 leading-none">{user?.fullName || user?.username}</p>
               <p className="text-[10px] text-slate-400 mt-1">Admin Console</p>
             </div>
             <div className="w-9 h-9 rounded-md bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-500 transition-all hover:border-brand-default hover:text-brand-default cursor-pointer">
@@ -117,6 +119,13 @@ const MainLayout = ({ children }) => {
                 collapsed={sidebarCollapsed}
               />
               <SidebarLink 
+                to="/templates" 
+                icon={Sparkles} 
+                label="Template Hub" 
+                active={location.pathname === '/templates'} 
+                collapsed={sidebarCollapsed}
+              />
+              <SidebarLink 
                 to="/forms" 
                 icon={ClipboardList} 
                 label="My Forms" 
@@ -129,7 +138,7 @@ const MainLayout = ({ children }) => {
           <div className={`${sidebarCollapsed ? 'p-2' : 'p-4'} mt-auto border-t border-slate-50`}>
             <button 
               onClick={handleLogout}
-              className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3 px-4'} py-2.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-all rounded-lg font-bold uppercase text-[10px] tracking-widest`}
+              className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3 px-4'} py-2.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-all rounded-lg font-semibold uppercase text-[10px] tracking-widest`}
             >
               <div className="w-6 flex items-center justify-center shrink-0">
                 <LogOut size={18} />

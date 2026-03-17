@@ -24,6 +24,11 @@ app:
   jwt-expiration-milliseconds: 3600000
   jwt-refresh-expiration-milliseconds: 86400000 # 24 hours
 
+cloudinary:
+  cloud-name: ${CLOUDINARY_CLOUD_NAME:your-cloud-name}
+  api-key: ${CLOUDINARY_API_KEY:your-api-key}
+  api-secret: ${CLOUDINARY_API_SECRET:your-api-secret}
+
 management:
   endpoints:
     web:

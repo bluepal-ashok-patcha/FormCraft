@@ -9,6 +9,7 @@ import FormBuilder from './pages/FormBuilder';
 import FormList from './pages/FormList';
 import FormViewer from './pages/FormViewer';
 import FormResponses from './pages/FormResponses';
+import TemplateHub from './pages/TemplateHub';
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
@@ -34,6 +35,7 @@ function App() {
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/builder" element={<ProtectedRoute><FormBuilder /></ProtectedRoute>} />
           <Route path="/forms" element={<ProtectedRoute><FormList /></ProtectedRoute>} />
+          <Route path="/templates" element={<ProtectedRoute><TemplateHub /></ProtectedRoute>} />
           <Route path="/forms/:id/responses" element={<ProtectedRoute><FormResponses /></ProtectedRoute>} />
           
           {/* Redirects */}
