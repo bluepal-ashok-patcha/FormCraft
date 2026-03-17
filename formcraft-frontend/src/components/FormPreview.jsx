@@ -51,7 +51,7 @@ const FormPreview = ({ fields = [], name, bannerUrl, thumbnailUrl }) => {
                   className="bg-white rounded-xl border border-slate-100 px-5 py-4 shadow-sm"
                 >
                   {/* Label */}
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                  <label className="block text-sm font-medium text-slate-700 mb-4">
                     {field.label || `Field ${idx + 1}`}
                     {field.required && <span className="text-red-500 ml-1">*</span>}
                   </label>

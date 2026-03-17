@@ -531,10 +531,14 @@ const FormBuilder = () => {
                                         value={field}
                                         dragListener={isActive}
                                         onClick={(e) => { e.stopPropagation(); setSelectedField(field.id); setActiveHeader(false); }}
-                                        className={`group bg-white rounded-xl border shadow-sm space-y-6 transition-all relative ${
-                                            isActive ? 'border-brand-default ring-4 ring-brand-500/5 p-8' : 'border-slate-200 p-8 cursor-pointer hover:border-slate-300'
+                                        className={`group bg-white rounded-xl border transition-all relative overflow-hidden space-y-6 ${
+                                            isActive ? 'border-slate-200 shadow-xl py-10 px-8' : 'border-slate-200 p-8 cursor-pointer hover:border-slate-300 shadow-sm'
                                         }`}
                                     >
+                                        {/* Google Forms Active Accent Bar */}
+                                        {isActive && (
+                                            <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-brand-default" />
+                                        )}
                                         {/* Drag Handle (Google Forms style top center) */}
                                         {isActive && (
                                           <div className="absolute top-2 left-0 right-0 flex justify-center opacity-40 hover:opacity-100 cursor-move">
@@ -546,14 +550,25 @@ const FormBuilder = () => {
                                             {isActive ? (
                                               <div className="flex gap-4">
                                                   <input 
-                                                    className="flex-1 text-base font-normal text-slate-900 bg-slate-50 border-b-2 border-slate-200 focus:border-brand-default outline-none px-2 py-1"
+                                                    className="flex-1 text-base font-normal text-slate-900 bg-transparent border-b border-slate-200 focus:border-b-2 focus:border-brand-default outline-none px-1 py-3 transition-all placeholder:text-slate-300"
                                                     value={field.label}
                                                     onChange={(e) => updateField(field.id, { label: e.target.value })}
                                                     placeholder="Question"
                                                   />
-                                                  <div className="flex items-center gap-2 bg-slate-50 px-3 rounded-lg border border-slate-100">
-                                                      {fieldTypeObj && <fieldTypeObj.icon size={16} className="text-slate-400" />}
-                                                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{fieldTypeObj?.label}</span>
+                                                  <div className="flex items-center gap-3 bg-white border border-slate-200 rounded px-4 py-2.5 min-w-[200px] hover:bg-slate-50 transition-colors cursor-pointer relative group/type shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+                                                      <div className="flex items-center gap-3 flex-1">
+                                                          {fieldTypeObj && <fieldTypeObj.icon size={18} className="text-slate-500" />}
+                                                          <select 
+                                                            className="flex-1 text-sm font-normal text-slate-700 bg-transparent border-none outline-none cursor-pointer appearance-none pr-6"
+                                                            value={field.type}
+                                                            onChange={(e) => updateField(field.id, { type: e.target.value })}
+                                                          >
+                                                              {FIELD_TYPES.map(type => (
+                                                                  <option key={type.type} value={type.type} className="bg-white text-slate-600 py-2">{type.label}</option>
+                                                              ))}
+                                                          </select>
+                                                      </div>
+                                                      <ChevronDown size={14} className="text-slate-400 absolute right-4 pointer-events-none transition-transform group-hover/type:translate-y-0.5" />
                                                   </div>
                                               </div>
                                             ) : (
@@ -564,7 +579,7 @@ const FormBuilder = () => {
                                             )}
                                         </div>
                                             
-                                        <div className="relative">
+                                        <div className="relative mt-6">
                                             {field.type === 'textarea' ? (
                                                 <textarea 
                                                     readOnly={!isActive}
@@ -577,10 +592,10 @@ const FormBuilder = () => {
                                                     <div className="space-y-3 pl-2">
                                                       {(field.options || []).map((opt, oIdx) => (
                                                         <div key={oIdx} className="flex items-center gap-3 group/opt">
-                                                           <span className="text-slate-300 text-xs font-mono">{oIdx + 1}.</span>
+                                                           <span className="text-slate-400 text-sm">{oIdx + 1}.</span>
                                                            <input 
                                                               type="text" 
-                                                              className="flex-1 bg-transparent border-b border-transparent focus:border-slate-200 outline-none text-sm font-semibold text-slate-700"
+                                                              className="flex-1 bg-transparent border-b border-transparent focus:border-slate-200 outline-none text-sm font-normal text-slate-700 py-1"
                                                               value={opt}
                                                               onChange={(e) => {
                                                                   const newOpts = [...(field.options || [])];
@@ -593,9 +608,9 @@ const FormBuilder = () => {
                                                                   const newOpts = (field.options || []).filter((_, i) => i !== oIdx);
                                                                   updateField(field.id, { options: newOpts });
                                                               }}
-                                                              className="opacity-0 group-hover/opt:opacity-100 text-slate-300 hover:text-red-600 transition-all"
+                                                              className="opacity-0 group-hover/opt:opacity-100 text-slate-400 hover:text-red-600 transition-all p-1"
                                                            >
-                                                              <X size={14} />
+                                                              <X size={16} />
                                                            </button>
                                                         </div>
                                                       ))}
@@ -604,9 +619,9 @@ const FormBuilder = () => {
                                                               const currentOptions = field.options || [];
                                                               updateField(field.id, { options: [...currentOptions, `Option ${currentOptions.length + 1}`] });
                                                           }}
-                                                          className="flex items-center gap-2 text-brand-default text-[10px] font-bold uppercase tracking-widest pl-6 hover:translate-x-1 transition-transform"
+                                                          className="text-brand-default text-sm font-normal hover:underline pt-2 pl-7 block w-fit"
                                                       >
-                                                          <Plus size={14} /> Add Option
+                                                          Add option
                                                       </button>
                                                     </div>
                                                   ) : (
@@ -628,11 +643,11 @@ const FormBuilder = () => {
                                                 <div className="space-y-4">
                                                     {(field.options || []).map((opt, oIdx) => (
                                                         <div key={oIdx} className="flex items-center gap-3 group/opt">
-                                                            <div className={`h-5 w-5 border border-slate-300 ${field.type === 'radio' ? 'rounded-full' : 'rounded'}`} />
+                                                            <div className={`h-5 w-5 border border-slate-300 shrink-0 ${field.type === 'radio' ? 'rounded-full' : 'rounded-sm'}`} />
                                                             {isActive ? (
                                                               <input 
                                                                   type="text" 
-                                                                  className="flex-1 bg-transparent border-b border-transparent focus:border-slate-200 outline-none text-sm font-semibold text-slate-700"
+                                                                  className="flex-1 bg-transparent border-b border-transparent focus:border-slate-200 outline-none text-sm font-normal text-slate-700 py-1"
                                                                   value={opt}
                                                                   onChange={(e) => {
                                                                       const newOpts = [...(field.options || [])];
@@ -649,9 +664,9 @@ const FormBuilder = () => {
                                                                       const newOpts = (field.options || []).filter((_, i) => i !== oIdx);
                                                                       updateField(field.id, { options: newOpts });
                                                                   }}
-                                                                  className="opacity-0 group-hover/opt:opacity-100 text-slate-300 hover:text-red-600 transition-all"
+                                                                  className="opacity-0 group-hover/opt:opacity-100 text-slate-400 hover:text-red-600 transition-all p-1"
                                                               >
-                                                                  <X size={14} />
+                                                                  <X size={16} />
                                                               </button>
                                                             )}
                                                         </div>
@@ -662,9 +677,9 @@ const FormBuilder = () => {
                                                               const currentOptions = field.options || [];
                                                               updateField(field.id, { options: [...currentOptions, `Option ${currentOptions.length + 1}`] });
                                                           }}
-                                                          className="flex items-center gap-2 text-brand-default text-[10px] font-bold uppercase tracking-widest pl-8 hover:translate-x-1 transition-transform"
+                                                          className="text-brand-default text-sm font-normal hover:underline pt-2 pl-8 block w-fit"
                                                       >
-                                                          <Plus size={14} /> Add Option
+                                                          Add option
                                                       </button>
                                                     )}
                                                 </div>
