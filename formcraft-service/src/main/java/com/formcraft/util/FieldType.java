@@ -8,5 +8,7 @@ public enum FieldType {
     CHECKBOX,
     RADIO,
     DATE,
-    TEXTAREA
+    TEXTAREA,
+    RATING,
+    LINEAR_SCALE
 }

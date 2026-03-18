@@ -31,9 +31,11 @@ import {
   Link as LinkIcon,
   Sparkles,
   Layout,
-  Edit
+  Edit,
+  Star,
+  Sliders
 } from 'lucide-react';
-import { motion, Reorder, AnimatePresence } from 'framer-motion';
+import { motion, Reorder, AnimatePresence, useDragControls } from 'framer-motion';
 import api from '../services/api';
 import { toast } from 'react-toastify';
 import Modal from '../components/Modal';
@@ -48,6 +50,8 @@ const FIELD_TYPES = [
   { type: 'radio', label: 'Multiple Choice', icon: CircleDot, description: 'One choice only' },
   { type: 'date', label: 'Date', icon: Calendar, description: 'Calendar selector' },
   { type: 'textarea', label: 'Long Answer', icon: AlignLeft, description: 'Multiple lines of text' },
+  { type: 'rating', label: 'Rating', icon: Star, description: 'Star-based rating' },
+  { type: 'linear-scale', label: 'Linear Scale', icon: Sliders, description: 'Range scale selector' },
 ];
 
 const FormBuilder = () => {
@@ -83,6 +87,23 @@ const FormBuilder = () => {
     }
   }, []);
 
+  useEffect(() => {
+    if (selectedField && selectedField !== 'header') {
+      // Use setTimeout to ensure the DOM has updated if it's a new field
+      const timer = setTimeout(() => {
+        const element = document.getElementById(selectedField);
+        if (element) {
+          element.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'center',
+            inline: 'nearest' 
+          });
+        }
+      }, 150);
+      return () => clearTimeout(timer);
+    }
+  }, [selectedField]);
+
   const fetchCategories = async () => {
     try {
       const response = await api.get('/templates/categories');
@@ -99,16 +120,24 @@ const FormBuilder = () => {
   const offset = now.getTimezoneOffset() * 60000;
   const minDateTime = new Date(now - offset).toISOString().slice(0, 16);
 
-  const addField = (fieldType) => {
+  const addField = (fieldType, index = fields.length) => {
     const newField = {
       id: Math.random().toString(36).substr(2, 9),
-      type: fieldType,
+      type: fieldType.toLowerCase(),
       label: `Untitled ${fieldType}`,
       required: false,
       placeholder: '',
-      options: ['Option 1', 'Option 2'], 
+      options: ['Option 1', 'Option 2'],
+      max: fieldType.toLowerCase() === 'rating' || fieldType.toLowerCase() === 'linear-scale' ? 5 : undefined,
+      min: fieldType.toLowerCase() === 'linear-scale' ? 1 : undefined,
+      minLabel: fieldType.toLowerCase() === 'linear-scale' ? 'Lowest' : undefined,
+      maxLabel: fieldType.toLowerCase() === 'linear-scale' ? 'Highest' : undefined
     };
-    setFields([...fields, newField]);
+    
+    // Support inserting at index
+    const newFields = [...fields];
+    newFields.splice(index, 0, newField);
+    setFields(newFields);
     setSelectedField(newField.id);
     setActiveHeader(false);
   };
@@ -445,9 +474,25 @@ const FormBuilder = () => {
                 e.preventDefault();
                 setIsDraggingOver(false);
                 const fieldType = e.dataTransfer.getData('fieldType');
-                if (fieldType) addField(fieldType);
+                if (fieldType) {
+                    // Logic to find drop index based on y-position
+                    const dropY = e.clientY;
+                    const fieldElements = document.querySelectorAll('.form-field-item');
+                    let dropIndex = fields.length;
+                    
+                    for (let i = 0; i < fieldElements.length; i++) {
+                        const rect = fieldElements[i].getBoundingClientRect();
+                        const midpoint = rect.top + rect.height / 2;
+                        if (dropY < midpoint) {
+                            dropIndex = i;
+                            break;
+                        }
+                    }
+                    
+                    addField(fieldType, dropIndex);
+                }
             }}
-            className={`flex-1 overflow-y-auto relative transition-all duration-200 p-4 md:p-8 ${isDraggingOver ? 'bg-brand-50/20' : ''}`}
+            className={`flex-1 overflow-y-auto scroll-smooth relative transition-all duration-200 p-4 md:p-8 ${isDraggingOver ? 'bg-brand-50/20' : ''}`}
           >
             <div className="max-w-2xl mx-auto space-y-4 py-8">
                 {fields.length === 0 ? (
@@ -523,17 +568,20 @@ const FormBuilder = () => {
                         <Reorder.Group axis="y" values={fields} onReorder={setFields} className="space-y-4">
                             {fields.map((field, idx) => {
                                 const isActive = selectedField === field.id;
-                                const fieldTypeObj = FIELD_TYPES.find(t => t.type === field.type);
+                                const fieldTypeObj = FIELD_TYPES.find(t => t.type === field.type?.toLowerCase());
                                 
                                 return (
                                     <Reorder.Item 
                                         key={field.id} 
+                                        id={field.id}
                                         value={field}
-                                        dragListener={isActive}
+                                        layout
+                                        dragListener={true} // Enable drag for all items for better UX
                                         onClick={(e) => { e.stopPropagation(); setSelectedField(field.id); setActiveHeader(false); }}
-                                        className={`group bg-white rounded-xl border transition-all relative overflow-hidden space-y-6 ${
-                                            isActive ? 'border-slate-200 shadow-xl py-10 px-8' : 'border-slate-200 p-8 cursor-pointer hover:border-slate-300 shadow-sm'
+                                        className={`form-field-item group bg-white rounded-xl border relative overflow-hidden transition-colors transition-shadow duration-200 ${
+                                            isActive ? 'border-brand-200 shadow-xl py-10 px-8 z-10' : 'border-slate-200 p-8 cursor-pointer hover:border-slate-300 shadow-sm'
                                         }`}
+                                        whileDrag={{ scale: 1.02, boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)" }}
                                     >
                                         {/* Google Forms Active Accent Bar */}
                                         {isActive && (
@@ -546,47 +594,56 @@ const FormBuilder = () => {
                                           </div>
                                         )}
 
-                                        <div className="space-y-4">
-                                            {isActive ? (
-                                              <div className="flex gap-4">
-                                                  <input 
-                                                    className="flex-1 text-base font-normal text-slate-900 bg-transparent border-b border-slate-200 focus:border-b-2 focus:border-brand-default outline-none px-1 py-3 transition-all placeholder:text-slate-300"
-                                                    value={field.label}
-                                                    onChange={(e) => updateField(field.id, { label: e.target.value })}
-                                                    placeholder="Question"
-                                                  />
-                                                  <div className="flex items-center gap-3 bg-white border border-slate-200 rounded px-4 py-2.5 min-w-[200px] hover:bg-slate-50 transition-colors cursor-pointer relative group/type shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
-                                                      <div className="flex items-center gap-3 flex-1">
-                                                          {fieldTypeObj && <fieldTypeObj.icon size={18} className="text-slate-500" />}
-                                                          <select 
-                                                            className="flex-1 text-sm font-normal text-slate-700 bg-transparent border-none outline-none cursor-pointer appearance-none pr-6"
-                                                            value={field.type}
-                                                            onChange={(e) => updateField(field.id, { type: e.target.value })}
-                                                          >
-                                                              {FIELD_TYPES.map(type => (
-                                                                  <option key={type.type} value={type.type} className="bg-white text-slate-600 py-2">{type.label}</option>
-                                                              ))}
-                                                          </select>
+                                        <AnimatePresence mode="wait">
+                                            <motion.div 
+                                                key={isActive ? 'edit' : 'view'}
+                                                initial={{ opacity: 0, height: 0 }}
+                                                animate={{ opacity: 1, height: 'auto' }}
+                                                exit={{ opacity: 0, height: 0 }}
+                                                transition={{ duration: 0.3, ease: 'easeInOut' }}
+                                                className="space-y-4"
+                                            >
+                                                {isActive ? (
+                                                  <div className="flex gap-4">
+                                                      <input 
+                                                        className="flex-1 text-base font-normal text-slate-900 bg-transparent border-b border-slate-200 focus:border-b-2 focus:border-brand-default outline-none px-1 py-3 transition-all placeholder:text-slate-300"
+                                                        value={field.label}
+                                                        onChange={(e) => updateField(field.id, { label: e.target.value })}
+                                                        placeholder="Question"
+                                                      />
+                                                      <div className="flex items-center gap-3 bg-white border border-slate-200 rounded px-4 py-2.5 min-w-[200px] hover:bg-slate-50 transition-colors cursor-pointer relative group/type shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+                                                          <div className="flex items-center gap-3 flex-1">
+                                                              {fieldTypeObj && <fieldTypeObj.icon size={18} className="text-slate-500" />}
+                                                              <select 
+                                                                className="flex-1 text-sm font-normal text-slate-700 bg-transparent border-none outline-none cursor-pointer appearance-none pr-6"
+                                                                value={field.type}
+                                                                onChange={(e) => updateField(field.id, { type: e.target.value })}
+                                                              >
+                                                                  {FIELD_TYPES.map(type => (
+                                                                      <option key={type.type} value={type.type} className="bg-white text-slate-600 py-2">{type.label}</option>
+                                                                  ))}
+                                                              </select>
+                                                          </div>
+                                                          <ChevronDown size={14} className="text-slate-400 absolute right-4 pointer-events-none transition-transform group-hover/type:translate-y-0.5" />
                                                       </div>
-                                                      <ChevronDown size={14} className="text-slate-400 absolute right-4 pointer-events-none transition-transform group-hover/type:translate-y-0.5" />
                                                   </div>
-                                              </div>
-                                            ) : (
-                                              <label className="text-base font-normal text-slate-900 flex items-center gap-1">
-                                                {field.label}
-                                                {field.required && <span className="text-red-500">*</span>}
-                                              </label>
-                                            )}
-                                        </div>
+                                                ) : (
+                                                  <label className="text-base font-normal text-slate-900 flex items-center gap-1">
+                                                    {field.label}
+                                                    {field.required && <span className="text-red-500">*</span>}
+                                                  </label>
+                                                )}
+                                            </motion.div>
+                                        </AnimatePresence>
                                             
                                         <div className="relative mt-6">
-                                            {field.type === 'textarea' ? (
+                                            {field.type?.toLowerCase() === 'textarea' ? (
                                                 <textarea 
                                                     readOnly={!isActive}
                                                     className={`w-full bg-transparent border-b-2 border-slate-200 outline-none transition-all py-3 px-1 text-sm font-semibold text-slate-700 min-h-[50px] resize-none ${isActive ? 'focus:border-brand-default cursor-text' : 'cursor-pointer'}`} 
                                                     placeholder={field.placeholder || "Long answer text"} 
                                                 />
-                                            ) : field.type === 'dropdown' ? (
+                                            ) : field.type?.toLowerCase() === 'dropdown' ? (
                                                 <div className="space-y-3">
                                                   {isActive ? (
                                                     <div className="space-y-3 pl-2">
@@ -633,17 +690,42 @@ const FormBuilder = () => {
                                                     </div>
                                                   )}
                                                 </div>
-                                            ) : field.type === 'date' ? (
+                                            ) : field.type?.toLowerCase() === 'rating' ? (
+                                                <div className="flex items-center gap-2">
+                                                    {[...Array(field.max || 5)].map((_, i) => (
+                                                        <Star 
+                                                            key={i} 
+                                                            size={24} 
+                                                            className={i < (field.defaultValue || 0) ? "fill-amber-400 text-amber-400" : "text-slate-300"} 
+                                                        />
+                                                    ))}
+                                                    <span className="text-xs text-slate-400 ml-2 italic">(Rating Scale: 1-{field.max || 5})</span>
+                                                </div>
+                                            ) : field.type?.toLowerCase() === 'linear-scale' ? (
+                                                <div className="space-y-6 py-4">
+                                                    <div className="flex items-end justify-between px-4 max-w-md">
+                                                        <div className="flex flex-col items-center gap-2">
+                                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{field.minLabel || 'Lowest'}</span>
+                                                            <div className="w-8 h-8 rounded-full border-2 border-slate-200 flex items-center justify-center text-xs font-bold text-slate-400">{field.min || 1}</div>
+                                                        </div>
+                                                        <div className="flex-1 h-px bg-slate-100 mx-4 mb-4" />
+                                                        <div className="flex flex-col items-center gap-2">
+                                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{field.maxLabel || 'Highest'}</span>
+                                                            <div className="w-8 h-8 rounded-full border-2 border-slate-200 flex items-center justify-center text-xs font-bold text-slate-400">{field.max || 5}</div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ) : field.type?.toLowerCase() === 'date' ? (
                                                 <input 
                                                     type="date" 
                                                     readOnly
                                                     className="w-full bg-transparent border-b-2 border-slate-200 py-3 px-1 text-sm font-semibold text-slate-700 pointer-events-none" 
                                                 />
-                                            ) : field.type === 'radio' || field.type === 'checkbox' ? (
+                                            ) : field.type?.toLowerCase() === 'radio' || field.type?.toLowerCase() === 'checkbox' ? (
                                                 <div className="space-y-4">
                                                     {(field.options || []).map((opt, oIdx) => (
                                                         <div key={oIdx} className="flex items-center gap-3 group/opt">
-                                                            <div className={`h-5 w-5 border border-slate-300 shrink-0 ${field.type === 'radio' ? 'rounded-full' : 'rounded-sm'}`} />
+                                                            <div className={`h-5 w-5 border border-slate-300 shrink-0 ${field.type?.toLowerCase() === 'radio' ? 'rounded-full' : 'rounded-sm'}`} />
                                                             {isActive ? (
                                                               <input 
                                                                   type="text" 
@@ -704,10 +786,47 @@ const FormBuilder = () => {
                                                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Placeholder</span>
                                                 <input 
                                                   className="bg-slate-50 border border-slate-100 rounded px-2 py-1 text-[10px] font-semibold text-slate-700 w-32 focus:border-brand-default outline-none"
-                                                  value={field.placeholder}
+                                                  value={field.placeholder || ''}
                                                   onChange={(e) => updateField(field.id, { placeholder: e.target.value })}
                                                 />
                                             </div>
+                                            {(field.type?.toLowerCase() === 'rating' || field.type?.toLowerCase() === 'linear-scale') && (
+                                                <>
+                                                    <div className="w-px h-6 bg-slate-100" />
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{field.type?.toLowerCase() === 'rating' ? 'Max Stars' : 'Max Value'}</span>
+                                                        <select 
+                                                            className="bg-slate-50 border border-slate-100 rounded px-2 py-1 text-[10px] font-semibold text-slate-700 outline-none"
+                                                            value={field.max || 5}
+                                                            onChange={(e) => updateField(field.id, { max: parseInt(e.target.value) })}
+                                                        >
+                                                            {[3,4,5,6,7,8,9,10].map(v => <option key={v} value={v}>{v}</option>)}
+                                                        </select>
+                                                    </div>
+                                                    {field.type?.toLowerCase() === 'linear-scale' && (
+                                                        <>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Lo-Label</span>
+                                                                <input 
+                                                                    className="bg-slate-50 border border-slate-100 rounded px-2 py-1 text-[10px] font-semibold text-slate-700 w-20 focus:border-brand-default outline-none"
+                                                                    value={field.minLabel || ''}
+                                                                    placeholder="Lowest"
+                                                                    onChange={(e) => updateField(field.id, { minLabel: e.target.value })}
+                                                                />
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Hi-Label</span>
+                                                                <input 
+                                                                    className="bg-slate-50 border border-slate-100 rounded px-2 py-1 text-[10px] font-semibold text-slate-700 w-20 focus:border-brand-default outline-none"
+                                                                    value={field.maxLabel || ''}
+                                                                    placeholder="Highest"
+                                                                    onChange={(e) => updateField(field.id, { maxLabel: e.target.value })}
+                                                                />
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                </>
+                                            )}
                                             <div className="w-px h-6 bg-slate-100" />
                                             <button 
                                                 onClick={() => {

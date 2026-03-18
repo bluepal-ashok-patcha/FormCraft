@@ -8,7 +8,8 @@ import {
   ArrowRight,
   ShieldCheck,
   Calendar,
-  ChevronDown
+  ChevronDown,
+  Star
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-toastify';
@@ -24,6 +25,7 @@ const FormViewer = () => {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState(null);
+  const [hoverRating, setHoverRating] = useState({ fieldId: null, value: 0 });
 
   useEffect(() => {
     const fetchForm = async () => {
@@ -225,6 +227,55 @@ const FormViewer = () => {
                           required={field.required}
                           onChange={(e) => handleChange(field.label, e.target.value)}
                         />
+                      </div>
+                    ) : field.type === 'rating' ? (
+                      <div className="flex items-center gap-3">
+                        {[...Array(field.max || 5)].map((_, i) => (
+                          <button
+                            key={i}
+                            type="button"
+                            onClick={() => handleChange(field.label, i + 1)}
+                            onMouseEnter={() => setHoverRating({ fieldId: field.id, value: i + 1 })}
+                            onMouseLeave={() => setHoverRating({ fieldId: null, value: 0 })}
+                            className="transition-transform hover:scale-125 focus:outline-none"
+                          >
+                            <Star 
+                              size={32} 
+                              className={`transition-all ${
+                                (hoverRating.fieldId === field.id ? hoverRating.value : (responses[field.label] || 0)) > i 
+                                  ? "fill-amber-400 text-amber-400" 
+                                  : "text-slate-200"
+                              }`} 
+                            />
+                          </button>
+                        ))}
+                      </div>
+                    ) : field.type === 'linear-scale' ? (
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between gap-4 py-2 px-4 bg-slate-50 rounded-xl border border-slate-100">
+                          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{field.minLabel || '1'}</span>
+                          <div className="flex items-center gap-2 md:gap-4">
+                            {[...Array((field.max || 5) - (field.min || 1) + 1)].map((_, i) => {
+                              const val = (field.min || 1) + i;
+                              const isSelected = responses[field.label] === val;
+                              return (
+                                <button
+                                  key={val}
+                                  type="button"
+                                  onClick={() => handleChange(field.label, val)}
+                                  className={`w-10 h-10 rounded-full border-2 transition-all flex items-center justify-center text-sm font-bold ${
+                                    isSelected 
+                                      ? "bg-brand-default border-brand-default text-white shadow-lg scale-110" 
+                                      : "bg-white border-slate-200 text-slate-400 hover:border-brand-default hover:text-brand-default"
+                                  }`}
+                                >
+                                  {val}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{field.maxLabel || '5'}</span>
+                        </div>
                       </div>
                     ) : field.type === 'radio' ? (
                       <div className="space-y-4">

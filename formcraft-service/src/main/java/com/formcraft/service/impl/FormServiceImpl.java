@@ -22,13 +22,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDateTime;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.annotation.CreatedBy;
-import org.springframework.data.annotation.LastModifiedBy;
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 import org.springframework.data.jpa.domain.Specification;
 import jakarta.persistence.criteria.Predicate;
 import java.util.ArrayList;
@@ -262,6 +257,35 @@ public class FormServiceImpl implements FormService {
         
         Form updatedForm = formRepository.save(form);
         return formMapper.toDto(updatedForm);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public byte[] exportResponsesToCsv(UUID formId, LocalDateTime startDate, LocalDateTime endDate) {
+        Form form = formRepository.findById(formId)
+                .orElseThrow(() -> new ResourceNotFoundException("Form not found"));
+
+        Specification<FormResponse> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.equal(root.get("form").get("id"), formId));
+            
+            if (startDate != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), startDate));
+            }
+            if (endDate != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("createdAt"), endDate));
+            }
+            
+            if (query != null) {
+                query.orderBy(cb.desc(root.get("createdAt")));
+            }
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        List<FormResponse> responses = formResponseRepository.findAll(spec);
+        List<java.util.Map<String, Object>> fields = (List<java.util.Map<String, Object>>) form.getSchema().get("fields");
+
+        return com.formcraft.util.CsvHelper.responsesToCsv(responses, fields);
     }
 
     private void validateFormSchedule(LocalDateTime startsAt, LocalDateTime expiresAt) {

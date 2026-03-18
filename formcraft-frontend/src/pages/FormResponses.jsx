@@ -106,6 +106,33 @@ const FormResponses = () => {
     };
     fetchData();
   }, [id, page, dateRange]);
+  
+  const handleExportCsv = async () => {
+    try {
+      const params = {};
+      if (dateRange.startDate) params.startDate = new Date(dateRange.startDate).toISOString();
+      if (dateRange.endDate) params.endDate = new Date(dateRange.endDate).toISOString();
+
+      const data = await api.get(`/forms/${id}/responses/export`, {
+        params,
+        responseType: 'blob'
+      });
+      
+      const url = window.URL.createObjectURL(new Blob([data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `responses_${form?.name || id}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      
+      toast.success('Strategy Exported: Your filtered responses have been successfully downloaded.');
+    } catch (err) {
+      console.error('Export failed:', err);
+      toast.error('Export Error: Could not synchronize CSV download.');
+    }
+  };
 
   // Client-side search for the current page entries
   const filteredResponses = responses.filter(resp => {
@@ -159,9 +186,20 @@ const FormResponses = () => {
           </div>
           
           <div className="flex items-center gap-4 shrink-0 w-full md:w-auto">
-            <button className="px-5 bg-brand-default text-white h-10 rounded-md font-semibold uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 hover:bg-brand-600 transition-all shadow-lg shadow-brand-500/10">
-              <Download size={14} />
-              Export
+            <button 
+              onClick={handleExportCsv}
+              className="px-5 bg-brand-default text-white h-10 rounded-md font-semibold uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 hover:bg-brand-600 transition-all shadow-lg shadow-brand-500/10"
+            >
+              <FileSpreadsheet size={14} />
+              Export CSV
+            </button>
+            <button 
+              onClick={refreshData}
+              disabled={refreshing}
+              className="w-10 h-10 bg-slate-800 border border-slate-700 rounded-lg flex items-center justify-center text-slate-400 hover:text-white transition-all ml-1"
+              title="Refresh Data"
+            >
+              <History size={18} className={refreshing ? 'animate-spin text-brand-default' : ''} />
             </button>
           </div>
         </div>

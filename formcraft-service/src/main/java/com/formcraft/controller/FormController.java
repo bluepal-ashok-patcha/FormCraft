@@ -75,6 +75,23 @@ public class FormController {
     }
 
     @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/{id}/responses/export")
+    public ResponseEntity<org.springframework.core.io.Resource> exportResponses(
+            @PathVariable("id") UUID id,
+            @RequestParam(name = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
+            @RequestParam(name = "endDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate) {
+        
+        byte[] csvData = formService.exportResponsesToCsv(id, startDate, endDate);
+        org.springframework.core.io.ByteArrayResource resource = new org.springframework.core.io.ByteArrayResource(csvData);
+
+        return ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=responses_" + id + ".csv")
+                .header(org.springframework.http.HttpHeaders.CONTENT_TYPE, "text/csv")
+                .contentLength(csvData.length)
+                .body(resource);
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}/toggle-status")
     public ResponseEntity<ApiResponse<FormDto>> toggleStatus(@PathVariable("id") UUID id) {
         FormDto updatedForm = formService.toggleFormStatus(id);

@@ -1,4 +1,5 @@
 import React from 'react';
+import { Star } from 'lucide-react';
 
 const FormPreview = ({ fields = [], name, bannerUrl, thumbnailUrl }) => {
   const displayUrl = bannerUrl || thumbnailUrl;
@@ -57,14 +58,14 @@ const FormPreview = ({ fields = [], name, bannerUrl, thumbnailUrl }) => {
                   </label>
 
                   {/* Actual Input element per type */}
-                  {field.type === 'TEXTAREA' ? (
+                  {field.type?.toUpperCase() === 'TEXTAREA' ? (
                     <textarea
                       className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-400 bg-slate-50 resize-none"
                       rows={2}
                       placeholder={field.placeholder || 'Your answer'}
                       readOnly
                     />
-                  ) : field.type === 'SELECT' ? (
+                  ) : field.type?.toUpperCase() === 'SELECT' || field.type?.toUpperCase() === 'DROPDOWN' ? (
                     <select
                       className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-400 bg-slate-50"
                       disabled
@@ -74,7 +75,7 @@ const FormPreview = ({ fields = [], name, bannerUrl, thumbnailUrl }) => {
                         <option key={i}>{opt}</option>
                       ))}
                     </select>
-                  ) : field.type === 'RADIO' ? (
+                  ) : field.type?.toUpperCase() === 'RADIO' ? (
                     <div className="space-y-1.5">
                       {(field.options || ['Option 1', 'Option 2']).slice(0, 3).map((opt, i) => (
                         <label key={i} className="flex items-center gap-2 text-sm text-slate-500">
@@ -83,7 +84,7 @@ const FormPreview = ({ fields = [], name, bannerUrl, thumbnailUrl }) => {
                         </label>
                       ))}
                     </div>
-                  ) : field.type === 'CHECKBOX' ? (
+                  ) : field.type?.toUpperCase() === 'CHECKBOX' ? (
                     <div className="space-y-1.5">
                       {(field.options || ['Option 1', 'Option 2']).slice(0, 3).map((opt, i) => (
                         <label key={i} className="flex items-center gap-2 text-sm text-slate-500">
@@ -92,22 +93,38 @@ const FormPreview = ({ fields = [], name, bannerUrl, thumbnailUrl }) => {
                         </label>
                       ))}
                     </div>
-                  ) : field.type === 'DATE' ? (
+                  ) : field.type?.toUpperCase() === 'DATE' ? (
                     <input
                       type="date"
                       className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-400 bg-slate-50"
                       readOnly
                     />
-                  ) : field.type === 'NUMBER' ? (
+                  ) : field.type?.toUpperCase() === 'NUMBER' ? (
                     <input
                       type="number"
                       className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-400 bg-slate-50"
                       placeholder={field.placeholder || '0'}
                       readOnly
                     />
+                  ) : field.type?.toUpperCase() === 'RATING' ? (
+                    <div className="flex items-center gap-1">
+                      {[1, 2, 3, 4, 5].map((v) => (
+                        <Star key={v} size={16} className="text-slate-200" />
+                      ))}
+                    </div>
+                  ) : field.type?.toUpperCase() === 'LINEAR-SCALE' ? (
+                    <div className="flex items-center gap-4 py-1">
+                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{field.minLabel || 'Lo'}</span>
+                      <div className="flex items-center gap-1.5">
+                        {[1, 2, 3, 4, 5].map((v) => (
+                          <div key={v} className="w-5 h-5 rounded-full border border-slate-200 flex items-center justify-center text-[10px] text-slate-400">{v}</div>
+                        ))}
+                      </div>
+                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{field.maxLabel || 'Hi'}</span>
+                    </div>
                   ) : (
                     <input
-                      type={field.type === 'EMAIL' ? 'email' : 'text'}
+                      type={field.type?.toUpperCase() === 'EMAIL' ? 'email' : 'text'}
                       className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-400 bg-slate-50"
                       placeholder={field.placeholder || 'Your answer'}
                       readOnly

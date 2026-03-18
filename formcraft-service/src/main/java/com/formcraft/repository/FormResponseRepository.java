@@ -12,6 +12,7 @@ import java.util.UUID;
 @Repository
 public interface FormResponseRepository extends JpaRepository<FormResponse, UUID>, org.springframework.data.jpa.repository.JpaSpecificationExecutor<FormResponse> {
     Page<FormResponse> findByFormId(UUID formId, Pageable pageable);
+    java.util.List<FormResponse> findAllByFormIdOrderByCreatedAtDesc(UUID formId);
     long countByFormId(UUID formId);
     long countByFormCreatedBy(String username);
     java.util.List<FormResponse> findTop5ByFormCreatedByOrderByCreatedAtDesc(String username);
