@@ -388,14 +388,11 @@ const FormList = () => {
 
         <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex items-center gap-6 flex-1">
-            <div className="w-12 h-12 bg-brand-50 border border-brand-100 rounded-2xl flex items-center justify-center shadow-sm shrink-0">
-              <FileText size={16} className="text-brand-default" />
-            </div>
             <div>
               <h1 className="text-xl md:text-2xl font-bold tracking-tighter mb-1 leading-none uppercase italic">
                 Form Intelligence // <span className="text-brand-500">CONTROL</span>
               </h1>
-              <p className="text-slate-500 text-[9px] font-semibold uppercase tracking-widest opacity-80">
+              <p className="text-slate-500 text-[9px] font-semibold uppercase tracking-widest opacity-80 mt-1.5">
                 Deployment Registry & Lifecycle Monitor
               </p>
             </div>

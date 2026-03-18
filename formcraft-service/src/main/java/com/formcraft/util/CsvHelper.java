@@ -37,6 +37,14 @@ public class CsvHelper {
                         valStr = value.toString();
                     }
                 }
+                
+                // Fix for Excel converting big numbers (like phone numbers) into scientific notation.
+                // If it looks like a phone number or large numeric ID, prepend a tab to force text mode.
+                if (valStr.matches("^\\+?[0-9\\s\\-()]{8,20}$") && valStr.matches(".*\\d.*")) {
+                    // Prepend tab so excel treats as literal string
+                    valStr = "\t" + valStr;
+                }
+
                 csv.append(",\"").append(valStr.replace("\"", "\"\"")).append("\"");
             }
             csv.append("\n");

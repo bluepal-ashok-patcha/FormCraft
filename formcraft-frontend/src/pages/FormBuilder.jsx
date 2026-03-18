@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import {
   Type,
@@ -67,6 +67,7 @@ const FIELD_TYPES = [
 
 const FormBuilder = () => {
   const location = useLocation();
+  const mainRef = useRef(null);
   const [formName, setFormName] = useState('');
   const [fields, setFields] = useState([]);
   const [selectedField, setSelectedField] = useState(null); // id or 'header'
@@ -84,12 +85,17 @@ const FormBuilder = () => {
   const [themeColor, setThemeColor] = useState('#6366f1');
   const [activeTab, setActiveTab] = useState('components'); // components, scheduling, theme
   const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const [isDraggingTemplate, setIsDraggingTemplate] = useState(false);
   const [showGallery, setShowGallery] = useState(false);
   const [showSaveTemplateModal, setShowSaveTemplateModal] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(null); // field.id
   const [templateData, setTemplateData] = useState({ name: '', description: '', categoryId: '', thumbnailUrl: '' });
   const [availableCategories, setAvailableCategories] = useState([]);
   const [uploadLoading, setUploadLoading] = useState(false);
+  
+  // AI Regex State
+  const [aiPrompt, setAiPrompt] = useState({});
+  const [aiGenerating, setAiGenerating] = useState(false);
 
   useEffect(() => {
     fetchCategories();
@@ -130,6 +136,47 @@ const FormBuilder = () => {
     }
   };
 
+  const handleGenerateAiRegex = async (fieldId) => {
+    const prompt = aiPrompt[fieldId];
+    if (!prompt || !prompt.trim()) {
+      toast.error('AI Protocol: Please describe the validation rule first.');
+      return;
+    }
+    
+    setAiGenerating(true);
+    try {
+      const res = await api.post('/ai/generate-regex', { prompt });
+      if (res.data && res.data.regex) {
+        toast.success('AI Synergy: Neural validation logic synthesized.');
+        
+        // Use functional setFields to ensure we have the absolute latest state
+        setFields(prevFields => {
+          return prevFields.map(f => {
+            if (f.id === fieldId) {
+              return {
+                ...f,
+                validation: { 
+                  ...(f.validation || {}), 
+                  regex: res.data.regex,
+                  errorMessage: res.data.errorMessage || ''
+                }
+              };
+            }
+            return f;
+          });
+        });
+
+        // Clear the prompt input
+        setAiPrompt(prev => ({ ...prev, [fieldId]: '' }));
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('AI Failure: Could not establish connection to the neural network.');
+    } finally {
+      setAiGenerating(false);
+    }
+  };
+
   const now = new Date();
   const offset = now.getTimezoneOffset() * 60000;
   const minDateTime = new Date(now - offset).toISOString().slice(0, 16);
@@ -157,7 +204,7 @@ const FormBuilder = () => {
   };
 
   const updateField = (id, updates) => {
-    setFields(fields.map(f => f.id === id ? { ...f, ...updates } : f));
+    setFields(prev => prev.map(f => f.id === id ? { ...f, ...updates } : f));
   };
 
   const removeField = (id) => {
@@ -258,7 +305,6 @@ const FormBuilder = () => {
   };
 
   const handleSelectTemplate = (template) => {
-    // Normalize fields to ensure multi-choice fields have an options array
     const normalizedFields = (template.schema.fields || []).map(f => {
       if (['dropdown', 'radio', 'checkbox'].includes(f.type) && !f.options) {
         return { ...f, options: ['Option 1', 'Option 2'] };
@@ -272,6 +318,38 @@ const FormBuilder = () => {
     toast.success('Registry Synchronized: Architecture deployed from blueprint.');
   };
 
+  // Stagger-cascade: adds fields one-by-one with animated delay
+  const handleDeployFields = ({ fields: newFields, name, bannerUrl: banner }) => {
+    // If setting a completely new form name from template, clear fields.
+    setFormName(name);
+    setBannerUrl(banner || '');
+    setSelectedField(null);
+    setActiveHeader(false);
+
+    // Smoothly scroll the canvas back to the top so the user sees the cascade animation
+    if (mainRef.current) {
+      mainRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // Give each field a fresh unique animation ID prefix so React guarantees it mounts fresh
+    const deploySessionId = Math.random().toString(36).substr(2, 5);
+    
+    // Stagger process: we add to the existing fields array instead of resetting it completely if it already has items
+    const startIdx = fields.length;
+
+    newFields.forEach((field, i) => {
+      setTimeout(() => {
+        setFields(prev => {
+          // ensure the field has a perfectly unique session key for animation
+          const fieldWithAnimKey = { ...field, animKey: `${deploySessionId}-${field.id}` };
+          return [...prev, fieldWithAnimKey];
+        });
+      }, i * 120); // 120ms stagger between each field cascade
+    });
+
+    toast.success(`✦ Deploying ${newFields.length} fields into the canvas...`);
+  };
+
   const activeField = fields.find(f => f.id === selectedField);
 
   return (
@@ -281,17 +359,6 @@ const FormBuilder = () => {
         <div className="flex items-center justify-between gap-10">
           {/* Project Hub: Branding & Name */}
           <div className="flex-1 flex items-center gap-5 group">
-            <motion.div
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 ${nameError
-                  ? 'bg-red-50 text-red-500 border border-red-200'
-                  : 'bg-brand-50 text-brand-default border border-brand-200'
-                }`}
-            >
-              <Layers size={20} className={nameError ? "animate-shake" : ""} />
-            </motion.div>
-
             <div className="flex-1 min-w-0">
               <div className="relative">
                 <input
@@ -360,7 +427,18 @@ const FormBuilder = () => {
 
       <div className="flex-1 flex gap-0 overflow-hidden bg-[#F0EBF8] border-t border-slate-200">
         {/* Left Sidebar */}
-        <aside className="w-80 flex flex-col gap-6 overflow-y-auto no-scrollbar bg-white border-r border-slate-200 px-3 py-6 z-20 shadow-xl">
+        <aside className="w-80 flex flex-col gap-6 overflow-y-auto no-scrollbar bg-white border-r border-slate-200 px-3 py-6 z-20 shadow-xl relative overflow-hidden">
+
+          {/* Template Gallery — slides in over the sidebar */}
+          <TemplateGallery
+            isOpen={showGallery}
+            onClose={() => setShowGallery(false)}
+            onSelect={handleSelectTemplate}
+            onDeployFields={handleDeployFields}
+            onTemplateDragStart={() => setIsDraggingTemplate(true)}
+            onTemplateDragEnd={() => setIsDraggingTemplate(false)}
+          />
+
           <div className="flex bg-white p-1 rounded-xl border border-slate-200">
             <button
               onClick={() => setActiveTab('components')}
@@ -540,6 +618,7 @@ const FormBuilder = () => {
         </aside>
 
         <main
+          ref={mainRef}
           onDragOver={(e) => {
             e.preventDefault();
             setIsDraggingOver(true);
@@ -549,28 +628,42 @@ const FormBuilder = () => {
           onDrop={(e) => {
             e.preventDefault();
             setIsDraggingOver(false);
+            setIsDraggingTemplate(false);
+
+            // Handle template drop
+            const templatePayload = e.dataTransfer.getData('templateDrop');
+            if (templatePayload) {
+              try {
+                const { name, bannerUrl: banner, fields: tplFields } = JSON.parse(templatePayload);
+                handleDeployFields({ fields: tplFields, name, bannerUrl: banner });
+                setShowGallery(false);
+              } catch {}
+              return;
+            }
+
+            // Handle individual field drop
             const fieldType = e.dataTransfer.getData('fieldType');
             if (fieldType) {
-              // Logic to find drop index based on y-position
               const dropY = e.clientY;
               const fieldElements = document.querySelectorAll('.form-field-item');
               let dropIndex = fields.length;
-
               for (let i = 0; i < fieldElements.length; i++) {
                 const rect = fieldElements[i].getBoundingClientRect();
-                const midpoint = rect.top + rect.height / 2;
-                if (dropY < midpoint) {
-                  dropIndex = i;
-                  break;
-                }
+                if (dropY < rect.top + rect.height / 2) { dropIndex = i; break; }
               }
-
               addField(fieldType, dropIndex);
             }
           }}
           className="flex-1 overflow-y-auto no-scrollbar scroll-smooth relative transition-all duration-300 p-4 md:p-8"
-          style={{ backgroundColor: isDraggingOver ? `${themeColor}1a` : `${themeColor}0a` }}
+          style={{ backgroundColor: isDraggingOver ? `${themeColor}18` : `${themeColor}0a` }}
         >
+          {/* Drop target overlay when dragging a template */}
+          {isDraggingTemplate && (
+            <div className="absolute inset-4 rounded-2xl border-2 border-dashed border-brand-300 bg-brand-50/40 z-50 flex flex-col items-center justify-center pointer-events-none">
+              <Sparkles size={28} className="text-brand-default mb-2 animate-pulse" />
+              <p className="text-xs font-bold text-brand-default uppercase tracking-widest">Drop to deploy template</p>
+            </div>
+          )}
           <div className="max-w-4xl mx-auto space-y-4 py-12 px-4 pb-32">
             {fields.length === 0 ? (
               <div className="h-[60vh] flex flex-col items-center justify-center text-center opacity-40">
@@ -656,10 +749,13 @@ const FormBuilder = () => {
 
                     return (
                       <Reorder.Item
-                        key={field.id}
+                        key={field.animKey || field.id}
                         id={field.id}
                         value={field}
                         layout
+                        initial={{ opacity: 0, y: 24, scale: 0.97 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        transition={{ type: 'spring', stiffness: 350, damping: 30, mass: 1 }}
                         dragListener={true} // Enable drag for all items for better UX
                         onClick={(e) => { e.stopPropagation(); setSelectedField(field.id); setActiveHeader(false); }}
                         className={`form-field-item group bg-white rounded-xl transition-all duration-300 ${isActive ? 'shadow-2xl py-10 px-8 z-40 border-l-[6px]' : 'border border-slate-200 p-8 cursor-pointer hover:border-slate-300 shadow-sm z-0'
@@ -1230,17 +1326,47 @@ const FormBuilder = () => {
                                     </div>
 
                                     {['text', 'textarea', 'email', 'number'].includes(field.type?.toLowerCase()) && (
-                                      <div className="space-y-2">
-                                        <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider pl-1">Custom Regex Pattern</label>
-                                        <input
-                                          type="text"
-                                          className="w-full bg-transparent border-b border-slate-200 py-1.5 px-0 text-xs font-semibold text-slate-700 focus:border-brand-default outline-none font-mono"
-                                          value={field.validation?.regex || ''}
-                                          placeholder="e.g. ^[0-9]{5}$"
-                                          onChange={(e) => updateField(field.id, {
-                                            validation: { ...field.validation, regex: e.target.value }
-                                          })}
-                                        />
+                                      <div className="space-y-4">
+                                        {/* AI Regex Generator Section */}
+                                        <div className="bg-gradient-to-r from-brand-50 to-indigo-50/30 p-4 rounded-xl border border-brand-100/50 space-y-3 relative overflow-hidden">
+                                          <div className="absolute top-0 right-0 p-2 opacity-10 pointer-events-none">
+                                            <Sparkles size={40} className="text-brand-default" />
+                                          </div>
+                                          <div className="flex items-center gap-2">
+                                            <Sparkles size={14} className="text-brand-default" />
+                                            <label className="text-[10px] font-bold text-brand-default uppercase tracking-wider">AI Regex Generator</label>
+                                          </div>
+                                          <div className="flex items-center gap-2 relative z-10">
+                                            <input
+                                              type="text"
+                                              className="flex-1 bg-white border border-brand-200/50 rounded-lg py-2 px-3 text-xs font-medium text-slate-700 focus:border-brand-default outline-none shadow-sm placeholder:text-slate-400"
+                                              placeholder="e.g. Must be exactly 12 digits..."
+                                              value={aiPrompt[field.id] || ''}
+                                              onChange={(e) => setAiPrompt(prev => ({ ...prev, [field.id]: e.target.value }))}
+                                              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleGenerateAiRegex(field.id); } }}
+                                            />
+                                            <button
+                                              onClick={(e) => { e.preventDefault(); handleGenerateAiRegex(field.id); }}
+                                              disabled={aiGenerating || !aiPrompt[field.id]}
+                                              className="bg-brand-default text-white hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all shadow-md shadow-brand-500/20 whitespace-nowrap min-w-[90px] flex justify-center"
+                                            >
+                                              {aiGenerating ? <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'Generate ✦'}
+                                            </button>
+                                          </div>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                          <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider pl-1">Custom Regex Pattern</label>
+                                          <input
+                                            type="text"
+                                            className="w-full bg-transparent border-b border-slate-200 py-1.5 px-0 text-xs font-semibold text-slate-700 focus:border-brand-default outline-none font-mono"
+                                            value={field.validation?.regex || ''}
+                                            placeholder="e.g. ^[0-9]{5}$"
+                                            onChange={(e) => updateField(field.id, {
+                                              validation: { ...field.validation, regex: e.target.value }
+                                            })}
+                                          />
+                                        </div>
                                       </div>
                                     )}
 
@@ -1465,11 +1591,6 @@ const FormBuilder = () => {
         </div>
       </Modal>
 
-      <TemplateGallery
-        isOpen={showGallery}
-        onClose={() => setShowGallery(false)}
-        onSelect={handleSelectTemplate}
-      />
     </div>
   );
 };

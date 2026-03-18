@@ -34,6 +34,10 @@ management:
     web:
       exposure:
         include: health,info,metrics
+
+gemini:
+  api:
+    key: ${GEMINI_API_KEY:AIzaSyAFVqossamwed-euwzfV73Tbl_ccOE3esO4}
   endpoint:
     health:
       show-details: always

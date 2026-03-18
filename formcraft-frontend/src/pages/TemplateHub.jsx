@@ -232,23 +232,23 @@ const TemplateHub = () => {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="bg-slate-900 rounded-enterprise py-5 px-8 text-white relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-brand-default/10 blur-[100px] rounded-full -mr-32 -mt-32" />
+      <div className="bg-slate-900 rounded-enterprise py-4 px-6 md:px-8 text-white relative overflow-hidden shadow-xl border border-slate-800">
+        <div className="absolute top-0 right-0 w-1/4 h-full bg-gradient-to-l from-brand-default/10 to-transparent pointer-events-none" />
+        <div className="absolute -bottom-16 -right-16 w-48 h-48 bg-brand-default/5 rounded-full blur-[60px]" />
+
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="flex items-center gap-6">
-            <div className="w-14 h-14 bg-brand-default rounded-2xl flex items-center justify-center shadow-2xl shadow-brand-500/20 rotate-3 group hover:rotate-0 transition-transform duration-500">
-              <Sparkles className="text-white" size={28} />
-            </div>
+          <div className="flex items-center gap-6 flex-1">
             <div>
-              <h1 className="text-2xl font-bold uppercase tracking-tight leading-none italic">Asset Hub</h1>
-              <p className="text-slate-400 text-[10px] font-semibold uppercase tracking-widest mt-1.5 flex items-center gap-2">
-                <Layout size={12} className="text-brand-default" />
+              <h1 className="text-xl md:text-2xl font-bold tracking-tighter mb-1 leading-none uppercase italic">
+                Asset Hub
+              </h1>
+              <p className="text-slate-500 text-[9px] font-semibold uppercase tracking-widest opacity-80 mt-1.5">
                 Global Blueprint Registry // Enterprise v4.0
               </p>
             </div>
           </div>
           
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 shrink-0 w-full md:w-auto">
             {isAdmin && (
               <button 
                 onClick={() => setShowCategoryManager(true)}
