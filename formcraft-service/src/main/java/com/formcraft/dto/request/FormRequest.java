@@ -15,4 +15,5 @@ public class FormRequest {
     private java.time.LocalDateTime startsAt;
     private java.time.LocalDateTime expiresAt;
     private String bannerUrl;
+    private String themeColor;
 }

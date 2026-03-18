@@ -152,7 +152,7 @@ const MainLayout = ({ children }) => {
         </aside>
 
         {/* Main Content Area */}
-        <main className="flex-1 overflow-y-auto p-6 relative bg-slate-50">
+        <main className={`flex-1 overflow-y-auto relative bg-slate-50 ${location.pathname === '/builder' ? 'p-0' : 'p-6'}`}>
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}

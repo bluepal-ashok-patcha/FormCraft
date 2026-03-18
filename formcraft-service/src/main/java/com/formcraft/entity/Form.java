@@ -50,4 +50,7 @@ public class Form extends BaseEntity {
 
     @Column(name = "banner_url")
     private String bannerUrl;
+
+    @Column(name = "theme_color")
+    private String themeColor;
 }

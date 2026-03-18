@@ -1,0 +1,1 @@
+ALTER TABLE forms ADD COLUMN theme_color VARCHAR(255);

@@ -107,20 +107,23 @@ const FormPreview = ({ fields = [], name, bannerUrl, thumbnailUrl }) => {
                       readOnly
                     />
                   ) : field.type?.toUpperCase() === 'RATING' ? (
-                    <div className="flex items-center gap-1">
-                      {[1, 2, 3, 4, 5].map((v) => (
-                        <Star key={v} size={16} className="text-slate-200" />
+                    <div className="flex items-center gap-1.5 py-1">
+                      {[...Array(field.max || 5)].map((_, i) => (
+                        <Star key={i} size={18} className="text-slate-200 fill-slate-50" />
                       ))}
                     </div>
                   ) : field.type?.toUpperCase() === 'LINEAR-SCALE' ? (
-                    <div className="flex items-center gap-4 py-1">
-                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{field.minLabel || 'Lo'}</span>
-                      <div className="flex items-center gap-1.5">
-                        {[1, 2, 3, 4, 5].map((v) => (
-                          <div key={v} className="w-5 h-5 rounded-full border border-slate-200 flex items-center justify-center text-[10px] text-slate-400">{v}</div>
+                    <div className="flex items-center justify-center gap-6 py-2">
+                      <span className="text-[10px] text-slate-800 mt-4 font-normal min-w-[50px] text-right truncate">{field.minLabel || ''}</span>
+                      <div className="flex items-center gap-4">
+                        {Array.from({ length: (field.max || 5) - (field.min || 0) + 1 }, (_, i) => (field.min || 0) + i).map((val) => (
+                          <div key={val} className="flex flex-col items-center gap-2">
+                            <span className="text-[10px] text-slate-500 font-normal">{val}</span>
+                            <div className="w-4 h-4 rounded-full border border-slate-200 bg-white" />
+                          </div>
                         ))}
                       </div>
-                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{field.maxLabel || 'Hi'}</span>
+                      <span className="text-[10px] text-slate-800 mt-4 font-normal min-w-[50px] text-left truncate">{field.maxLabel || ''}</span>
                     </div>
                   ) : (
                     <input

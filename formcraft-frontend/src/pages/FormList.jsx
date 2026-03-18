@@ -36,6 +36,17 @@ import { useSidebar } from '../context/SidebarContext';
 
 import FormPreview from '../components/FormPreview';
 
+const DEFAULT_THEMES = [
+  { name: 'Indigo', color: '#6366f1' },
+  { name: 'Blue', color: '#3b82f6' },
+  { name: 'Red', color: '#ef4444' },
+  { name: 'Green', color: '#10b981' },
+  { name: 'Purple', color: '#8b5cf6' },
+  { name: 'Pink', color: '#ec4899' },
+  { name: 'Orange', color: '#f97316' },
+  { name: 'Slate', color: '#475569' },
+];
+
 /* ── Professional Technical Registry Card — Focal Reveal Effect ── */
 const FormCard = ({ form, idx, isLive, isOffline, onNavigateResponses, activeMenuId, setActiveMenuId, onOpenForm, onEditForm, onToggleStatus, onCopyLink, onDeleteForm }) => {
   const [hovered, setHovered] = useState(false);
@@ -205,7 +216,7 @@ const FormList = () => {
   const pageSize = 6;
 
   const [modal, setModal] = useState({ isOpen: false, type: '', form: null });
-  const [editForm, setEditForm] = useState({ name: '', startsAt: '', expiresAt: '', bannerUrl: '' });
+  const [editForm, setEditForm] = useState({ name: '', startsAt: '', expiresAt: '', bannerUrl: '', themeColor: '#6366f1' });
   const [copiedId, setCopiedId] = useState(null);
 
   const [stats, setStats] = useState({ totalForms: 0, activeForms: 0, totalResponses: 0 });
@@ -298,7 +309,8 @@ const FormList = () => {
       name: form.name,
       startsAt: form.startsAt ? form.startsAt.split('.')[0] : '',
       expiresAt: form.expiresAt ? form.expiresAt.split('.')[0] : '',
-      bannerUrl: form.bannerUrl || ''
+      bannerUrl: form.bannerUrl || '',
+      themeColor: form.themeColor || '#6366f1'
     });
   };
 
@@ -313,7 +325,8 @@ const FormList = () => {
         name: editForm.name,
         startsAt: editForm.startsAt || null,
         expiresAt: editForm.expiresAt || null,
-        bannerUrl: editForm.bannerUrl || null
+        bannerUrl: editForm.bannerUrl || null,
+        themeColor: editForm.themeColor || '#6366f1'
       });
       toast.success('Asset Updated: Form parameters synchronized.');
       setModal({ isOpen: false, type: '', form: null });
@@ -883,6 +896,36 @@ const FormList = () => {
                       }}
                       className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:outline-none focus:border-brand-default transition-all"
                     />
+                  </div>
+                </div>
+
+                <div className="space-y-4 pt-2">
+                  <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1 block">Tactical Theme Color</label>
+                  <div className="grid grid-cols-8 gap-2">
+                    {DEFAULT_THEMES.map((theme) => (
+                      <button
+                        key={theme.color}
+                        type="button"
+                        onClick={() => setEditForm(prev => ({ ...prev, themeColor: theme.color }))}
+                        className={`aspect-square rounded-full border-2 transition-all p-0.5 ${editForm.themeColor === theme.color ? 'border-brand-default scale-110' : 'border-transparent hover:scale-105'}`}
+                        title={theme.name}
+                      >
+                        <div className="w-full h-full rounded-full" style={{ backgroundColor: theme.color }} />
+                      </button>
+                    ))}
+                    <div className="relative group">
+                      <input 
+                        type="color" 
+                        value={editForm.themeColor} 
+                        onChange={(e) => setEditForm(prev => ({ ...prev, themeColor: e.target.value }))}
+                        className="w-full h-full aspect-square rounded-full cursor-pointer bg-slate-50 border border-slate-200 transition-all hover:scale-105 p-0 opacity-0 absolute inset-0 z-10"
+                      />
+                      <div 
+                        className="w-full h-full aspect-square rounded-full border-2 border-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-slate-50 transition-all overflow-hidden p-0.5"
+                      >
+                        <div className="w-full h-full rounded-full" style={{ backgroundColor: editForm.themeColor }} />
+                      </div>
+                    </div>
                   </div>
                 </div>
 

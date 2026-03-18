@@ -19,4 +19,5 @@ public class FormDto {
     private LocalDateTime createdAt;
     private long responseCount;
     private String bannerUrl;
+    private String themeColor;
 }

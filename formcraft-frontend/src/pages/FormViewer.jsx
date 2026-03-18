@@ -26,6 +26,8 @@ const FormViewer = () => {
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState(null);
   const [hoverRating, setHoverRating] = useState({ fieldId: null, value: 0 });
+  const [formErrors, setFormErrors] = useState({});
+  const [touched, setTouched] = useState({});
 
   useEffect(() => {
     const fetchForm = async () => {
@@ -46,10 +48,106 @@ const FormViewer = () => {
     fetchForm();
   }, [slug]);
 
+  useEffect(() => {
+    if (form && form.schema?.fields) {
+      const initialResponses = {};
+      form.schema.fields.forEach(field => {
+        if (field.defaultValue !== undefined && field.defaultValue !== null && field.defaultValue !== '') {
+          // Special handling for numeric types
+          if (field.type === 'number') {
+            initialResponses[field.label] = parseFloat(field.defaultValue);
+          } else {
+            initialResponses[field.label] = field.defaultValue;
+          }
+        }
+      });
+      setResponses(initialResponses);
+    }
+  }, [form]);
+
+  const validateField = (field, value) => {
+    const validation = field.validation || {};
+    const isRequired = field.required;
+    const label = field.label;
+
+    // 1. Required Check
+    if (isRequired && (!value || (Array.isArray(value) && value.length === 0) || (typeof value === 'string' && value.trim() === ''))) {
+        return `Field Authentication Failed: ${label} is required.`;
+    }
+
+    // 2. Type/Advanced Rules (only if value exists)
+    if (value && value.toString().trim() !== '') {
+        const valStr = value.toString();
+        
+        // Email Pattern
+        if (field.type === 'email' && !/^[A-Za-z0-9+_.-]+@(.+)$/.test(valStr)) {
+            return validation.errorMessage || `Protocol Error: ${label} must be a valid email.`;
+        }
+
+        // Numeric Range
+        if (field.type === 'number') {
+            const num = parseFloat(valStr);
+            if (validation.min !== undefined && num < validation.min) {
+                return validation.errorMessage || `Threshold Error: ${label} must be at least ${validation.min}.`;
+            }
+            if (validation.max !== undefined && num > validation.max) {
+                return validation.errorMessage || `Threshold Error: ${label} cannot exceed ${validation.max}.`;
+            }
+        }
+
+        // String Length
+        if (['text', 'textarea', 'email'].includes(field.type)) {
+            if (validation.minLength !== undefined && valStr.length < validation.minLength) {
+                return validation.errorMessage || `Complexity Error: ${label} must be at least ${validation.minLength} characters.`;
+            }
+            if (validation.maxLength !== undefined && valStr.length > validation.maxLength) {
+                return validation.errorMessage || `Complexity Error: ${label} exceeds maximum allowed characters.`;
+            }
+        }
+
+        // Custom Regex
+        if (validation.regex) {
+            try {
+                const re = new RegExp(validation.regex);
+                if (!re.test(valStr)) {
+                    return validation.errorMessage || `Format Incompatibility: ${label} does not match required pattern.`;
+                }
+            } catch (e) {
+                console.error("Advanced Regex Logic Failure:", e);
+            }
+        }
+    }
+    return null;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
     setError(null);
+
+    // Deep Validation Protocol
+    const newErrors = {};
+    const fields = form.schema?.fields || [];
+    let firstErrorField = null;
+
+    fields.forEach(field => {
+        const errorMsg = validateField(field, responses[field.label]);
+        if (errorMsg) {
+            newErrors[field.label] = errorMsg;
+            if (!firstErrorField) firstErrorField = field.id;
+        }
+    });
+
+    if (Object.keys(newErrors).length > 0) {
+        setFormErrors(newErrors);
+        toast.error('Validation Protocol Interrupted: Please verify marked fields.');
+        setSubmitting(false);
+        // Scroll to first error for convenience
+        const element = document.getElementById(`field-${firstErrorField}`);
+        if (element) element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+    }
+
     try {
       await api.post('/forms/submit', {
         formId: form.id,
@@ -65,19 +163,35 @@ const FormViewer = () => {
     }
   };
 
-  const handleCheckboxChange = (label, option, checked) => {
+  const handleCheckboxChange = (field, option, checked) => {
     setResponses(prev => {
-      const current = prev[label] || [];
-      if (checked) {
-        return { ...prev, [label]: [...current, option] };
-      } else {
-        return { ...prev, [label]: current.filter(item => item !== option) };
+      const current = prev[field.label] || [];
+      const newValue = checked ? [...current, option] : current.filter(item => item !== option);
+      
+      // Inline Validation (only if touched or previously errored)
+      if (touched[field.label] || Object.keys(formErrors).length > 0) {
+        const errorMsg = validateField(field, newValue);
+        setFormErrors(prevErrors => ({ ...prevErrors, [field.label]: errorMsg }));
       }
+      
+      return { ...prev, [field.label]: newValue };
     });
   };
 
-  const handleChange = (label, value) => {
-    setResponses(prev => ({ ...prev, [label]: value }));
+  const handleBlur = (field) => {
+    setTouched(prev => ({ ...prev, [field.label]: true }));
+    const errorMsg = validateField(field, responses[field.label]);
+    setFormErrors(prev => ({ ...prev, [field.label]: errorMsg }));
+  };
+
+  const handleChange = (field, value) => {
+    setResponses(prev => ({ ...prev, [field.label]: value }));
+    
+    // Inline Validation (only if touched or previously errored)
+    if (touched[field.label] || Object.keys(formErrors).length > 0) {
+      const errorMsg = validateField(field, value);
+      setFormErrors(prev => ({ ...prev, [field.label]: errorMsg }));
+    }
   };
 
   const isLive = form?.status === 'ACTIVE';
@@ -150,17 +264,26 @@ const FormViewer = () => {
   );
 
   return (
-    <div className="min-h-screen bg-[#F0EBF8] flex flex-col items-center py-12 px-4 md:py-8 selection:bg-brand-default/20">
+    <div 
+      className="min-h-screen flex flex-col items-center py-12 px-4 md:py-8 selection:bg-brand-default/20 transition-colors duration-1000"
+      style={{ backgroundColor: `${form?.themeColor || '#6366f1'}0a` }} // ~4% opacity for a very subtle tint
+    >
       {/* 🛸 DECORATIVE BACKGROUND ELEMENTS */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-brand-default/5 blur-[120px] rounded-full" />
-        <div className="absolute bottom-[-10%] left-[-10%] w-[30%] h-[30%] bg-emerald-500/5 blur-[100px] rounded-full" />
+        <div 
+          className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] blur-[120px] rounded-full transition-colors duration-1000" 
+          style={{ backgroundColor: `${form?.themeColor || '#6366f1'}1a` }} // ~10% opacity
+        />
+        <div 
+          className="absolute bottom-[-10%] left-[-10%] w-[30%] h-[30%] blur-[100px] rounded-full transition-colors duration-1000" 
+          style={{ backgroundColor: `${form?.themeColor || '#6366f1'}0d` }} // ~5% opacity
+        />
       </div>
 
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-2xl relative z-10"
+        className="w-full max-w-3xl relative z-10"
       >
         {form?.bannerUrl && (
           <div className="w-full h-40 md:h-48 rounded-t-xl overflow-hidden border-x border-t border-slate-200 shadow-sm relative group">
@@ -175,7 +298,7 @@ const FormViewer = () => {
 
         {/* Header Card */}
         <div className={`bg-white shadow-sm border border-slate-200 overflow-hidden mb-4 relative ${form?.bannerUrl ? 'rounded-b-xl border-t-0' : 'rounded-xl'}`}>
-          {!form?.bannerUrl && <div className="h-2.5 w-full bg-brand-default" />}
+          <div className="h-2.5 w-full" style={{ backgroundColor: form?.themeColor || '#6366f1' }} />
           <div className="p-8">
             <h1 className="text-3xl font-normal text-slate-900 mb-2">{form.name}</h1>
             <p className="text-sm text-slate-600 font-normal">Official Form Portal</p>
@@ -191,7 +314,7 @@ const FormViewer = () => {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {form.schema?.fields?.map((field) => (
-            <div key={field.id} className="bg-white p-6 md:p-8 rounded-xl border border-slate-200 shadow-sm space-y-6">
+            <div id={`field-${field.id}`} key={field.id} className={`bg-white p-6 md:p-8 rounded-xl border transition-all duration-300 shadow-sm space-y-6 ${formErrors[field.label] ? 'border-red-200 ring-2 ring-red-50' : 'border-slate-200'}`}>
               <div className="space-y-2">
                 <label className="text-base font-normal text-slate-900 flex items-center gap-1">
                   {field.label}
@@ -205,14 +328,18 @@ const FormViewer = () => {
                         className="w-full bg-transparent border-b-2 border-slate-200 outline-none focus:border-brand-default transition-all py-3 px-1 text-sm font-semibold text-slate-700 min-h-[50px] resize-none placeholder:text-slate-300 placeholder:font-normal"
                         placeholder={field.placeholder || "Please provide details..."}
                         required={field.required}
-                        onChange={(e) => handleChange(field.label, e.target.value)}
+                        value={responses[field.label] || ''}
+                        onChange={(e) => handleChange(field, e.target.value)}
+                        onBlur={() => handleBlur(field)}
                       />
                     ) : field.type === 'dropdown' ? (
                       <div className="relative">
                         <select 
                         className="w-full bg-transparent border-b-2 border-slate-200 outline-none focus:border-brand-default transition-all py-3 px-1 text-sm font-semibold text-slate-700 appearance-none cursor-pointer pr-12"
                           required={field.required}
-                          onChange={(e) => handleChange(field.label, e.target.value)}
+                          value={responses[field.label] || ''}
+                          onChange={(e) => handleChange(field, e.target.value)}
+                          onBlur={() => handleBlur(field)}
                         >
                           <option value="">Please select an option...</option>
                           {field.options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
@@ -225,25 +352,36 @@ const FormViewer = () => {
                           type="date"
                           className="w-full bg-transparent border-b-2 border-slate-200 outline-none focus:border-brand-default transition-all py-3 px-1 text-sm font-semibold text-slate-700"
                           required={field.required}
-                          onChange={(e) => handleChange(field.label, e.target.value)}
+                          value={responses[field.label] || ''}
+                          onChange={(e) => handleChange(field, e.target.value)}
+                          onBlur={() => handleBlur(field)}
                         />
                       </div>
+                    ) : field.type === 'number' ? (
+                      <input 
+                        type="number"
+                        className="w-full bg-transparent border-b-2 border-slate-200 outline-none focus:border-brand-default transition-all py-3 px-1 text-sm font-semibold text-slate-700 placeholder:text-slate-300 placeholder:font-normal"
+                        placeholder={field.placeholder || "0"}
+                        value={responses[field.label] || ''}
+                        onChange={(e) => handleChange(field, e.target.value)}
+                        onBlur={() => handleBlur(field)}
+                      />
                     ) : field.type === 'rating' ? (
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-4">
                         {[...Array(field.max || 5)].map((_, i) => (
                           <button
                             key={i}
                             type="button"
-                            onClick={() => handleChange(field.label, i + 1)}
+                            onClick={() => handleChange(field, i + 1)}
                             onMouseEnter={() => setHoverRating({ fieldId: field.id, value: i + 1 })}
                             onMouseLeave={() => setHoverRating({ fieldId: null, value: 0 })}
                             className="transition-transform hover:scale-125 focus:outline-none"
                           >
                             <Star 
-                              size={32} 
-                              className={`transition-all ${
+                              size={36} 
+                              className={`transition-all duration-300 ${
                                 (hoverRating.fieldId === field.id ? hoverRating.value : (responses[field.label] || 0)) > i 
-                                  ? "fill-amber-400 text-amber-400" 
+                                  ? "fill-amber-400 text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.4)]" 
                                   : "text-slate-200"
                               }`} 
                             />
@@ -251,31 +389,26 @@ const FormViewer = () => {
                         ))}
                       </div>
                     ) : field.type === 'linear-scale' ? (
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between gap-4 py-2 px-4 bg-slate-50 rounded-xl border border-slate-100">
-                          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{field.minLabel || '1'}</span>
-                          <div className="flex items-center gap-2 md:gap-4">
-                            {[...Array((field.max || 5) - (field.min || 1) + 1)].map((_, i) => {
-                              const val = (field.min || 1) + i;
-                              const isSelected = responses[field.label] === val;
-                              return (
-                                <button
-                                  key={val}
-                                  type="button"
-                                  onClick={() => handleChange(field.label, val)}
-                                  className={`w-10 h-10 rounded-full border-2 transition-all flex items-center justify-center text-sm font-bold ${
-                                    isSelected 
-                                      ? "bg-brand-default border-brand-default text-white shadow-lg scale-110" 
-                                      : "bg-white border-slate-200 text-slate-400 hover:border-brand-default hover:text-brand-default"
-                                  }`}
-                                >
-                                  {val}
-                                </button>
-                              );
-                            })}
-                          </div>
-                          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{field.maxLabel || '5'}</span>
+                      <div className="flex items-center justify-center gap-8 py-6 px-4">
+                        <span className="text-sm text-slate-800 mt-6 font-normal min-w-[80px] text-right">{field.minLabel || ''}</span>
+                        <div className="flex items-center gap-6">
+                          {Array.from({ length: (field.max || 5) - (field.min || 0) + 1 }, (_, i) => (field.min || 0) + i).map((val) => {
+                             const isSelected = responses[field.label] === val;
+                             return (
+                              <div key={val} className="flex flex-col items-center gap-3">
+                                  <span className="text-sm text-slate-600 font-normal">{val}</span>
+                                  <div 
+                                    onClick={() => handleChange(field, val)}
+                                    className={`w-7 h-7 rounded-full border-2 flex items-center justify-center cursor-pointer transition-all duration-200`}
+                                    style={isSelected ? { borderColor: form?.themeColor || '#6366f1', backgroundColor: `${form?.themeColor || '#6366f1'}1a` } : { borderColor: '#cbd5e1' }}
+                                  >
+                                      {isSelected && <div className="w-3.5 h-3.5 rounded-full shadow-sm" style={{ backgroundColor: form?.themeColor || '#6366f1' }} />}
+                                  </div>
+                              </div>
+                             );
+                          })}
                         </div>
+                        <span className="text-sm text-slate-800 mt-6 font-normal min-w-[80px] text-left">{field.maxLabel || ''}</span>
                       </div>
                     ) : field.type === 'radio' ? (
                       <div className="space-y-4">
@@ -288,10 +421,11 @@ const FormViewer = () => {
                                 value={opt}
                                 checked={responses[field.label] === opt}
                                 required={field.required && !responses[field.label]}
-                                onChange={(e) => handleChange(field.label, e.target.value)}
-                                className="peer h-5 w-5 cursor-pointer appearance-none rounded-full border border-slate-300 checked:border-brand-default transition-all"
+                                onChange={(e) => handleChange(field, e.target.value)}
+                                className="peer h-5 w-5 cursor-pointer appearance-none rounded-full border border-slate-300 transition-all"
+                                style={responses[field.label] === opt ? { borderColor: form?.themeColor || '#6366f1' } : {}}
                               />
-                              <div className="absolute h-2.5 w-2.5 rounded-full bg-brand-default opacity-0 peer-checked:opacity-100 transition-opacity" />
+                              <div className="absolute h-2.5 w-2.5 rounded-full opacity-0 peer-checked:opacity-100 transition-opacity" style={{ backgroundColor: form?.themeColor || '#6366f1' }} />
                             </div>
                             <span className="text-sm font-normal text-slate-700">{opt}</span>
                           </label>
@@ -306,8 +440,9 @@ const FormViewer = () => {
                                 type="checkbox"
                                 value={opt}
                                 checked={(responses[field.label] || []).includes(opt)}
-                                onChange={(e) => handleCheckboxChange(field.label, opt, e.target.checked)}
-                                className="peer h-5 w-5 cursor-pointer appearance-none rounded border border-slate-300 checked:border-brand-default checked:bg-brand-default transition-all"
+                                onChange={(e) => handleCheckboxChange(field, opt, e.target.checked)}
+                                className="peer h-5 w-5 cursor-pointer appearance-none rounded border border-slate-300 transition-all rounded"
+                                style={(responses[field.label] || []).includes(opt) ? { borderColor: form?.themeColor || '#6366f1', backgroundColor: form?.themeColor || '#6366f1' } : {}}
                               />
                               <CheckCircle2 className="absolute text-white opacity-0 peer-checked:opacity-100 transition-opacity" size={14} strokeWidth={4} />
                             </div>
@@ -318,21 +453,42 @@ const FormViewer = () => {
                     ) : (
                       <input 
                         type={field.type === 'number' ? 'number' : field.type === 'email' ? 'email' : 'text'}
-                        className="w-full bg-transparent border-b-2 border-slate-200 outline-none focus:border-brand-default transition-all py-3 px-1 text-sm font-semibold text-slate-700 placeholder:text-slate-300 placeholder:font-medium"
+                        className="w-full bg-transparent border-b-2 border-slate-200 outline-none transition-all py-3 px-1 text-sm font-semibold text-slate-700 placeholder:text-slate-300 placeholder:font-medium"
+                        style={{ borderBottomColor: touched[field.label] ? (form?.themeColor || '#6366f1') : '' }}
                         placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
                         required={field.required}
-                        onChange={(e) => handleChange(field.label, e.target.value)}
-                        />
+                        value={responses[field.label] || ''}
+                        onChange={(e) => handleChange(field, e.target.value)}
+                        onBlur={() => handleBlur(field)}
+                      />
                     )}
                   </div>
-                </div>
+
+                  {/* Field Error Display */}
+                  <AnimatePresence>
+                    {formErrors[field.label] && (
+                        <motion.div 
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="bg-red-50 border-l-4 border-red-500 p-4 flex items-center gap-3 overflow-hidden"
+                        >
+                            <AlertCircle size={14} className="text-red-500 shrink-0" />
+                            <p className="text-[11px] font-bold text-red-600 uppercase tracking-widest leading-none">
+                                {formErrors[field.label]}
+                            </p>
+                        </motion.div>
+                    )}
+                  </AnimatePresence>
+            </div>
               ))}
 
           <div className="flex justify-between items-center flex-row-reverse px-2">
             <button
               type="submit"
               disabled={submitting}
-              className="px-6 h-10 bg-brand-default hover:bg-brand-600 text-white rounded font-medium text-sm transition-all active:scale-[0.98] shadow-sm flex items-center gap-2"
+              className="px-6 h-10 text-white rounded font-medium text-sm transition-all active:scale-[0.98] shadow-sm flex items-center gap-2 hover:opacity-90 shadow-lg"
+              style={{ backgroundColor: form?.themeColor || '#6366f1', boxShadow: `0 4px 14px 0 ${form?.themeColor || '#6366f1' }40` }}
             >
               {submitting ? <Loader2 className="animate-spin text-white" size={16} /> : 'Submit'}
             </button>
