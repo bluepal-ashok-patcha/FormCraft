@@ -70,4 +70,50 @@ public class GeminiService {
                     }
                 });
     }
+
+    public Mono<String> generateFormBlueprint(String description, List<Map<String, Object>> currentFields) {
+        System.out.println("✦ Neural Architecture Command: " + description);
+        boolean isModification = currentFields != null && !currentFields.isEmpty();
+
+        String fieldSchemaInfo = "Allowed types: text, number, email, dropdown, checkbox, radio, date, textarea, rating, linear-scale." +
+                                 "\nJSON Structure: { \"id\": \"unique_string\", \"type\": \"type_name\", \"label\": \"String\", \"required\": boolean, \"placeholder\": \"String\", \"options\": [\"opt1\", \"opt2\"], \"max\": number, \"validation\": { \"regex\": \"...\", \"errorMessage\": \"...\" } }";
+
+        String contextInfo = isModification 
+            ? "\nCURRENT FIELDS: " + currentFields.toString() + "\nACTION: Modify this existing list based on the user's wish. You can ADD, REMOVE, or UPDATE fields. Return the FULL updated array."
+            : "\nACTION: Synthesize a completely new blueprint based on the description.";
+
+        Map<String, Object> systemInstruction = Map.of(
+                "parts", List.of(
+                        Map.of("text", "You are a professional UX Form Architect. " + contextInfo + "\nRULES: 1. Output ONLY a raw JSON array. 2. Use the following schema info: " + fieldSchemaInfo + " 3. Maintain consistent IDs for existing fields that were not modified. 4. NO conversational text.")
+                )
+        );
+
+        Map<String, Object> requestBody = Map.of(
+                "system_instruction", systemInstruction,
+                "contents", List.of(
+                        Map.of(
+                                "parts", List.of(
+                                        Map.of("text", description)
+                                )
+                        )
+                )
+        );
+
+        return webClient.post()
+                .bodyValue(requestBody)
+                .retrieve()
+                .bodyToMono(String.class)
+                .flatMap(json -> {
+                    try {
+                        JsonNode root = objectMapper.readTree(json);
+                        String rawJson = root.path("candidates").get(0).path("content").path("parts").get(0).path("text").asText().trim();
+                        // Strip backticks
+                        rawJson = rawJson.replaceAll("^```json|```$", "").trim();
+                        System.out.println("✦ AI Architecture Transformation: " + rawJson);
+                        return Mono.just(rawJson);
+                    } catch (Exception e) {
+                        return Mono.error(new RuntimeException("Synthesis failure: " + e.getMessage()));
+                    }
+                });
+    }
 }

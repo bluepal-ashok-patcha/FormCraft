@@ -97,6 +97,10 @@ const FormBuilder = () => {
   const [aiPrompt, setAiPrompt] = useState({});
   const [aiGenerating, setAiGenerating] = useState(false);
 
+  // AI Blueprint State
+  const [blueprintPrompt, setBlueprintPrompt] = useState('');
+  const [isBlueprinting, setIsBlueprinting] = useState(false);
+
   useEffect(() => {
     fetchCategories();
     // Handle incoming template from Template Hub
@@ -174,6 +178,48 @@ const FormBuilder = () => {
       toast.error('AI Failure: Could not establish connection to the neural network.');
     } finally {
       setAiGenerating(false);
+    }
+  };
+
+  const handleGenerateAiBlueprint = async () => {
+    if (!blueprintPrompt.trim()) {
+      toast.error('Architecture Required: Please describe your vision first.');
+      return;
+    }
+
+    setIsBlueprinting(true);
+    try {
+      const res = await api.post('/ai/generate-blueprint', { 
+        description: blueprintPrompt,
+        currentFields: fields // Send the current state for context
+      });
+      if (res.data) {
+        // AI returns an array of field objects
+        const aiFields = res.data;
+        
+        // Ensure every new field gets a unique ID, while preserving existing ones
+        const processedFields = aiFields.map(f => {
+          // Check if this ID already exists in our current state
+          const exists = fields.some(existingField => existingField.id === f.id);
+          
+          return {
+            ...f,
+            id: exists ? f.id : (f.id && !f.id.includes('unique_') ? f.id : Math.random().toString(36).substr(2, 9)),
+            required: f.required || false,
+            options: f.options || ['Option 1', 'Option 2'],
+            placeholder: f.placeholder || `Enter ${f.label}...`
+          };
+        });
+
+        setFields(processedFields);
+        toast.success('System Reconfigured: AI blueprint synthesized successfully.');
+        setBlueprintPrompt('');
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Neural Interrupt: Could not synthesize blueprint.');
+    } finally {
+      setIsBlueprinting(false);
     }
   };
 
@@ -664,7 +710,55 @@ const FormBuilder = () => {
               <p className="text-xs font-bold text-brand-default uppercase tracking-widest">Drop to deploy template</p>
             </div>
           )}
-          <div className="max-w-4xl mx-auto space-y-4 py-12 px-4 pb-32">
+          <div className="max-w-4xl mx-auto space-y-6 py-12 px-4 pb-32">
+            {/* AI Command Center: Neural Blueprinting Bar */}
+            <motion.div 
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="relative group"
+            >
+              <div className="absolute -inset-1 bg-gradient-to-r from-brand-default via-brand-500 to-indigo-600 rounded-2xl blur opacity-15 group-hover:opacity-25 transition duration-1000 group-hover:duration-200"></div>
+              <div className="relative flex items-center bg-white border border-slate-200/60 rounded-2xl p-2 shadow-sm hover:shadow-md transition-all duration-300">
+                <div className="pl-4 pr-3 py-2 border-r border-slate-100 flex items-center gap-2">
+                  <div className="p-1.5 bg-brand-50 text-brand-default rounded-lg">
+                    <Zap size={16} className={`${isBlueprinting ? 'animate-pulse text-indigo-500' : ''}`} />
+                  </div>
+                </div>
+                
+                <input
+                  type="text"
+                  className="flex-1 bg-transparent border-none outline-none px-4 text-sm font-medium text-slate-700 placeholder:text-slate-400 placeholder:font-normal"
+                  placeholder={fields.length > 0 ? "Neural Command: Refine your blueprint (e.g. 'Add a phone field' or 'Change rating to 10 stars')..." : "Neural Command: Describe your form blueprint (e.g. 'Event Registration with Meal Preferences')..."}
+                  value={blueprintPrompt}
+                  onChange={(e) => setBlueprintPrompt(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleGenerateAiBlueprint(); }}
+                  disabled={isBlueprinting}
+                />
+
+                <div className="pr-1">
+                  <button
+                    onClick={handleGenerateAiBlueprint}
+                    disabled={isBlueprinting || !blueprintPrompt.trim()}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-brand-default text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-brand-500/10 active:scale-95"
+                  >
+                    {isBlueprinting ? (
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <span>Synthesizing...</span>
+                      </div>
+                    ) : (
+                      <>
+                        <span>Synthesize Blueprint ✦</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+              <div className="mt-2 ml-2 flex items-center gap-2 opacity-40 hover:opacity-100 transition-opacity">
+                 <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Powered by Gemini Neural Engine // Enterprise v4</span>
+              </div>
+            </motion.div>
+
             {fields.length === 0 ? (
               <div className="h-[60vh] flex flex-col items-center justify-center text-center opacity-40">
                 <MousePointer2 className="text-slate-300 mb-4" size={48} />
