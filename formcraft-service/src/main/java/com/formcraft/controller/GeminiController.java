@@ -62,4 +62,24 @@ public class GeminiController {
             return ResponseEntity.status(500).body(ApiResponse.error("Synthesis failure: " + errorMsg));
         }
     }
+
+    @PostMapping("/recommend-theme")
+    public ResponseEntity<ApiResponse<Map<String, String>>> recommendTheme(@RequestBody Map<String, String> request) {
+        String title = request.get("title");
+        
+        if (title == null || title.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Form title is required for styling vision."));
+        }
+
+        try {
+            String aiJson = geminiService.generateThemeBlueprint(title).block();
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            Map<String, String> design = mapper.readValue(aiJson, new com.fasterxml.jackson.core.type.TypeReference<Map<String, String>>() {});
+            
+            return ResponseEntity.ok(ApiResponse.success(design, "Styling blueprint synthesized successfully."));
+        } catch (Exception e) {
+            String errorMsg = e.getMessage() != null ? e.getMessage() : e.toString();
+            return ResponseEntity.status(500).body(ApiResponse.error("Styling failure: " + errorMsg));
+        }
+    }
 }

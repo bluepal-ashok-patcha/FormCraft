@@ -101,6 +101,11 @@ const FormBuilder = () => {
   const [blueprintPrompt, setBlueprintPrompt] = useState('');
   const [isBlueprinting, setIsBlueprinting] = useState(false);
 
+  // AI Style State
+  // AI Style State
+  const [isStyling, setIsStyling] = useState(false);
+  const [backgroundColor, setBackgroundColor] = useState('#f8fafc'); 
+
   useEffect(() => {
     fetchCategories();
     // Handle incoming template from Template Hub
@@ -223,6 +228,23 @@ const FormBuilder = () => {
     }
   };
 
+  const handleAiThemeRecommendation = async () => {
+    const title = formName || 'Untitled Form';
+    setIsStyling(true);
+    try {
+      const res = await api.post('/ai/recommend-theme', { title });
+      if (res.data) {
+        setThemeColor(res.data.themeColor);
+        setBackgroundColor(res.data.backgroundColor);
+        toast.success('Visual Identity Synthesized: Style blueprint applied.');
+      }
+    } catch (err) {
+      toast.error('Styling Link Interrupted.');
+    } finally {
+      setIsStyling(false);
+    }
+  };
+
   const now = new Date();
   const offset = now.getTimezoneOffset() * 60000;
   const minDateTime = new Date(now - offset).toISOString().slice(0, 16);
@@ -273,7 +295,7 @@ const FormBuilder = () => {
     try {
       const payload = {
         name: formName,
-        schema: { fields },
+        schema: { fields, backgroundColor },
         startsAt: startsAt || null,
         expiresAt: expiresAt || null,
         bannerUrl: bannerUrl || null,
@@ -359,6 +381,8 @@ const FormBuilder = () => {
     });
     setFields(normalizedFields);
     setFormName(template.name);
+    setThemeColor(template.themeColor || '#6366f1');
+    setBackgroundColor(template.schema?.backgroundColor || '#f8fafc');
     setBannerUrl(template.thumbnailUrl || '');
     setShowGallery(false);
     toast.success('Registry Synchronized: Architecture deployed from blueprint.');
@@ -597,6 +621,15 @@ const FormBuilder = () => {
                     Form Theme
                   </h4>
                   <div className="space-y-6">
+                    <button
+                      onClick={handleAiThemeRecommendation}
+                      disabled={isStyling}
+                      className="w-full py-3 px-4 bg-gradient-to-r from-brand-default to-indigo-600 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-brand-500/20 hover:scale-[1.02] transition-all disabled:opacity-50"
+                    >
+                      <Sparkles size={14} className={isStyling ? 'animate-spin' : ''} />
+                      {isStyling ? 'Synthesizing Vibe...' : 'Neural Theme Suggestion ✦'}
+                    </button>
+
                     <div className="space-y-3">
                       <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider pl-1">Banner Image</label>
                       <div className="space-y-4">
@@ -656,6 +689,33 @@ const FormBuilder = () => {
                         </div>
                       </div>
                     </div>
+
+                    <div className="space-y-4 pt-6 border-t border-slate-100">
+                      <div className="flex items-center justify-between pl-1">
+                        <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Canvas Background</label>
+                        <span className="text-[10px] font-mono text-slate-400 font-bold uppercase">{backgroundColor}</span>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="relative group/color">
+                          <input
+                            type="color"
+                            value={backgroundColor}
+                            onChange={(e) => setBackgroundColor(e.target.value)}
+                            className="w-10 h-10 rounded-lg cursor-pointer border-2 border-slate-100 bg-white p-1 transition-all hover:border-slate-300 shadow-sm"
+                          />
+                        </div>
+                        <div className="grid grid-cols-4 gap-2 flex-1">
+                          {['#f8fafc', '#f1f5f9', '#ffffff', '#fff7ed', '#f0f9ff', '#f0fdf4', '#fdf2f8', '#faf5ff'].map((c) => (
+                            <button
+                              key={c}
+                              onClick={() => setBackgroundColor(c)}
+                              className={`w-full aspect-square rounded-md border transition-all ${backgroundColor === c ? 'border-brand-default ring-2 ring-brand-100 scale-110 shadow-sm' : 'border-slate-100 hover:border-slate-300 shadow-sm'}`}
+                              style={{ backgroundColor: c }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </motion.div>
               )}
@@ -701,7 +761,7 @@ const FormBuilder = () => {
             }
           }}
           className="flex-1 overflow-y-auto no-scrollbar scroll-smooth relative transition-all duration-300 p-4 md:p-8"
-          style={{ backgroundColor: isDraggingOver ? `${themeColor}18` : `${themeColor}0a` }}
+          style={{ backgroundColor: isDraggingOver ? `${themeColor}18` : (backgroundColor || `${themeColor}0a`) }}
         >
           {/* Drop target overlay when dragging a template */}
           {isDraggingTemplate && (
@@ -715,12 +775,11 @@ const FormBuilder = () => {
             <motion.div 
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="relative group"
+              className="relative"
             >
-              <div className="absolute -inset-1 bg-gradient-to-r from-brand-default via-brand-500 to-indigo-600 rounded-2xl blur opacity-15 group-hover:opacity-25 transition duration-1000 group-hover:duration-200"></div>
-              <div className="relative flex items-center bg-white border border-slate-200/60 rounded-2xl p-2 shadow-sm hover:shadow-md transition-all duration-300">
+              <div className="relative flex items-center bg-white border border-slate-200 rounded-2xl p-1.5 transition-all duration-300">
                 <div className="pl-4 pr-3 py-2 border-r border-slate-100 flex items-center gap-2">
-                  <div className="p-1.5 bg-brand-50 text-brand-default rounded-lg">
+                  <div className="p-1.5 bg-slate-50 text-slate-400 rounded-lg">
                     <Zap size={16} className={`${isBlueprinting ? 'animate-pulse text-indigo-500' : ''}`} />
                   </div>
                 </div>
@@ -739,16 +798,16 @@ const FormBuilder = () => {
                   <button
                     onClick={handleGenerateAiBlueprint}
                     disabled={isBlueprinting || !blueprintPrompt.trim()}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-brand-default text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-brand-500/10 active:scale-95"
+                    className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-black disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95"
                   >
                     {isBlueprinting ? (
                       <div className="flex items-center gap-2">
                         <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        <span>Synthesizing...</span>
+                        <span>Generating...</span>
                       </div>
                     ) : (
                       <>
-                        <span>Synthesize Blueprint ✦</span>
+                        <span>Build with AI ✦</span>
                       </>
                     )}
                   </button>
@@ -760,15 +819,18 @@ const FormBuilder = () => {
             </motion.div>
 
             {fields.length === 0 ? (
-              <div className="h-[60vh] flex flex-col items-center justify-center text-center opacity-40">
-                <MousePointer2 className="text-slate-300 mb-4" size={48} />
-                <p className="text-sm font-semibold text-slate-400 mb-6">Build your strategy by adding components from the sidebar.</p>
+              <div className="h-[50vh] flex flex-col items-center justify-center text-center">
+                <div className="w-16 h-16 bg-slate-50 border border-slate-100 rounded-3xl flex items-center justify-center mb-6 shadow-sm">
+                  <Plus className="text-slate-400" size={32} />
+                </div>
+                <h3 className="text-lg font-bold text-slate-800 mb-2">Build Your Strategy</h3>
+                <p className="text-sm font-medium text-slate-500 mb-8 max-w-xs leading-relaxed">Add components from the sidebar or start with a professionally designed template.</p>
                 <button
                   onClick={() => setShowGallery(true)}
-                  className="flex items-center gap-2 px-6 py-3 bg-brand-default text-white rounded-xl text-[10px] font-semibold uppercase tracking-widest shadow-lg shadow-brand-500/20 hover:scale-105 transition-all"
+                  className="flex items-center gap-2 px-8 py-3.5 bg-brand-default text-white rounded-xl text-[11px] font-bold uppercase tracking-[0.1em] shadow-lg shadow-brand-500/20 hover:scale-105 transition-all"
                 >
                   <Sparkles size={14} />
-                  Deploy Blueprint
+                  Use a Template
                 </button>
               </div>
             ) : (
@@ -776,8 +838,8 @@ const FormBuilder = () => {
                 {/* Header Editor */}
                 <div
                   onClick={() => { setActiveHeader(true); setSelectedField(null); }}
-                  className={`group relative bg-white transition-all duration-300 ${activeHeader ? 'shadow-2xl z-40 rounded-xl border-l-[6px]' : 'border border-slate-200 shadow-sm rounded-xl'}`}
-                  style={activeHeader ? { borderLeftColor: themeColor || '#6366f1', borderTop: 'none' } : {}}
+                  className={`group relative bg-white transition-all duration-300 rounded-xl overflow-hidden ${activeHeader ? 'shadow-2xl z-40 ring-4 ring-offset-4' : 'border border-slate-200 shadow-sm'}`}
+                  style={activeHeader ? { ringColor: `${themeColor}40`, ringOffsetColor: backgroundColor || '#f8fafc', borderColor: themeColor || '#6366f1' } : {}}
                 >
                   {/* Strategic Color Identity Bar */}
                   <div 

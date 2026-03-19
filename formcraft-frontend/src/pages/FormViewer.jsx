@@ -266,7 +266,7 @@ const FormViewer = () => {
   return (
     <div 
       className="min-h-screen flex flex-col items-center py-12 px-4 md:py-8 selection:bg-brand-default/20 transition-colors duration-1000"
-      style={{ backgroundColor: `${form?.themeColor || '#6366f1'}0a` }} // ~4% opacity for a very subtle tint
+      style={{ backgroundColor: form?.schema?.backgroundColor || (form?.themeColor ? `${form.themeColor}10` : '#F8FAFC') }}
     >
       {/* 🛸 DECORATIVE BACKGROUND ELEMENTS */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">

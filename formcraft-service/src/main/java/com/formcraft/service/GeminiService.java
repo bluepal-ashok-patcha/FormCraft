@@ -116,4 +116,44 @@ public class GeminiService {
                     }
                 });
     }
+
+    public Mono<String> generateThemeBlueprint(String formTitle) {
+        System.out.println("✦ AI Styling Request for: " + formTitle);
+
+        Map<String, Object> systemInstruction = Map.of(
+                "parts", List.of(
+                        Map.of("text", "You are a professional Creative Director. Recommend a cohesive theme for a form titled: " + formTitle + 
+                                       "\nOutput ONLY a raw JSON object with: { \"themeColor\": \"#HEX\", \"backgroundColor\": \"#HEX\" }. " + 
+                                       "\nRULES: 1. themeColor should be professional. 2. backgroundColor should be a very light, matching tint of the themeColor for accessibility. 3. NO conversational text.")
+                )
+        );
+
+        Map<String, Object> requestBody = Map.of(
+                "system_instruction", systemInstruction,
+                "contents", List.of(
+                        Map.of(
+                                "parts", List.of(
+                                        Map.of("text", "Synthesize a premium design vibe.")
+                                )
+                        )
+                )
+        );
+
+        return webClient.post()
+                .bodyValue(requestBody)
+                .retrieve()
+                .bodyToMono(String.class)
+                .flatMap(json -> {
+                    try {
+                        JsonNode root = objectMapper.readTree(json);
+                        String rawJson = root.path("candidates").get(0).path("content").path("parts").get(0).path("text").asText().trim();
+                        // Strip backticks
+                        rawJson = rawJson.replaceAll("^```json|```$", "").trim();
+                        System.out.println("✦ AI Styling Synthesized: " + rawJson);
+                        return Mono.just(rawJson);
+                    } catch (Exception e) {
+                        return Mono.error(new RuntimeException("Styling synthesis failure: " + e.getMessage()));
+                    }
+                });
+    }
 }
