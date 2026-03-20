@@ -11,12 +11,16 @@ import {
   Layers,
   CheckCircle2,
   GripVertical,
+  Pencil,
+  Trash2,
+  ShieldCheck,
 } from 'lucide-react';
 import api from '../services/api';
 import { toast } from 'react-toastify';
 import { useAuth } from '../context/AuthContext';
 import CategoryManager from './CategoryManager';
 import FormPreview from './FormPreview';
+import GovernanceModal from './GovernanceModal';
 
 const TemplateGallery = ({ isOpen, onClose, onSelect, onDeployFields, onTemplateDragStart, onTemplateDragEnd }) => {
   const { user } = useAuth();
@@ -27,10 +31,17 @@ const TemplateGallery = ({ isOpen, onClose, onSelect, onDeployFields, onTemplate
   const [selectedCategory, setSelectedCategory] = useState({ id: 'all', label: 'All' });
   const [showCategoryManager, setShowCategoryManager] = useState(false);
   const [deploying, setDeploying] = useState(null);
+  const [modalConfig, setModalConfig] = useState({ isOpen: false });
 
-  const isAdmin = user?.roles?.some(
-    (r) => r.name === 'ROLE_ADMIN' || r.name === 'ROLE_SUPER_ADMIN'
-  );
+  const isAdmin = user?.roles?.includes('ROLE_ADMIN') || user?.roles?.includes('ROLE_SUPER_ADMIN');
+  const isSuperAdmin = user?.roles?.includes('ROLE_SUPER_ADMIN');
+
+  const canManageTemplate = (template) => {
+    if (isSuperAdmin) return true;
+    const creator = template.createdBy?.toLowerCase();
+    const isOwner = creator === user?.username?.toLowerCase() || creator === user?.email?.toLowerCase();
+    return isOwner && !template.global;
+  };
 
   useEffect(() => {
     if (isOpen) fetchInitialData();
@@ -79,6 +90,91 @@ const TemplateGallery = ({ isOpen, onClose, onSelect, onDeployFields, onTemplate
       setDeploying(null);
       onClose();
     }, 500);
+  };
+
+  const handleDeleteTemplate = async (e, templateId) => {
+    e.stopPropagation();
+    setModalConfig({
+      isOpen: true,
+      title: "Delete Template Confirmation",
+      message: "Are you sure you want to delete this template permanently? This action cannot be reversed.",
+      confirmText: "Delete Template",
+      type: "danger",
+      onConfirm: async () => {
+        try {
+          await api.delete(`/templates/${templateId}`);
+          toast.success('Template removed successfully.');
+          fetchInitialData();
+        } catch {
+          toast.error('Could not delete template.');
+        }
+      }
+    });
+  };
+
+  const handleEdit = (template) => {
+    onSelect(template, true);
+    toast.info('Editor Primed: You can now modify the template.');
+  };
+
+  const handleDecertify = async (e, id) => {
+    e.stopPropagation();
+    setModalConfig({
+      isOpen: true,
+      title: "Remove Global Status",
+      message: "Are you sure you want to remove this template from the global list? It will be returned to private template status.",
+      confirmText: "Remove From Global",
+      type: "warning",
+      onConfirm: async () => {
+        try {
+          await api.post(`/templates/${id}/decertify`);
+          toast.success('Template updated: Global status removed.');
+          fetchInitialData();
+        } catch {
+          toast.error('Could not update template status.');
+        }
+      }
+    });
+  };
+
+  const handleRejectPromotion = async (e, id) => {
+    e.stopPropagation();
+    setModalConfig({
+      isOpen: true,
+      title: "Reject Promotion Request",
+      message: "Reject this request to make the template global? This will cancel the pending promotion.",
+      confirmText: "Reject Request",
+      type: "danger",
+      onConfirm: async () => {
+        try {
+          await api.post(`/templates/${id}/reject`);
+          toast.success('Promotion rejected successfully.');
+          fetchInitialData();
+        } catch {
+          toast.error('Could not process rejection.');
+        }
+      }
+    });
+  };
+
+  const handleCancelRequest = async (e, id) => {
+    e.stopPropagation();
+    setModalConfig({
+      isOpen: true,
+      title: "Cancel Global Request",
+      message: "Withdraw your request to make this template global?",
+      confirmText: "Cancel Request",
+      type: "warning",
+      onConfirm: async () => {
+        try {
+          await api.post(`/templates/${id}/cancel-request`);
+          toast.success('Promotion request canceled successfully.');
+          fetchInitialData();
+        } catch {
+          toast.error('Could not cancel request.');
+        }
+      }
+    });
   };
 
   return (
@@ -237,14 +333,30 @@ const TemplateGallery = ({ isOpen, onClose, onSelect, onDeployFields, onTemplate
                     </div>
 
                     {/* Badges */}
-                    <div className="absolute top-2 left-2 flex gap-1">
+                    <div className="absolute top-2 left-2 flex flex-col gap-1">
                         {template.global && (
-                          <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 text-[7px] font-bold uppercase rounded-md border border-emerald-200">
+                          <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 text-[7px] font-bold uppercase rounded-md border border-emerald-200 w-fit">
                             Certified
                           </span>
                         )}
+                        {template.requestedForGlobal && !template.global && (
+                          <div className="flex items-center gap-1">
+                            <span className="px-1.5 py-0.5 bg-amber-600 text-white text-[7px] font-bold uppercase rounded-md shadow-sm">
+                              Pending Review
+                            </span>
+                            {((template.createdBy?.toLowerCase() === user?.username?.toLowerCase()) || 
+                              (template.createdBy?.toLowerCase() === user?.email?.toLowerCase())) && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleCancelRequest(e, template.id); }}
+                                className="px-1.5 py-0.5 bg-red-600 text-white text-[7px] font-bold uppercase rounded-md shadow-sm hover:bg-red-700 transition-all border border-red-700"
+                              >
+                                Cancel Request
+                              </button>
+                            )}
+                          </div>
+                        )}
                         {template.category && (
-                          <span className="px-1.5 py-0.5 bg-brand-100 text-brand-700 text-[7px] font-bold uppercase rounded-md">
+                          <span className="px-1.5 py-0.5 bg-brand-100 text-brand-700 text-[7px] font-bold uppercase rounded-md w-fit">
                             {template.category.label}
                           </span>
                         )}
@@ -257,6 +369,53 @@ const TemplateGallery = ({ isOpen, onClose, onSelect, onDeployFields, onTemplate
                           {template.schema?.fields?.length || 0} fields
                         </span>
                       </div>
+
+                      {/* Management Controls Overlay */}
+                      {canManageTemplate(template) && (
+                        <div className="absolute top-2 right-2 flex items-center gap-1.5 pointer-events-auto z-10 transition-transform duration-300">
+                          {isSuperAdmin && template.global && (
+                            <button 
+                              onClick={(e) => handleDecertify(e, template.id)}
+                              className="w-7 h-7 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-center text-orange-400 hover:text-white hover:bg-orange-500 shadow-sm transition-all"
+                              title="Decertify Blueprint"
+                            >
+                              <ShieldCheck size={11} />
+                            </button>
+                          )}
+                          {isSuperAdmin && template.requestedForGlobal && !template.global && (
+                            <button 
+                              onClick={(e) => handleRejectPromotion(e, template.id)}
+                              className="w-7 h-7 rounded-xl bg-red-50 border border-red-100 flex items-center justify-center text-red-400 hover:text-white hover:bg-red-500 shadow-sm transition-all"
+                              title="Reject Promotion"
+                            >
+                              <X size={11} />
+                            </button>
+                          )}
+                          {!isSuperAdmin && template.requestedForGlobal && !template.global && template.createdBy === user?.username && (
+                            <button 
+                              onClick={(e) => handleCancelRequest(e, template.id)}
+                              className="w-7 h-7 rounded-xl bg-red-50 border border-red-100 flex items-center justify-center text-red-400 hover:text-white hover:bg-red-500 shadow-sm transition-all shadow-red-500/10"
+                              title="Cancel Promotion Request"
+                            >
+                              <X size={11} />
+                            </button>
+                          )}
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); handleEdit(template); }}
+                            className="w-7 h-7 rounded-xl bg-white border border-brand-100 flex items-center justify-center text-brand-400 hover:text-brand-default hover:bg-brand-50 shadow-sm transition-all"
+                            title="Edit Architectural Blueprint"
+                          >
+                            <Pencil size={11} />
+                          </button>
+                          <button 
+                            onClick={(e) => handleDeleteTemplate(e, template.id)}
+                            className="w-7 h-7 rounded-xl bg-white border border-brand-100 flex items-center justify-center text-brand-400 hover:text-red-500 hover:bg-red-50 shadow-sm transition-all"
+                            title="Strategic Purge Asset"
+                          >
+                            <Trash2 size={11} />
+                          </button>
+                        </div>
+                      )}
                     </div>
 
                     {/* Content */}
@@ -310,6 +469,16 @@ const TemplateGallery = ({ isOpen, onClose, onSelect, onDeployFields, onTemplate
           setShowCategoryManager(false);
           fetchInitialData();
         }}
+      />
+
+      <GovernanceModal 
+        isOpen={modalConfig.isOpen}
+        onClose={() => setModalConfig({ ...modalConfig, isOpen: false })}
+        onConfirm={modalConfig.onConfirm}
+        title={modalConfig.title}
+        message={modalConfig.message}
+        confirmText={modalConfig.confirmText}
+        type={modalConfig.type}
       />
     </>
   );

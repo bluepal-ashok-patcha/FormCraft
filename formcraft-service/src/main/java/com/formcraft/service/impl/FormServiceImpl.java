@@ -7,7 +7,7 @@ import com.formcraft.dto.response.FormDto;
 import com.formcraft.dto.response.ResponseDto;
 import com.formcraft.entity.Form;
 import com.formcraft.entity.FormResponse;
-import com.formcraft.exception.BadRequestException;
+import com.formcraft.exception.BusinessLogicException;
 import com.formcraft.exception.ResourceNotFoundException;
 import com.formcraft.mapper.FormMapper;
 import com.formcraft.mapper.ResponseMapper;
@@ -15,6 +15,7 @@ import com.formcraft.repository.FormRepository;
 import com.formcraft.repository.FormResponseRepository;
 import com.formcraft.service.FormService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,6 +29,7 @@ import org.springframework.data.jpa.domain.Specification;
 import jakarta.persistence.criteria.Predicate;
 import java.util.ArrayList;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class FormServiceImpl implements FormService {
@@ -125,30 +127,24 @@ public class FormServiceImpl implements FormService {
     @Override
     @Transactional
     public ResponseDto submitResponse(SubmissionRequest request) {
-        try {
-            Form form = formRepository.findById(request.getFormId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Form not found with id: " + request.getFormId()));
+        Form form = formRepository.findById(request.getFormId())
+                .orElseThrow(() -> new ResourceNotFoundException("Form not found with id: " + request.getFormId()));
 
-            if (form.getStatus() != FormStatus.ACTIVE) {
-                throw new BadRequestException("Submission failed: This form is currently not active.");
-            }
-
-            // Validate submission against form schema
-            formValidator.validate(form.getSchema(), request.getResponses());
-
-            FormResponse response = FormResponse.builder()
-                    .form(form)
-                    .responseData(request.getResponses())
-                    .build();
-
-            System.out.println("DEBUG: Saving FormResponse for form: " + form.getName());
-            FormResponse savedResponse = formResponseRepository.saveAndFlush(response);
-            return responseMapper.toDto(savedResponse);
-        } catch (Exception e) {
-            System.err.println("CRITICAL ERROR in submitResponse: " + e.getMessage());
-            e.printStackTrace();
-            throw e;
+        if (form.getStatus() != FormStatus.ACTIVE) {
+            throw new BusinessLogicException("Submission failed: This form is currently not active.");
         }
+
+        // Validate submission against form schema
+        formValidator.validate(form.getSchema(), request.getResponses());
+
+        FormResponse response = FormResponse.builder()
+                .form(form)
+                .responseData(request.getResponses())
+                .build();
+
+        FormResponse savedResponse = formResponseRepository.saveAndFlush(response);
+        log.info("Transmission Indexed: New response recorded for form '{}'", form.getName());
+        return responseMapper.toDto(savedResponse);
     }
 
     @Override
@@ -293,15 +289,15 @@ public class FormServiceImpl implements FormService {
         LocalDateTime now = LocalDateTime.now().minusMinutes(5); // 5 min grace for clock drift
         
         if (startsAt != null && startsAt.isBefore(now)) {
-            throw new BadRequestException("Start date cannot be in the past.");
+            throw new BusinessLogicException("Start date cannot be in the past.");
         }
         
         if (expiresAt != null) {
             if (expiresAt.isBefore(LocalDateTime.now())) {
-                throw new BadRequestException("Expiration date cannot be in the past.");
+                throw new BusinessLogicException("Expiration date cannot be in the past.");
             }
             if (startsAt != null && expiresAt.isBefore(startsAt)) {
-                throw new BadRequestException("Expiration date must be after the start date.");
+                throw new BusinessLogicException("Expiration date must be after the start date.");
             }
         }
     }

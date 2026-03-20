@@ -16,6 +16,8 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/templates")
 @RequiredArgsConstructor
+@io.swagger.v3.oas.annotations.tags.Tag(name = "Architectural Templates", description = "Protocols for managing global and enterprise-wide form blueprints.")
+@CrossOrigin("*")
 public class TemplateController {
 
     private final TemplateService templateService;
@@ -25,6 +27,13 @@ public class TemplateController {
     public ResponseEntity<ApiResponse<TemplateDTO>> createTemplate(@RequestBody TemplateDTO templateDTO) {
         TemplateDTO created = templateService.createTemplate(templateDTO);
         return new ResponseEntity<>(ApiResponse.success(created, "Template created successfully"), HttpStatus.CREATED);
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @PutMapping("/{id}")
+    public ResponseEntity<ApiResponse<TemplateDTO>> updateTemplate(@PathVariable("id") UUID id, @RequestBody TemplateDTO templateDTO) {
+        TemplateDTO updated = templateService.updateTemplate(id, templateDTO);
+        return ResponseEntity.ok(ApiResponse.success(updated, "Template refined successfully"));
     }
 
     @GetMapping
@@ -67,11 +76,36 @@ public class TemplateController {
         return ResponseEntity.ok(ApiResponse.success(requested, "Promotion to Global Asset requested successfully"));
     }
 
+    @io.swagger.v3.oas.annotations.Operation(summary = "Elite Authority: Promote to Global Registry")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     @PostMapping("/{id}/promote")
     public ResponseEntity<ApiResponse<TemplateDTO>> promoteToGlobal(@PathVariable("id") UUID id) {
         TemplateDTO promoted = templateService.promoteToGlobal(id);
         return ResponseEntity.ok(ApiResponse.success(promoted, "Template promoted to Global Assets successfully"));
+    }
+
+    @io.swagger.v3.oas.annotations.Operation(summary = "Elite Authority: Decertify from Global Registry")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PostMapping("/{id}/decertify")
+    public ResponseEntity<ApiResponse<TemplateDTO>> decertifyTemplate(@PathVariable("id") UUID id) {
+        TemplateDTO decertified = templateService.decertifyTemplate(id);
+        return ResponseEntity.ok(ApiResponse.success(decertified, "Template de-indexed from Global Assets successfully"));
+    }
+
+    @io.swagger.v3.oas.annotations.Operation(summary = "Elite Authority: Reject Promotion Request")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PostMapping("/{id}/reject")
+    public ResponseEntity<ApiResponse<TemplateDTO>> rejectPromotion(@PathVariable("id") UUID id) {
+        TemplateDTO rejected = templateService.rejectPromotion(id);
+        return ResponseEntity.ok(ApiResponse.success(rejected, "Promotion request successfully cancelled"));
+    }
+
+    @io.swagger.v3.oas.annotations.Operation(summary = "Admin Authority: Cancel Own Promotion Request")
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/{id}/cancel-request")
+    public ResponseEntity<ApiResponse<TemplateDTO>> cancelPromotionRequest(@PathVariable("id") UUID id) {
+        TemplateDTO canceled = templateService.cancelPromotionRequest(id);
+        return ResponseEntity.ok(ApiResponse.success(canceled, "Promotion request successfully withdrawn"));
     }
 
     @PreAuthorize("hasRole('ADMIN')")

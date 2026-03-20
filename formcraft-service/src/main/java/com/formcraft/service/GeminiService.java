@@ -2,6 +2,8 @@ package com.formcraft.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.formcraft.exception.AiProtocolException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
@@ -9,6 +11,7 @@ import reactor.core.publisher.Mono;
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @Service
 public class GeminiService {
 
@@ -20,7 +23,7 @@ public class GeminiService {
     }
 
     public Mono<String> generateContent(String userPrompt) {
-        System.out.println("✦ AI Neural Request: " + userPrompt);
+        log.info("Neural Request: Interrogating AI with prompt: {}", userPrompt);
 
         // Define a strict system instruction to return JSON
         Map<String, Object> systemInstruction = Map.of(
@@ -43,15 +46,19 @@ public class GeminiService {
         return webClient.post()
                 .bodyValue(requestBody)
                 .retrieve()
+                .onStatus(httpStatus -> httpStatus.isError(), 
+                        response -> response.bodyToMono(String.class)
+                                .defaultIfEmpty("Neural Pulse Interrupt: No error body provided.")
+                                .flatMap(errorBody -> Mono.error(new AiProtocolException("Neural Pulse Refusal: " + errorBody))))
                 .bodyToMono(String.class) // get raw JSON
                 .flatMap(json -> {
                     try {
-                        System.out.println("✦ AI Response Received: " + json);
+                        log.debug("Neural Pulse: Payload successfully received from AI link.");
                         JsonNode root = objectMapper.readTree(json);
                         
                         JsonNode candidates = root.path("candidates");
                         if (candidates.isMissingNode() || candidates.isEmpty()) {
-                            return Mono.error(new RuntimeException("AI safety rejection."));
+                            return Mono.error(new AiProtocolException("Neural Safety Intercept: AI declined to generate content."));
                         }
 
                         String rawText = candidates.get(0).path("content").path("parts").get(0).path("text").asText().trim();
@@ -62,24 +69,28 @@ public class GeminiService {
                         String regex = aiResult.path("regex").asText();
                         String errorMsg = aiResult.path("errorMessage").asText();
 
-                        System.out.println("✦ Extracted AI Synergy - Regex: " + regex + " | Msg: " + errorMsg);
+                        log.info("Synergy Extraction: Regex and messaging synthesized.");
                         // Return as a JSON-like string for the controller to handle or map directly
                         return Mono.just(rawText); 
                     } catch (Exception e) {
-                        return Mono.error(new RuntimeException("Neural parsing failure: " + e.getMessage()));
+                        return Mono.error(new AiProtocolException("Neural Parsing Failure: " + e.getMessage()));
                     }
                 });
     }
 
     public Mono<String> generateFormBlueprint(String description, List<Map<String, Object>> currentFields) {
         System.out.println("✦ Neural Architecture Command: " + description);
-        boolean isModification = currentFields != null && !currentFields.isEmpty();
+        if (currentFields == null) {
+            currentFields = java.util.Collections.emptyList();
+        }
+        boolean isModification = !currentFields.isEmpty();
+        String currentFieldsStr = currentFields.isEmpty() ? "None" : currentFields.toString();
 
         String fieldSchemaInfo = "Allowed types: text, number, email, dropdown, checkbox, radio, date, textarea, rating, linear-scale." +
                                  "\nJSON Structure: { \"id\": \"unique_string\", \"type\": \"type_name\", \"label\": \"String\", \"required\": boolean, \"placeholder\": \"String\", \"options\": [\"opt1\", \"opt2\"], \"max\": number, \"validation\": { \"regex\": \"...\", \"errorMessage\": \"...\" } }";
 
         String contextInfo = isModification 
-            ? "\nCURRENT FIELDS: " + currentFields.toString() + "\nACTION: Modify this existing list based on the user's wish. You can ADD, REMOVE, or UPDATE fields. Return the FULL updated array."
+            ? "\nCURRENT FIELDS: " + currentFieldsStr + "\nACTION: Modify this existing list based on the user's wish. You can ADD, REMOVE, or UPDATE fields. Return the FULL updated array."
             : "\nACTION: Synthesize a completely new blueprint based on the description.";
 
         Map<String, Object> systemInstruction = Map.of(
@@ -102,6 +113,10 @@ public class GeminiService {
         return webClient.post()
                 .bodyValue(requestBody)
                 .retrieve()
+                .onStatus(httpStatus -> httpStatus.isError(), 
+                        response -> response.bodyToMono(String.class)
+                                .defaultIfEmpty("Architecture Link Interrupt: No error body provided.")
+                                .flatMap(errorBody -> Mono.error(new AiProtocolException("Architecture Request Refusal: " + errorBody))))
                 .bodyToMono(String.class)
                 .flatMap(json -> {
                     try {
@@ -109,10 +124,10 @@ public class GeminiService {
                         String rawJson = root.path("candidates").get(0).path("content").path("parts").get(0).path("text").asText().trim();
                         // Strip backticks
                         rawJson = rawJson.replaceAll("^```json|```$", "").trim();
-                        System.out.println("✦ AI Architecture Transformation: " + rawJson);
+                        log.info("Architecture Transformation: Strategic blueprint synthesized.");
                         return Mono.just(rawJson);
                     } catch (Exception e) {
-                        return Mono.error(new RuntimeException("Synthesis failure: " + e.getMessage()));
+                        return Mono.error(new AiProtocolException("Architecture Synthesis Failure: " + e.getMessage()));
                     }
                 });
     }
@@ -142,6 +157,10 @@ public class GeminiService {
         return webClient.post()
                 .bodyValue(requestBody)
                 .retrieve()
+                .onStatus(httpStatus -> httpStatus.isError(), 
+                        response -> response.bodyToMono(String.class)
+                                .defaultIfEmpty("Styling Link Interrupt: No error body provided.")
+                                .flatMap(errorBody -> Mono.error(new AiProtocolException("Styling Request Refusal: " + errorBody))))
                 .bodyToMono(String.class)
                 .flatMap(json -> {
                     try {
@@ -149,10 +168,10 @@ public class GeminiService {
                         String rawJson = root.path("candidates").get(0).path("content").path("parts").get(0).path("text").asText().trim();
                         // Strip backticks
                         rawJson = rawJson.replaceAll("^```json|```$", "").trim();
-                        System.out.println("✦ AI Styling Synthesized: " + rawJson);
+                        log.info("Styling Pulse: Professional aesthetic synthesized.");
                         return Mono.just(rawJson);
                     } catch (Exception e) {
-                        return Mono.error(new RuntimeException("Styling synthesis failure: " + e.getMessage()));
+                        return Mono.error(new AiProtocolException("Styling Synthesis Failure: " + e.getMessage()));
                     }
                 });
     }

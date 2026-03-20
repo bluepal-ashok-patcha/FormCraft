@@ -10,7 +10,9 @@ import {
   Zap,
   Settings2,
   Plus,
-  Layout
+  Layout,
+  Pencil,
+  Trash2
 } from 'lucide-react';
 import api from '../services/api';
 import { toast } from 'react-toastify';
@@ -18,10 +20,16 @@ import { useAuth } from '../context/AuthContext';
 import { useSidebar } from '../context/SidebarContext';
 import CategoryManager from '../components/CategoryManager';
 import FormPreview from '../components/FormPreview';
+import GovernanceModal from '../components/GovernanceModal';
 
 /* ── Per-card component with hover-reveal parallax ── */
-const TemplateCard = ({ template, user, onDeploy, onPromote, onRequestPromotion }) => {
+const TemplateCard = ({ template, user, onDeploy, onPromote, onRequestPromotion, onDecertify, onReject, onCancelRequest, onEdit, onDelete }) => {
   const [hovered, setHovered] = useState(false);
+
+  const isSuperAdmin = user?.roles?.includes('ROLE_SUPER_ADMIN');
+  const creator = template.createdBy?.toLowerCase();
+  const isOwner = creator === user?.username?.toLowerCase() || creator === user?.email?.toLowerCase();
+  const canManage = isSuperAdmin || (isOwner && !template.global);
 
   return (
     <motion.div
@@ -61,24 +69,62 @@ const TemplateCard = ({ template, user, onDeploy, onPromote, onRequestPromotion 
             )}
           </div>
           <div className="flex flex-col items-end gap-2">
-            {template.global ? (
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="px-3 py-1 bg-emerald-50 text-emerald-600 text-[8px] font-semibold uppercase rounded-lg border border-emerald-100 flex items-center gap-2 shadow-sm"
-              >
-                <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-                Certified Asset
-              </motion.div>
-            ) : user?.roles?.includes('ROLE_SUPER_ADMIN') ? (
-              template.requestedForGlobal ? (
+            {/* Governance Controls Overlay */}
+            {canManage && (
+              <div className="flex items-center gap-1.5 z-20 pointer-events-auto">
                 <button
-                  className="pointer-events-auto px-3 py-1 bg-brand-default text-white text-[8px] font-semibold uppercase rounded-lg shadow-lg hover:bg-brand-600 transition-all flex items-center gap-1.5"
-                  onClick={(e) => { e.stopPropagation(); onPromote(e, template.id); }}
+                  className="w-10 h-10 bg-white/90 hover:bg-white backdrop-blur-md rounded-2xl flex items-center justify-center text-slate-900 border border-slate-200 transition-all shadow-xl hover:scale-110"
+                  onClick={(e) => { e.stopPropagation(); onEdit(template); }}
+                  title="Edit Template"
                 >
-                  <Zap size={10} />
-                  Approve &amp; Promote
+                  <Pencil size={14} className="text-brand-default" />
                 </button>
+                <button
+                  className="w-10 h-10 bg-red-500/10 hover:bg-red-500 backdrop-blur-md rounded-2xl flex items-center justify-center text-red-500 hover:text-white border border-red-500/20 transition-all shadow-xl hover:scale-110"
+                  onClick={(e) => { e.stopPropagation(); onDelete(template.id); }}
+                  title="Strategic Asset Purge"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            )}
+
+            {template.global ? (
+              <div className="flex flex-col items-end gap-1.5">
+                <motion.div
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className="px-3 py-1 bg-emerald-50 text-emerald-600 text-[8px] font-semibold uppercase rounded-lg border border-emerald-100 flex items-center gap-2 shadow-sm"
+                >
+                  <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+                  Certified Asset
+                </motion.div>
+                {isSuperAdmin && (
+                  <button
+                    className="pointer-events-auto px-3 py-1 bg-slate-900/10 hover:bg-slate-900 hover:text-white text-slate-600 text-[8px] font-semibold uppercase rounded-lg transition-all border border-slate-900/20"
+                    onClick={(e) => { e.stopPropagation(); onDecertify(e, template.id); }}
+                  >
+                    Decertify Asset
+                  </button>
+                )}
+              </div>
+            ) : isSuperAdmin ? (
+              template.requestedForGlobal ? (
+                <div className="flex flex-col items-end gap-1.5">
+                  <button
+                    className="pointer-events-auto px-3 py-1 bg-brand-default text-white text-[8px] font-semibold uppercase rounded-lg shadow-lg hover:bg-brand-600 transition-all flex items-center gap-1.5"
+                    onClick={(e) => { e.stopPropagation(); onPromote(e, template.id); }}
+                  >
+                    <Zap size={10} />
+                    Approve &amp; Promote
+                  </button>
+                  <button
+                    className="pointer-events-auto px-3 py-1 bg-red-50 text-red-600 text-[8px] font-semibold uppercase rounded-lg border border-red-100 hover:bg-red-500 hover:text-white transition-all"
+                    onClick={(e) => { e.stopPropagation(); onReject(e, template.id); }}
+                  >
+                    Reject Request
+                  </button>
+                </div>
               ) : (
                 <span className="px-3 py-1 bg-slate-100 text-slate-400 text-[8px] font-semibold uppercase rounded-lg border border-slate-200 shadow-sm">
                   Local Asset
@@ -86,9 +132,19 @@ const TemplateCard = ({ template, user, onDeploy, onPromote, onRequestPromotion 
               )
             ) : (
               template.requestedForGlobal ? (
-                <span className="px-3 py-1 bg-amber-50 text-amber-600 text-[8px] font-semibold uppercase rounded-lg border border-amber-100 flex items-center gap-2 shadow-sm">
-                  Pending Review
-                </span>
+                <div className="flex flex-col items-end gap-1.5 pointer-events-auto">
+                  <span className="px-3 py-1 bg-amber-50 text-amber-600 text-[8px] font-semibold uppercase rounded-lg border border-amber-100 flex items-center gap-2 shadow-sm">
+                    Pending Review
+                  </span>
+                  {isOwner && (
+                    <button
+                      className="px-3 py-1 bg-red-600 text-white text-[8px] font-bold uppercase rounded-lg shadow-lg hover:bg-red-700 transition-all"
+                      onClick={(e) => { e.stopPropagation(); onCancelRequest(e, template.id); }}
+                    >
+                      Cancel Request
+                    </button>
+                  )}
+                </div>
               ) : (
                 <button
                   className="pointer-events-auto px-3 py-1 bg-slate-800 text-white text-[8px] font-semibold uppercase rounded-lg shadow-lg hover:bg-slate-700 transition-all flex items-center gap-1.5"
@@ -166,6 +222,7 @@ const TemplateHub = () => {
   const [selectedCategory, setSelectedCategory] = useState({ id: 'all', label: 'All' });
   const [globalFilter, setGlobalFilter] = useState('all'); // 'all', 'true', 'false'
   const [showCategoryManager, setShowCategoryManager] = useState(false);
+  const [modalConfig, setModalConfig] = useState({ isOpen: false });
 
   const isAdmin = user?.roles?.includes('ROLE_ADMIN') || user?.roles?.includes('ROLE_SUPER_ADMIN');
 
@@ -227,6 +284,90 @@ const TemplateHub = () => {
     } catch (err) {
       toast.error('Request Failed: Could not submit promotion request.');
     }
+  };
+
+  const handleDecertify = async (e, id) => {
+    e.stopPropagation();
+    setModalConfig({
+      isOpen: true,
+      title: "Remove Global Certification",
+      message: "Are you sure you want to remove this template from the global gallery? It will be returned to a local template status.",
+      confirmText: "Remove From Global",
+      type: "warning",
+      onConfirm: async () => {
+        try {
+          await api.post(`/templates/${id}/decertify`);
+          toast.success('Template updated: Global status removed.');
+          fetchInitialData();
+        } catch (err) {
+          toast.error('Could not update template status.');
+        }
+      }
+    });
+  };
+
+  const handleReject = async (e, id) => {
+    e.stopPropagation();
+    setModalConfig({
+      isOpen: true,
+      title: "Reject Promotion Request",
+      message: "Are you sure you want to reject this request to make a template global? This action cannot be undone.",
+      confirmText: "Reject Request",
+      type: "danger",
+      onConfirm: async () => {
+        try {
+          await api.post(`/templates/${id}/reject`);
+          toast.success('Request Rejected: Promotion canceled.');
+          fetchInitialData();
+        } catch (err) {
+          toast.error('Could not process rejection.');
+        }
+      }
+    });
+  };
+
+  const handleCancelRequest = async (e, id) => {
+    e.stopPropagation();
+    setModalConfig({
+      isOpen: true,
+      title: "Cancel Global Request",
+      message: "Are you sure you want to withdraw your request to make this template global?",
+      confirmText: "Cancel Request",
+      type: "warning",
+      onConfirm: async () => {
+        try {
+          await api.post(`/templates/${id}/cancel-request`);
+          toast.success('Promotion request canceled successfully.');
+          fetchInitialData();
+        } catch (err) {
+          toast.error('Could not cancel request.');
+        }
+      }
+    });
+  };
+
+  const handleEdit = (template) => {
+    navigate('/builder', { state: { template, isEdit: true } });
+    toast.info('Editor Loaded: You can now modify the template.');
+  };
+
+  const handleDelete = async (id) => {
+    setModalConfig({
+      isOpen: true,
+      title: "Delete Template Forever",
+      message: "Are you sure you want to delete this template? This will permanently remove the template from the system.",
+      confirmText: "Delete Permanently",
+      type: "danger",
+      onConfirm: async () => {
+        try {
+          await api.delete(`/templates/${id}`);
+          toast.success('Template deleted successfully.');
+          fetchInitialData();
+        } catch (err) {
+          toast.error('Error deleting template.');
+        }
+      }
+    });
   };
 
   return (
@@ -344,6 +485,11 @@ const TemplateHub = () => {
                 onDeploy={handleDeploy}
                 onPromote={handlePromote}
                 onRequestPromotion={handleRequestPromotion}
+                onDecertify={handleDecertify}
+                onReject={handleReject}
+                onCancelRequest={handleCancelRequest}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
               />
             ))}
           </div>
@@ -356,6 +502,16 @@ const TemplateHub = () => {
           setShowCategoryManager(false);
           fetchInitialData(); 
         }}
+      />
+
+      <GovernanceModal 
+        isOpen={modalConfig.isOpen}
+        onClose={() => setModalConfig({ ...modalConfig, isOpen: false })}
+        onConfirm={modalConfig.onConfirm}
+        title={modalConfig.title}
+        message={modalConfig.message}
+        confirmText={modalConfig.confirmText}
+        type={modalConfig.type}
       />
     </div>
   );

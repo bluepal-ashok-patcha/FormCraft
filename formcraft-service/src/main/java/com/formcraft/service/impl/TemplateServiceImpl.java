@@ -6,6 +6,7 @@ import com.formcraft.entity.Category;
 import com.formcraft.entity.Template;
 import com.formcraft.repository.CategoryRepository;
 import com.formcraft.repository.TemplateRepository;
+import com.formcraft.exception.ResourceNotFoundException;
 import com.formcraft.service.TemplateService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -62,7 +63,9 @@ public class TemplateServiceImpl implements TemplateService {
             } else if ("false".equalsIgnoreCase(filter)) {
                 templates = templateRepository.findByGlobal(false);
             } else {
-                templates = templateRepository.findAll();
+                templates = templateRepository.findAll().stream()
+                        .filter(t -> t.isGlobal() || t.isRequestedForGlobal())
+                        .collect(Collectors.toList());
             }
         } else {
             templates = templateRepository.findAllVisible(currentUser);
@@ -89,21 +92,71 @@ public class TemplateServiceImpl implements TemplateService {
     @Override
     public TemplateDTO getTemplateById(UUID id) {
         Template template = templateRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Template not found"));
+                .orElseThrow(() -> new com.formcraft.exception.ResourceNotFoundException("Strategic Asset Error: Template not found with identifier " + id));
         return mapToDTO(template);
     }
 
     @Override
     @Transactional
+    public TemplateDTO updateTemplate(UUID id, TemplateDTO templateDTO) {
+        String currentUser = SecurityContextHolder.getContext().getAuthentication().getName();
+        boolean isSuperAdmin = SecurityContextHolder.getContext().getAuthentication().getAuthorities()
+                .stream().anyMatch(a -> a.getAuthority().equals("ROLE_SUPER_ADMIN"));
+
+        Template template = templateRepository.findById(id)
+                .orElseThrow(() -> new com.formcraft.exception.ResourceNotFoundException("Strategic Asset Error: Template not found with identifier " + id));
+
+        // Enterprise Authority Pulse: Protect certified blueprints from non-super-admins
+        if (!isSuperAdmin) {
+            if (template.isGlobal()) {
+                throw new com.formcraft.exception.BusinessLogicException("Security Rejection: Certified blueprints are protected from standard admin refinement pulses.");
+            }
+            if (!template.getCreatedBy().equals(currentUser)) {
+                throw new com.formcraft.exception.BusinessLogicException("Identity Mismatch: You can only refine architectural blueprints registered to your own identity.");
+            }
+        }
+
+        template.setName(templateDTO.getName());
+        template.setDescription(templateDTO.getDescription());
+        template.setSchema(templateDTO.getSchema());
+        template.setThumbnailUrl(templateDTO.getThumbnailUrl());
+
+        if (templateDTO.getCategory() != null && templateDTO.getCategory().getId() != null) {
+            Category category = categoryRepository.findById(templateDTO.getCategory().getId()).orElse(null);
+            template.setCategory(category);
+        }
+
+        return mapToDTO(templateRepository.save(template));
+    }
+
+    @Override
+    @Transactional
     public void deleteTemplate(UUID id) {
-        templateRepository.deleteById(id);
+        String currentUser = SecurityContextHolder.getContext().getAuthentication().getName();
+        boolean isSuperAdmin = SecurityContextHolder.getContext().getAuthentication().getAuthorities()
+                .stream().anyMatch(a -> a.getAuthority().equals("ROLE_SUPER_ADMIN"));
+
+        Template template = templateRepository.findById(id)
+                .orElseThrow(() -> new com.formcraft.exception.ResourceNotFoundException("Registry Error: Template not found for purge pulse."));
+
+        // Pulse Deletion Guard
+        if (!isSuperAdmin) {
+            if (template.isGlobal()) {
+                throw new com.formcraft.exception.BusinessLogicException("Security Rejection: Only a Super Admin can purge certified blueprint assets from the enterprise hub.");
+            }
+            if (!template.getCreatedBy().equals(currentUser)) {
+                throw new com.formcraft.exception.BusinessLogicException("Identity Mismatch: You can only purge architectural blueprints registered to your own identity.");
+            }
+        }
+
+        templateRepository.delete(template);
     }
 
     @Override
     @Transactional
     public TemplateDTO promoteToGlobal(UUID id) {
         Template template = templateRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Template not found"));
+                .orElseThrow(() -> new com.formcraft.exception.ResourceNotFoundException("Governance Error: Target asset not found for global promotion."));
         template.setGlobal(true);
         return mapToDTO(templateRepository.save(template));
     }
@@ -113,10 +166,10 @@ public class TemplateServiceImpl implements TemplateService {
     public TemplateDTO requestGlobalPromotion(UUID id) {
         String currentUser = SecurityContextHolder.getContext().getAuthentication().getName();
         Template template = templateRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Template not found"));
+                .orElseThrow(() -> new com.formcraft.exception.ResourceNotFoundException("Governance Error: Target asset not found for promotion request."));
         
         if (!template.getCreatedBy().equals(currentUser)) {
-            throw new RuntimeException("You can only request promotion for your own templates");
+            throw new com.formcraft.exception.BusinessLogicException("Strategic Conflict: Identity awareness failed. You can only request promotion for your own architectural templates.");
         }
         
         template.setRequestedForGlobal(true);
@@ -154,6 +207,49 @@ public class TemplateServiceImpl implements TemplateService {
     @Transactional
     public void deleteCategory(Integer id) {
         categoryRepository.deleteById(id);
+    }
+
+    @Override
+    @Transactional
+    public TemplateDTO decertifyTemplate(UUID id) {
+        Template template = templateRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Architecture Registry: Blueprint asset not found."));
+
+        template.setGlobal(false);
+        template.setRequestedForGlobal(false);
+        Template updated = templateRepository.save(template);
+        return mapToDTO(updated);
+    }
+
+    @Override
+    @Transactional
+    public TemplateDTO rejectPromotion(UUID id) {
+        Template template = templateRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Architecture Registry: Blueprint asset not found."));
+
+        template.setRequestedForGlobal(false);
+        Template updated = templateRepository.save(template);
+        return mapToDTO(updated);
+    }
+
+    @Override
+    @Transactional
+    public TemplateDTO cancelPromotionRequest(UUID id) {
+        String currentUser = SecurityContextHolder.getContext().getAuthentication().getName();
+        Template template = templateRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Architecture Registry: Blueprint asset not found."));
+
+        if (!template.getCreatedBy().equals(currentUser)) {
+            throw new com.formcraft.exception.BusinessLogicException("Identity Mismatch: You can only cancel promotion requests for templates you created.");
+        }
+
+        if (!template.isRequestedForGlobal()) {
+            throw new com.formcraft.exception.BusinessLogicException("Governance Conflict: No pending promotion request found for this template.");
+        }
+
+        template.setRequestedForGlobal(false);
+        Template updated = templateRepository.save(template);
+        return mapToDTO(updated);
     }
 
     private TemplateDTO mapToDTO(Template template) {

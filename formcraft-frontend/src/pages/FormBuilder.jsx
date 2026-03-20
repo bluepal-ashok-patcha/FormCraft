@@ -101,6 +101,10 @@ const FormBuilder = () => {
   const [blueprintPrompt, setBlueprintPrompt] = useState('');
   const [isBlueprinting, setIsBlueprinting] = useState(false);
 
+  // Architecture Refinement State
+  const [isEditTemplate, setIsEditTemplate] = useState(false);
+  const [editTemplateId, setEditTemplateId] = useState(null);
+
   // AI Style State
   // AI Style State
   const [isStyling, setIsStyling] = useState(false);
@@ -110,7 +114,7 @@ const FormBuilder = () => {
     fetchCategories();
     // Handle incoming template from Template Hub
     if (location.state?.template) {
-      handleSelectTemplate(location.state.template);
+      handleSelectTemplate(location.state.template, location.state.isEdit);
       // Clear location state to prevent reload reset issues
       window.history.replaceState({}, document.title);
     }
@@ -291,6 +295,28 @@ const FormBuilder = () => {
       toast.error('Timeline Error: The expiration date must be after the start date.');
       return;
     }
+
+    // High-Fidelity Refinement Pulse: Check for template update mode
+    if (isEditTemplate && editTemplateId) {
+      setLoading(true);
+      try {
+        const payload = {
+          name: formName,
+          description: templateData.description || 'Architectural Refinement', // Fallback
+          schema: { fields, backgroundColor },
+          thumbnailUrl: bannerUrl || null,
+          category: { id: templateData.categoryId }
+        };
+        await api.put(`/templates/${editTemplateId}`, payload);
+        toast.success('Strategy Refined: Blueprint asset successfully updated in the registry.');
+      } catch (err) {
+        toast.error('Purge Failed: Error de-indexing architectural asset.');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     setLoading(true);
     try {
       const payload = {
@@ -372,7 +398,7 @@ const FormBuilder = () => {
     }
   };
 
-  const handleSelectTemplate = (template) => {
+  const handleSelectTemplate = (template, isEdit = false) => {
     const normalizedFields = (template.schema.fields || []).map(f => {
       if (['dropdown', 'radio', 'checkbox'].includes(f.type) && !f.options) {
         return { ...f, options: ['Option 1', 'Option 2'] };
@@ -384,8 +410,21 @@ const FormBuilder = () => {
     setThemeColor(template.themeColor || '#6366f1');
     setBackgroundColor(template.schema?.backgroundColor || '#f8fafc');
     setBannerUrl(template.thumbnailUrl || '');
+    
+    // Refinement Session Sync
+    setIsEditTemplate(isEdit);
+    setEditTemplateId(isEdit ? template.id : null);
+    if (isEdit) {
+      setTemplateData({
+        name: template.name,
+        description: template.description || '',
+        categoryId: template.category?.id || '',
+        thumbnailUrl: template.thumbnailUrl || ''
+      });
+    }
+
     setShowGallery(false);
-    toast.success('Registry Synchronized: Architecture deployed from blueprint.');
+    toast.success(isEdit ? 'Architecture Rooted: Session primed for blueprint refinement.' : 'Registry Synchronized: Architecture deployed from blueprint.');
   };
 
   // Stagger-cascade: adds fields one-by-one with animated delay

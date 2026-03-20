@@ -6,7 +6,8 @@ import com.formcraft.dto.response.JwtResponse;
 import com.formcraft.entity.RefreshToken;
 import com.formcraft.entity.Role;
 import com.formcraft.entity.User;
-import com.formcraft.exception.BadRequestException;
+import com.formcraft.exception.BusinessLogicException;
+import com.formcraft.exception.ResourceNotFoundException;
 import com.formcraft.repository.RoleRepository;
 import com.formcraft.repository.UserRepository;
 import com.formcraft.security.jwt.JwtTokenProvider;
@@ -23,8 +24,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import lombok.extern.slf4j.Slf4j;
 import java.util.Collections;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
@@ -60,6 +63,7 @@ public class AuthServiceImpl implements AuthService {
                 .map(role -> role.getName().name())
                 .collect(java.util.stream.Collectors.toList()));
         
+        log.info("Security Audit: User '{}' successfully authenticated via neural link.", user.getUsername());
         return jwtResponse;
     }
 
@@ -67,11 +71,11 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public String register(RegisterRequest registerRequest) {
         if (userRepository.existsByUsername(registerRequest.getUsername())) {
-            throw new BadRequestException("Username is already taken!");
+            throw new BusinessLogicException("Access Regret: This username is already indexed in our registry.");
         }
 
         if (userRepository.existsByEmail(registerRequest.getEmail())) {
-            throw new BadRequestException("Email is already taken!");
+            throw new BusinessLogicException("Access Regret: This email address is already registered.");
         }
 
         User user = User.builder()
@@ -82,10 +86,11 @@ public class AuthServiceImpl implements AuthService {
                 .build();
 
         Role adminRole = roleRepository.findByName(RoleName.ROLE_ADMIN)
-                .orElseThrow(() -> new RuntimeException("Error: Admin Role not found."));
+                .orElseThrow(() -> new ResourceNotFoundException("Authority Error: Required security role not found in system."));
         user.setRoles(Collections.singleton(adminRole));
 
         userRepository.save(user);
+        log.info("Registry Synergy: New identity '{}' successfully indexed in the security perimeter.", user.getUsername());
         return "User registered successfully!";
     }
 

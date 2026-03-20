@@ -14,6 +14,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/responses")
 @RequiredArgsConstructor
+@io.swagger.v3.oas.annotations.tags.Tag(name = "Strategic Response Intelligence", description = "Management protocols for gathered form data and submission tracking.")
 public class ResponseController {
 
     private final FormService formService;
@@ -27,7 +28,10 @@ public class ResponseController {
 
     @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
-    public ResponseEntity<ApiResponse<ResponseDto>> updateResponse(@PathVariable("id") UUID id, @RequestBody Map<String, Object> responses) {
+    @io.swagger.v3.oas.annotations.Operation(summary = "Update Strategic Response", description = "Modifies existing response data via a dynamic JSON mapping.")
+    public ResponseEntity<ApiResponse<ResponseDto>> updateResponse(
+            @PathVariable("id") UUID id, 
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Map of response changes") @RequestBody Map<String, Object> responses) {
         ResponseDto updatedResponse = formService.updateResponse(id, responses);
         return ResponseEntity.ok(ApiResponse.success(updatedResponse, "Response updated successfully"));
     }

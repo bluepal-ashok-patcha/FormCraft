@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/dashboard")
 @RequiredArgsConstructor
+@io.swagger.v3.oas.annotations.tags.Tag(name = "Executive Operations Dashboard", description = "Protocols for real-time strategic intelligence and enterprise-wide data metrics.")
 public class DashboardController {
 
     private final DashboardService dashboardService;

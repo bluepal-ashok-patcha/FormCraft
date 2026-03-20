@@ -27,6 +27,7 @@ public class FormController {
 
     private final FormService formService;
 
+    @io.swagger.v3.oas.annotations.Operation(summary = "Establish Strategic Form", description = "Synthesizes a new form architecture within the enterprise registry, complete with custom schema and security status.")
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public ResponseEntity<ApiResponse<FormDto>> createForm(@Valid @RequestBody FormRequest request) {
@@ -51,8 +52,8 @@ public class FormController {
             @RequestParam(name = "search", required = false) String search,
             @RequestParam(name = "status", required = false) com.formcraft.enums.FormStatus status,
             @RequestParam(name = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
-            @RequestParam(name = "endDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate,
-            @org.springframework.data.web.PageableDefault(sort = "createdAt", direction = org.springframework.data.domain.Sort.Direction.DESC) Pageable pageable) {
+            @RequestParam(name = "endDate", required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime endDate,
+            @org.springdoc.core.annotations.ParameterObject @org.springframework.data.web.PageableDefault(sort = "createdAt", direction = org.springframework.data.domain.Sort.Direction.DESC) Pageable pageable) {
         Page<FormDto> forms = formService.getAllForms(search, status, startDate, endDate, pageable);
         return ResponseEntity.ok(ApiResponse.success(forms, "All forms fetched successfully"));
     }
@@ -67,19 +68,20 @@ public class FormController {
     @GetMapping("/{id}/responses")
     public ResponseEntity<ApiResponse<Page<ResponseDto>>> getResponses(
             @PathVariable("id") UUID id,
-            @RequestParam(name = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
-            @RequestParam(name = "endDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate,
-            Pageable pageable) {
+            @RequestParam(name = "startDate", required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime startDate,
+            @RequestParam(name = "endDate", required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime endDate,
+            @org.springdoc.core.annotations.ParameterObject Pageable pageable) {
         Page<ResponseDto> responses = formService.getResponsesByFormId(id, startDate, endDate, pageable);
         return ResponseEntity.ok(ApiResponse.success(responses, "Responses fetched successfully"));
     }
 
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/{id}/responses/export")
+    @io.swagger.v3.oas.annotations.Operation(summary = "Export Strategic Data", description = "Generates and downloads a high-fidelity CSV report of all form responses.")
     public ResponseEntity<org.springframework.core.io.Resource> exportResponses(
             @PathVariable("id") UUID id,
-            @RequestParam(name = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
-            @RequestParam(name = "endDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate) {
+            @RequestParam(name = "startDate", required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime startDate,
+            @RequestParam(name = "endDate", required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime endDate) {
         
         byte[] csvData = formService.exportResponsesToCsv(id, startDate, endDate);
         org.springframework.core.io.ByteArrayResource resource = new org.springframework.core.io.ByteArrayResource(csvData);

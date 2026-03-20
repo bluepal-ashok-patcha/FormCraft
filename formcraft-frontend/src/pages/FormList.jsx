@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   FileText,
   Search,
@@ -35,6 +36,7 @@ import { useNavigate } from 'react-router-dom';
 import { useSidebar } from '../context/SidebarContext';
 
 import FormPreview from '../components/FormPreview';
+import GovernanceModal from '../components/GovernanceModal';
 
 const DEFAULT_THEMES = [
   { name: 'Indigo', color: '#6366f1' },
@@ -278,11 +280,11 @@ const FormList = () => {
   const handleToggleStatus = async (id) => {
     try {
       await api.put(`/forms/${id}/toggle-status`);
-      toast.info('Status Recalibrated: Form availability has been updated.');
+      toast.info('Form status updated successfully.');
       fetchForms();
     } catch (err) {
       console.error('Error toggling status:', err);
-      toast.error('System Error: Could not update form status.');
+      toast.error('Could not update form status.');
     }
   };
 
@@ -294,12 +296,12 @@ const FormList = () => {
     const id = modal.form.id;
     try {
       await api.delete(`/forms/${id}`);
-      toast.success('Asset Purged: Form and history have been removed.');
+      toast.success('Form deleted successfully.');
       setModal({ isOpen: false, type: '', form: null });
       fetchForms();
     } catch (err) {
       console.error('Deletion failure:', err);
-      toast.error('Purge Failed: System could not remove the asset.');
+      toast.error('Could not delete form.');
     }
   };
 
@@ -328,12 +330,12 @@ const FormList = () => {
         bannerUrl: editForm.bannerUrl || null,
         themeColor: editForm.themeColor || '#6366f1'
       });
-      toast.success('Asset Updated: Form parameters synchronized.');
+      toast.success('Form details saved successfully.');
       setModal({ isOpen: false, type: '', form: null });
       fetchForms();
     } catch (err) {
       console.error('Update failure:', err);
-      toast.error('Update Interrupted: Synchronization failed.');
+      toast.error('Could not save form changes.');
     }
   };
 
@@ -352,9 +354,9 @@ const FormList = () => {
       });
       const url = response.url || response.data?.url;
       setEditForm(prev => ({ ...prev, bannerUrl: url }));
-      toast.success('Asset Synchronized: Banner uploaded successfully.');
+      toast.success('Banner image uploaded successfully.');
     } catch (err) {
-      toast.error('Uplink Failed: Could not transmit asset to cloud registry.');
+      toast.error('Could not upload banner image.');
     }
   };
 
@@ -774,248 +776,203 @@ const FormList = () => {
         </div>
       )}
 
-      {/* 🛠️ ASSET RECALIBRATION MODAL (EDIT) */}
-      <AnimatePresence>
-        {modal.isOpen && modal.type === 'edit' && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setModal({ isOpen: false, type: '', form: null })}
-              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative w-full max-w-lg bg-white rounded-enterprise shadow-2xl overflow-hidden border border-slate-100"
-            >
-              <div className="px-8 py-6 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-brand-default rounded-xl flex items-center justify-center text-white shadow-lg shadow-brand-default/20">
-                    <History size={20} />
+      {/* 🛠️ ASSET RECALIBRATION & PURGE PORTALS */}
+      {typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {/* EDIT MODAL */}
+          {modal.isOpen && modal.type === 'edit' && (
+            <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setModal({ isOpen: false, type: '', form: null })}
+                className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+              />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                className="relative w-full max-w-lg max-h-[90vh] flex flex-col bg-white rounded-[6px] shadow-2xl overflow-hidden border border-slate-100"
+              >
+                {/* FIXED HEADER */}
+                <div className="px-8 py-6 bg-slate-50 border-b border-slate-100 flex items-center justify-between shrink-0">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-brand-default rounded-xl flex items-center justify-center text-white shadow-lg shadow-brand-default/20">
+                      <Edit size={20} />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-widest leading-none">Edit Form Details</h3>
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mt-1">Modify your form settings</p>
+                    </div>
                   </div>
+                  <button
+                    onClick={() => setModal({ isOpen: false, type: '', form: null })}
+                    className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-white hover:text-red-600 transition-all"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+
+                {/* SCROLLABLE BODY */}
+                <div className="flex-1 overflow-y-auto p-8 space-y-6 custom-scrollbar">
                   <div>
-                    <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-widest leading-none">Recalibrate Asset</h3>
-                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mt-1">Lifecycle Management Protocol</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setModal({ isOpen: false, type: '', form: null })}
-                  className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-white hover:text-red-600 transition-all"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-
-              <div className="p-8 space-y-6">
-                <div>
-                  <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-2 block">Asset Designation</label>
-                  <input
-                    type="text"
-                    value={editForm.name}
-                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                    className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:outline-none focus:border-brand-default transition-all"
-                  />
-                </div>
-
-                <div className="space-y-3">
-                  <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1 block">Form Banner Image</label>
-                  <div className="relative group aspect-[21/9] rounded-xl overflow-hidden bg-slate-50 border-2 border-dashed border-slate-200 hover:border-brand-default transition-all">
-                    {editForm.bannerUrl ? (
-                      <>
-                        <img src={editForm.bannerUrl} alt="Banner" className="w-full h-full object-cover" />
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                          <label className="p-2 bg-white text-slate-900 rounded-lg cursor-pointer hover:scale-110 transition-transform">
-                            <Edit size={16} />
-                            <input type="file" className="hidden" onChange={handleBannerUpload} accept="image/*" />
-                          </label>
-                          <button
-                            onClick={() => setEditForm(prev => ({ ...prev, bannerUrl: '' }))}
-                            className="p-2 bg-red-600 text-white rounded-lg hover:scale-110 transition-transform"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </>
-                    ) : (
-                      <label className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer">
-                        <Plus size={24} className="text-slate-300 mb-2" />
-                        <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Upload Banner</span>
-                        <input type="file" className="hidden" onChange={handleBannerUpload} accept="image/*" />
-                      </label>
-                    )}
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest">Banner URL (Advanced)</label>
+                    <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-2 block">Asset Designation</label>
                     <input
                       type="text"
-                      value={editForm.bannerUrl}
-                      onChange={(e) => setEditForm({ ...editForm, bannerUrl: e.target.value })}
-                      className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:border-brand-default transition-all"
-                      placeholder="https://..."
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-2 block">Initialization Date</label>
-                    <input
-                      type="datetime-local"
-                      value={editForm.startsAt}
-                      min={minDateTime}
-                      onKeyDown={(e) => e.preventDefault()}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        if (val && new Date(val) < new Date(minDateTime)) return;
-                        setEditForm({ ...editForm, startsAt: val });
-                        if (editForm.expiresAt && val && new Date(editForm.expiresAt) < new Date(val)) {
-                          setEditForm(prev => ({ ...prev, startsAt: val, expiresAt: '' }));
-                        }
-                      }}
+                      value={editForm.name}
+                      onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
                       className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:outline-none focus:border-brand-default transition-all"
                     />
                   </div>
-                  <div>
-                    <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-2 block">Expiration Date</label>
-                    <input
-                      type="datetime-local"
-                      value={editForm.expiresAt}
-                      min={editForm.startsAt || minDateTime}
-                      onKeyDown={(e) => e.preventDefault()}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        const compareDate = editForm.startsAt || minDateTime;
-                        if (val && new Date(val) < new Date(compareDate)) return;
-                        setEditForm({ ...editForm, expiresAt: e.target.value });
-                      }}
-                      className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:outline-none focus:border-brand-default transition-all"
-                    />
-                  </div>
-                </div>
 
-                <div className="space-y-4 pt-2">
-                  <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1 block">Tactical Theme Color</label>
-                  <div className="grid grid-cols-8 gap-2">
-                    {DEFAULT_THEMES.map((theme) => (
-                      <button
-                        key={theme.color}
-                        type="button"
-                        onClick={() => setEditForm(prev => ({ ...prev, themeColor: theme.color }))}
-                        className={`aspect-square rounded-full border-2 transition-all p-0.5 ${editForm.themeColor === theme.color ? 'border-brand-default scale-110' : 'border-transparent hover:scale-105'}`}
-                        title={theme.name}
-                      >
-                        <div className="w-full h-full rounded-full" style={{ backgroundColor: theme.color }} />
-                      </button>
-                    ))}
-                    <div className="relative group">
-                      <input 
-                        type="color" 
-                        value={editForm.themeColor} 
-                        onChange={(e) => setEditForm(prev => ({ ...prev, themeColor: e.target.value }))}
-                        className="w-full h-full aspect-square rounded-full cursor-pointer bg-slate-50 border border-slate-200 transition-all hover:scale-105 p-0 opacity-0 absolute inset-0 z-10"
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1 block">Form Banner Image</label>
+                    <div className="relative group aspect-[21/9] rounded-xl overflow-hidden bg-slate-50 border-2 border-dashed border-slate-200 hover:border-brand-default transition-all">
+                      {editForm.bannerUrl ? (
+                        <>
+                          <img src={editForm.bannerUrl} alt="Banner" className="w-full h-full object-cover" />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                            <label className="p-2 bg-white text-slate-900 rounded-lg cursor-pointer hover:scale-110 transition-transform">
+                              <Edit size={16} />
+                              <input type="file" className="hidden" onChange={handleBannerUpload} accept="image/*" />
+                            </label>
+                            <button
+                              onClick={() => setEditForm(prev => ({ ...prev, bannerUrl: '' }))}
+                              className="p-2 bg-red-600 text-white rounded-lg hover:scale-110 transition-transform"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <label className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer">
+                          <Plus size={24} className="text-slate-300 mb-2" />
+                          <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Upload Banner</span>
+                          <input type="file" className="hidden" onChange={handleBannerUpload} accept="image/*" />
+                        </label>
+                      )}
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest">Banner URL (Advanced)</label>
+                      <input
+                        type="text"
+                        value={editForm.bannerUrl}
+                        onChange={(e) => setEditForm({ ...editForm, bannerUrl: e.target.value })}
+                        className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:border-brand-default transition-all"
+                        placeholder="https://..."
                       />
-                      <div 
-                        className="w-full h-full aspect-square rounded-full border-2 border-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-slate-50 transition-all overflow-hidden p-0.5"
-                      >
-                        <div className="w-full h-full rounded-full" style={{ backgroundColor: editForm.themeColor }} />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-2 block">Initialization Date</label>
+                      <input
+                        type="datetime-local"
+                        value={editForm.startsAt}
+                        min={minDateTime}
+                        onKeyDown={(e) => e.preventDefault()}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val && new Date(val) < new Date(minDateTime)) return;
+                          setEditForm({ ...editForm, startsAt: val });
+                          if (editForm.expiresAt && val && new Date(editForm.expiresAt) < new Date(val)) {
+                            setEditForm(prev => ({ ...prev, startsAt: val, expiresAt: '' }));
+                          }
+                        }}
+                        className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:outline-none focus:border-brand-default transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-2 block">Expiration Date</label>
+                      <input
+                        type="datetime-local"
+                        value={editForm.expiresAt}
+                        min={editForm.startsAt || minDateTime}
+                        onKeyDown={(e) => e.preventDefault()}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          const compareDate = editForm.startsAt || minDateTime;
+                          if (val && new Date(val) < new Date(compareDate)) return;
+                          setEditForm({ ...editForm, expiresAt: e.target.value });
+                        }}
+                        className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:outline-none focus:border-brand-default transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-4 pt-2">
+                    <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-1 block">Tactical Theme Color</label>
+                    <div className="grid grid-cols-8 gap-2">
+                      {DEFAULT_THEMES.map((theme) => (
+                        <button
+                          key={theme.color}
+                          type="button"
+                          onClick={() => setEditForm(prev => ({ ...prev, themeColor: theme.color }))}
+                          className={`aspect-square rounded-full border-2 transition-all p-0.5 ${editForm.themeColor === theme.color ? 'border-brand-default scale-110' : 'border-transparent hover:scale-105'}`}
+                          title={theme.name}
+                        >
+                          <div className="w-full h-full rounded-full" style={{ backgroundColor: theme.color }} />
+                        </button>
+                      ))}
+                      <div className="relative group">
+                        <input 
+                          type="color" 
+                          value={editForm.themeColor} 
+                          onChange={(e) => setEditForm(prev => ({ ...prev, themeColor: e.target.value }))}
+                          className="w-full h-full aspect-square rounded-full cursor-pointer bg-slate-50 border border-slate-200 transition-all hover:scale-105 p-0 opacity-0 absolute inset-0 z-10"
+                        />
+                        <div 
+                          className="w-full h-full aspect-square rounded-full border-2 border-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-slate-50 transition-all overflow-hidden p-0.5"
+                        >
+                          <div className="w-full h-full rounded-full" style={{ backgroundColor: editForm.themeColor }} />
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="p-4 bg-amber-50 rounded-xl border border-amber-100 flex gap-3 items-start">
-                  <AlertCircle size={16} className="text-amber-600 mt-0.5" />
-                  <p className="text-[10px] font-semibold text-amber-800 leading-normal uppercase">
-                    Warning: Modifying lifecycle parameters may disrupt active telemetry streams. Verify sync status before execution.
-                  </p>
-                </div>
-              </div>
-
-              <div className="p-6 bg-slate-50 border-t border-slate-100 flex gap-3">
-                <button
-                  onClick={() => setModal({ isOpen: false, type: '', form: null })}
-                  className="flex-1 h-12 bg-white border border-slate-200 rounded-xl text-[11px] font-bold text-slate-400 uppercase tracking-widest hover:bg-slate-50 transition-all"
-                >
-                  Terminate Request
-                </button>
-                <button
-                  onClick={handleUpdateForm}
-                  className="flex-1 h-12 bg-slate-900 text-white rounded-xl text-[11px] font-bold uppercase tracking-[0.2em] shadow-xl shadow-slate-900/20 hover:bg-brand-default transition-all flex items-center justify-center gap-2 group"
-                >
-                  <Save size={16} className="group-hover:scale-110 transition-transform" />
-                  Commit Changes
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-
-        {/* 🗑️ PURGE CONFIRMATION MODAL (DELETE) */}
-        {modal.isOpen && modal.type === 'delete' && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setModal({ isOpen: false, type: '', form: null })}
-              className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm"
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative w-full max-w-md bg-white rounded-enterprise shadow-2xl overflow-hidden border border-slate-100"
-            >
-              <div className="px-8 py-6 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-red-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-red-500/20">
-                    <Trash2 size={20} />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-widest leading-none">Delete Form</h3>
-                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mt-1">Confirm permanent deletion</p>
+                  <div className="p-4 bg-amber-50 rounded-xl border border-amber-100 flex gap-3 items-start">
+                    <AlertCircle size={16} className="text-amber-600 mt-0.5" />
+                    <p className="text-[10px] font-semibold text-amber-800 leading-normal uppercase">
+                      Warning: Modifying lifecycle parameters may disrupt active telemetry streams. Verify sync status before execution.
+                    </p>
                   </div>
                 </div>
-                <button
-                  onClick={() => setModal({ isOpen: false, type: '', form: null })}
-                  className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-white hover:text-red-500 transition-all"
-                >
-                  <X size={20} />
-                </button>
-              </div>
 
-              <div className="p-10 flex flex-col items-center text-center">
-                <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mb-6 text-red-500 shadow-inner">
-                  <AlertCircle size={32} />
+                {/* FIXED FOOTER */}
+                <div className="p-6 bg-slate-50 border-t border-slate-100 flex gap-3 shrink-0">
+                  <button
+                    onClick={() => setModal({ isOpen: false, type: '', form: null })}
+                    className="flex-1 h-12 bg-white border border-slate-200 rounded-xl text-[11px] font-bold text-slate-400 uppercase tracking-widest hover:bg-slate-50 transition-all"
+                  >
+                    Terminate Request
+                  </button>
+                  <button
+                    onClick={handleUpdateForm}
+                    className="flex-1 h-12 bg-slate-900 text-white rounded-md text-[11px] font-bold uppercase tracking-[0.2em] shadow-xl shadow-slate-900/20 hover:bg-brand-default transition-all flex items-center justify-center gap-2 group"
+                  >
+                    <Save size={16} className="group-hover:scale-110 transition-transform" />
+                    Save Changes
+                  </button>
                 </div>
-                <h3 className="text-base font-bold text-slate-900 uppercase tracking-[0.15em] mb-3">Are you sure?</h3>
-                <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest leading-loose max-w-xs">
-                  Deleting <span className="text-slate-900 font-black underline decoration-red-200">{modal.form.name}</span> will remove all its data and responses. This action cannot be reversed.
-                </p>
-              </div>
+              </motion.div>
+            </div>
+          )}
 
-              <div className="p-6 bg-slate-50 border-t border-slate-100 flex gap-3">
-                <button
-                  onClick={() => setModal({ isOpen: false, type: '', form: null })}
-                  className="flex-1 h-12 bg-white border border-slate-200 rounded-xl text-[11px] font-bold text-slate-400 uppercase tracking-widest hover:bg-slate-50 transition-all"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={executeDelete}
-                  className="flex-1 h-12 bg-red-600 text-white rounded-xl text-[11px] font-bold uppercase tracking-[0.2em] shadow-xl shadow-red-900/20 hover:bg-red-700 transition-all flex items-center justify-center gap-2 group"
-                >
-                  <ShieldCheck size={16} className="group-hover:scale-110 transition-transform" />
-                  Delete
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+        </AnimatePresence>,
+        document.body
+      )}
+
+      <GovernanceModal 
+        isOpen={modal.isOpen && modal.type === 'delete'}
+        onClose={() => setModal({ ...modal, isOpen: false })}
+        onConfirm={executeDelete}
+        title="Delete Form Confirmation"
+        message={`Are you sure you want to delete "${modal.form?.name}" permanently? All responses and data for this form will be lost.`}
+        confirmText="Delete Form"
+        type="danger"
+      />
     </div>
   );
 };

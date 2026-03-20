@@ -1,0 +1,152 @@
+package com.formcraft.service.impl;
+ 
+import com.formcraft.dto.request.FormRequest;
+import com.formcraft.dto.request.SubmissionRequest;
+import com.formcraft.dto.response.FormDto;
+import com.formcraft.dto.response.ResponseDto;
+import com.formcraft.entity.Form;
+import com.formcraft.entity.Template;
+import com.formcraft.enums.FormStatus;
+import com.formcraft.exception.BusinessLogicException;
+import com.formcraft.exception.ResourceNotFoundException;
+import com.formcraft.repository.FormRepository;
+import com.formcraft.repository.FormResponseRepository;
+import com.formcraft.repository.TemplateRepository;
+import com.formcraft.service.GeminiService;
+import com.formcraft.service.TemplateService;
+import com.formcraft.mapper.FormMapper;
+import com.formcraft.mapper.ResponseMapper;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
+ 
+import java.time.LocalDateTime;
+import java.util.Collections;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.HashMap;
+ 
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+ 
+@ExtendWith(MockitoExtension.class)
+class FormServiceImplTest {
+ 
+    @Mock
+    private FormRepository formRepository;
+ 
+    @Mock
+    private FormResponseRepository formResponseRepository;
+ 
+    @Mock
+    private TemplateRepository templateRepository;
+ 
+    @Mock
+    private FormMapper formMapper;
+ 
+    @Mock
+    private ResponseMapper responseMapper;
+ 
+    @Mock
+    private GeminiService geminiService;
+ 
+    @Mock
+    private TemplateService templateService;
+    
+    @Mock
+    private SecurityContext securityContext;
+    
+    @Mock
+    private Authentication authentication;
+ 
+    @InjectMocks
+    private FormServiceImpl formService;
+ 
+    private Form form;
+    private FormRequest formRequest;
+    private FormDto formDto;
+    private UUID formId;
+ 
+    @BeforeEach
+    void setUp() {
+        formId = UUID.randomUUID();
+        
+        formRequest = new FormRequest();
+        formRequest.setName("Audit Form");
+        formRequest.setSchema(new HashMap<>());
+        
+        form = Form.builder()
+                .id(formId)
+                .name("Audit Form")
+                .status(FormStatus.ACTIVE)
+                .slug("audit-form")
+                .build();
+        
+        // Identity Registry Protocol: Manual injection of audit telemetry
+        form.setCreatedBy("testuser");
+        form.setCreatedAt(LocalDateTime.now());
+ 
+        formDto = FormDto.builder()
+                .id(formId)
+                .name("Audit Form")
+                .build();
+                
+        SecurityContextHolder.setContext(securityContext);
+    }
+ 
+    @Test
+    void createForm_Success() {
+        when(formMapper.toEntity(any(FormRequest.class))).thenReturn(form);
+        when(formRepository.save(any(Form.class))).thenReturn(form);
+        when(formMapper.toDto(any(Form.class))).thenReturn(formDto);
+ 
+        FormDto result = formService.createForm(formRequest);
+ 
+        assertNotNull(result);
+        assertEquals("Audit Form", result.getName());
+        verify(formRepository, times(1)).save(any(Form.class));
+    }
+ 
+    @Test
+    void submitResponse_FormNotFound_ThrowsResourceNotFoundException() {
+        SubmissionRequest request = new SubmissionRequest();
+        request.setFormId(UUID.randomUUID());
+        when(formRepository.findById(any(UUID.class))).thenReturn(Optional.empty());
+ 
+        assertThrows(ResourceNotFoundException.class, () -> {
+            formService.submitResponse(request);
+        });
+    }
+ 
+    @Test
+    void submitResponse_FormInactive_ThrowsBusinessLogicException() {
+        form.setStatus(FormStatus.INACTIVE);
+        when(formRepository.findById(any(UUID.class))).thenReturn(Optional.of(form));
+        SubmissionRequest request = new SubmissionRequest();
+        request.setFormId(formId);
+ 
+        BusinessLogicException exception = assertThrows(BusinessLogicException.class, () -> {
+            formService.submitResponse(request);
+        });
+ 
+        assertTrue(exception.getMessage().contains("currently not active"));
+    }
+    
+    @Test
+    void getFormBySlug_Success() {
+        when(formRepository.findBySlug("audit-form")).thenReturn(Optional.of(form));
+        when(formMapper.toDto(any(Form.class))).thenReturn(formDto);
+        
+        FormDto result = formService.getFormBySlug("audit-form");
+        
+        assertEquals("Audit Form", result.getName());
+        assertEquals(formId, result.getId());
+    }
+}

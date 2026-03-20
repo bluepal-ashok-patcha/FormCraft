@@ -9,9 +9,13 @@ public interface TemplateService {
     TemplateDTO createTemplate(TemplateDTO templateDTO);
     List<TemplateDTO> getAllVisibleTemplates(String filter);
     TemplateDTO getTemplateById(UUID id);
+    TemplateDTO updateTemplate(UUID id, TemplateDTO templateDTO);
     void deleteTemplate(UUID id);
     TemplateDTO promoteToGlobal(UUID id);
     TemplateDTO requestGlobalPromotion(UUID id);
+    TemplateDTO decertifyTemplate(UUID id);
+    TemplateDTO rejectPromotion(UUID id);
+    TemplateDTO cancelPromotionRequest(UUID id);
     List<CategoryDTO> getAllCategories();
     CategoryDTO createCategory(CategoryDTO categoryDTO);
     void deleteCategory(Integer id);

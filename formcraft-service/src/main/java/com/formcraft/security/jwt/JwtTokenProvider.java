@@ -46,14 +46,10 @@ public class JwtTokenProvider {
     }
 
     public boolean validateToken(String token) {
-        try {
-            Jwts.parserBuilder()
-                    .setSigningKey(key())
-                    .build()
-                    .parse(token);
-            return true;
-        } catch (JwtException | IllegalArgumentException e) {
-            return false;
-        }
+        Jwts.parserBuilder()
+                .setSigningKey(key())
+                .build()
+                .parse(token);
+        return true;
     }
 }

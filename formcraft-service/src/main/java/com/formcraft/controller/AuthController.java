@@ -21,10 +21,12 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 
 import com.formcraft.dto.request.RegisterRequest;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
+@Tag(name = "Authentication Strategy", description = "Protocols for secure identity indexing and neural link establishment.")
 public class AuthController {
 
     private final AuthService authService;
@@ -32,12 +34,22 @@ public class AuthController {
     private final JwtTokenProvider jwtTokenProvider;
     private final UserDetailsService userDetailsService;
 
+    @io.swagger.v3.oas.annotations.Operation(summary = "Establish Neural Link", description = "Authenticates a user and returns a synchronized JWT access token.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Link Established: Token synthesized."),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Security Rejection: Invalid credentials.")
+    })
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<JwtResponse>> login(@Valid @RequestBody LoginRequest loginRequest) {
         JwtResponse jwtResponse = authService.login(loginRequest);
         return ResponseEntity.ok(ApiResponse.success(jwtResponse, "Login successful"));
     }
 
+    @io.swagger.v3.oas.annotations.Operation(summary = "Index New Identity", description = "Registers a new user in the enterprise perimeter and establishes access protocols.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Identity Synchronized: Registration complete."),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "422", description = "Strategic Conflict: Identity already indexed.")
+    })
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<String>> register(@Valid @RequestBody RegisterRequest registerRequest) {
         String response = authService.register(registerRequest);

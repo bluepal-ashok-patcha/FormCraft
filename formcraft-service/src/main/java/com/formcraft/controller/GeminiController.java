@@ -2,6 +2,9 @@ package com.formcraft.controller;
 
 import com.formcraft.dto.response.ApiResponse;
 import com.formcraft.service.GeminiService;
+import com.formcraft.exception.AiProtocolException;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -10,14 +13,13 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/ai")
-@CrossOrigin(origins = "*") // Allows calls from frontend
+@RequiredArgsConstructor
+@Slf4j
+@io.swagger.v3.oas.annotations.tags.Tag(name = "Neural Orchestration Strategy", description = "High-end AI services for design synthesis, regex extraction, and visual prompt generation.")
+@CrossOrigin(origins = "*") 
 public class GeminiController {
 
     private final GeminiService geminiService;
-
-    public GeminiController(GeminiService geminiService) {
-        this.geminiService = geminiService;
-    }
 
     @PostMapping("/generate-regex")
     public ResponseEntity<ApiResponse<Map<String, String>>> generateRegex(@RequestBody Map<String, String> request) {
@@ -42,11 +44,14 @@ public class GeminiController {
         }
     }
 
+    @io.swagger.v3.oas.annotations.Operation(summary = "Synthesize Neural Blueprint", description = "Uses high-end AI orchestration to generate a structural form architecture from a natural language prompt.")
     @PostMapping("/generate-blueprint")
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> generateBlueprint(@RequestBody Map<String, Object> request) {
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> generateBlueprint(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Map containing the design vision and existing context.") @RequestBody Map<String, Object> request) {
         String description = (String) request.get("description");
         List<Map<String, Object>> currentFields = (List<Map<String, Object>>) request.get("currentFields");
         
+        log.info("Blueprint Extraction: Synthesizing architecture for '{}'", description);
         if (description == null || description.trim().isEmpty()) {
             return ResponseEntity.badRequest().body(ApiResponse.error("Architecture vision required."));
         }
@@ -58,8 +63,7 @@ public class GeminiController {
             
             return ResponseEntity.ok(ApiResponse.success(fields, "Blueprint synthesized successfully."));
         } catch (Exception e) {
-            String errorMsg = e.getMessage() != null ? e.getMessage() : e.toString();
-            return ResponseEntity.status(500).body(ApiResponse.error("Synthesis failure: " + errorMsg));
+            throw new AiProtocolException(e.getMessage() != null ? e.getMessage() : "Blueprint synthesis failure");
         }
     }
 
@@ -78,8 +82,7 @@ public class GeminiController {
             
             return ResponseEntity.ok(ApiResponse.success(design, "Styling blueprint synthesized successfully."));
         } catch (Exception e) {
-            String errorMsg = e.getMessage() != null ? e.getMessage() : e.toString();
-            return ResponseEntity.status(500).body(ApiResponse.error("Styling failure: " + errorMsg));
+            throw new AiProtocolException(e.getMessage() != null ? e.getMessage() : "Styling synthesis failure");
         }
     }
 }

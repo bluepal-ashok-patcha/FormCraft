@@ -15,7 +15,8 @@ import {
   Menu,
   ChevronLeft,
   Square,
-  Sparkles
+  Sparkles,
+  Layers
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'react-toastify';
@@ -60,25 +61,15 @@ const MainLayout = ({ children }) => {
           >
             <Menu size={16} />
           </button>
-          <div className="flex items-center gap-2 pr-4 border-r border-slate-100">
+          <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 bg-brand-default rounded-enterprise flex items-center justify-center shadow-sm shadow-brand-500/20">
-              <Square className="text-white fill-white" size={14} />
+              <Layers className="text-white fill-white/20" size={14} />
             </div>
+            <h1 className="text-sm font-bold text-slate-900 uppercase tracking-[0.2em]">
+              FormCraft
+            </h1>
           </div>
-          <div className="flex items-center gap-4">
-            <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-widest">
-              {location.pathname === '/dashboard' ? 'Dashboard' : 
-               location.pathname === '/builder' ? 'Form Architect' :
-               location.pathname === '/forms' ? 'Asset Management' : 
-               location.pathname === '/templates' ? 'Blueprint Library' : 'Interface'}
-            </h2>
-            <div className="hidden md:flex items-center bg-slate-100/80 rounded-md px-3 py-1.5 gap-2 border border-slate-200/50">
-              <Search size={12} className="text-slate-400" />
-              <input type="text" placeholder="Search data..." className="bg-transparent border-none outline-none text-xs w-48 font-medium text-slate-600 placeholder:text-slate-400" />
-              <button className="bg-brand-default text-white p-1 rounded-md shadow-sm shadow-brand-500/20">
-                <Search size={10} />
-              </button>
-            </div>
+          <div className="flex items-center pl-4 border-l border-slate-100 gap-4">
           </div>
         </div>
 
