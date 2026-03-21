@@ -33,6 +33,23 @@ public class User extends BaseEntity {
     @Column(nullable = false)
     private String password;
 
+    @Column(name = "otp_code")
+    private String otpCode;
+
+    @Column(name = "otp_expiry")
+    private java.time.LocalDateTime otpExpiry;
+
+    @Column(name = "failed_login_attempts")
+    @Builder.Default
+    private Integer failedLoginAttempts = 0;
+
+    @Column(name = "lockout_time")
+    private java.time.LocalDateTime lockoutTime;
+
+    @Column(name = "is_active")
+    @Builder.Default
+    private boolean isActive = false;
+
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(name = "user_roles",
             joinColumns = @JoinColumn(name = "user_id"),

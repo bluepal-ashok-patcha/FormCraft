@@ -9,7 +9,12 @@ import {
   ShieldCheck,
   Calendar,
   ChevronDown,
-  Star
+  Star,
+  Upload,
+  Paperclip,
+  FileIcon,
+  Clock,
+  X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-toastify';
@@ -28,6 +33,7 @@ const FormViewer = () => {
   const [hoverRating, setHoverRating] = useState({ fieldId: null, value: 0 });
   const [formErrors, setFormErrors] = useState({});
   const [touched, setTouched] = useState({});
+  const [uploadingFields, setUploadingFields] = useState({}); // { fieldLabel: true/false }
 
   useEffect(() => {
     const fetchForm = async () => {
@@ -191,6 +197,33 @@ const FormViewer = () => {
     if (touched[field.label] || Object.keys(formErrors).length > 0) {
       const errorMsg = validateField(field, value);
       setFormErrors(prev => ({ ...prev, [field.label]: errorMsg }));
+    }
+  };
+
+  const handleFileUpload = async (field, file) => {
+    if (!file) return;
+
+    setUploadingFields(prev => ({ ...prev, [field.label]: true }));
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await api.post('/forms/upload-attachment', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      
+      const url = response.url || response.data?.url;
+      if (url) {
+        handleChange(field, url);
+        toast.success(`Success: ${file.name} is now synchronized.`);
+      }
+    } catch (err) {
+      console.error('Upload failed:', err);
+      toast.error(`Protocol Error: Asset synchronization for ${file.name} failed.`);
+    } finally {
+      setUploadingFields(prev => ({ ...prev, [field.label]: false }));
     }
   };
 
@@ -449,6 +482,64 @@ const FormViewer = () => {
                             <span className="text-sm font-normal text-slate-700">{opt}</span>
                           </label>
                         ))}
+                      </div>
+                    ) : field.type === 'file' ? (
+                      <div className="space-y-4">
+                        <div className={`relative group transition-all duration-300 ${uploadingFields[field.label] ? 'opacity-70 pointer-events-none' : ''}`}>
+                          {responses[field.label] ? (
+                            <div className="flex items-center gap-4 bg-emerald-50 border border-emerald-100 rounded-xl p-4 animate-in fade-in zoom-in duration-300">
+                               <div className="w-10 h-10 bg-emerald-500 text-white rounded-lg flex items-center justify-center shadow-md">
+                                  <Paperclip size={18} />
+                               </div>
+                               <div className="flex-1 min-w-0">
+                                  <p className="text-[10px] font-bold text-emerald-800 uppercase tracking-widest truncate">Asset Synchronized</p>
+                                  <a href={responses[field.label]} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-emerald-600 hover:underline truncate block">View Attachment</a>
+                               </div>
+                               <button 
+                                 type="button"
+                                 onClick={() => handleChange(field, '')}
+                                 className="p-2 hover:bg-emerald-100 text-emerald-600 rounded-lg transition-colors"
+                               >
+                                  <X size={16} />
+                               </button>
+                            </div>
+                          ) : (
+                            <label className={`flex flex-col items-center justify-center gap-3 py-8 px-6 border-2 border-dashed rounded-xl cursor-pointer transition-all ${
+                              formErrors[field.label] ? 'bg-red-50/30 border-red-200' : 'bg-slate-50 border-slate-200 hover:border-brand-default hover:bg-white active:scale-[0.99]'
+                            }`}>
+                              <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${uploadingFields[field.label] ? 'bg-brand-50' : 'bg-slate-100 text-slate-400 group-hover:bg-brand-50 group-hover:text-brand-default'}`}>
+                                {uploadingFields[field.label] ? (
+                                  <Loader2 className="animate-spin text-brand-default" size={24} />
+                                ) : (
+                                  <Upload size={24} />
+                                )}
+                              </div>
+                              <div className="text-center">
+                                <p className="text-xs font-bold text-slate-700 uppercase tracking-widest">{uploadingFields[field.label] ? 'Uploading...' : 'Transmit Asset'}</p>
+                                <p className="text-[10px] font-medium text-slate-400 uppercase tracking-widest mt-1">Select or drag & drop</p>
+                              </div>
+                              <input 
+                                type="file"
+                                className="hidden"
+                                onChange={(e) => handleFileUpload(field, e.target.files[0])}
+                                disabled={uploadingFields[field.label]}
+                              />
+                            </label>
+                          )}
+                        </div>
+                        {uploadingFields[field.label] && (
+                           <div className="flex items-center gap-3 px-2">
+                             <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                <motion.div 
+                                  initial={{ width: '0%' }}
+                                  animate={{ width: '100%' }}
+                                  transition={{ duration: 2, repeat: Infinity }}
+                                  className="h-full bg-brand-default"
+                                />
+                             </div>
+                             <span className="text-[9px] font-bold text-brand-default uppercase tracking-widest">Active Link...</span>
+                           </div>
+                        )}
                       </div>
                     ) : (
                       <input 

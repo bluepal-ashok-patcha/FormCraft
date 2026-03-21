@@ -105,14 +105,14 @@ const FormNodeAnimation = ({ color = '#4f46e5' }) => {
         <motion.div
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="relative z-20 p-8 rounded-[3rem] bg-white/40 backdrop-blur-xl border border-white/20 shadow-2xl flex flex-col items-center gap-4"
+          className="relative z-20 p-8 rounded-[3rem] bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl flex flex-col items-center gap-4"
         >
           <div className="w-16 h-16 bg-white rounded-2xl shadow-xl flex items-center justify-center">
-            <Layers className="text-indigo-600" size={32} strokeWidth={2.5} />
+            <Layers className="text-brand-default" size={32} strokeWidth={2.5} />
           </div>
           <div className="text-center">
-            <h1 className="text-3xl font-bold text-slate-900 tracking-tighter">FORMCRAFT</h1>
-            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mt-1">Digital Architecture</p>
+            <h1 className="text-3xl font-bold text-white tracking-tighter">FORMCRAFT</h1>
+            <p className="text-[10px] font-semibold text-white/50 uppercase tracking-widest mt-1">Digital Architecture</p>
           </div>
         </motion.div>
       </div>
@@ -189,7 +189,7 @@ const FormModule = ({ icon: Icon, label, x, y, delay, color, mouseX, mouseY, con
               <motion.div
                 animate={{ x: [-50, 50] }}
                 transition={{ duration: 2, repeat: Infinity }}
-                className="w-full h-full bg-indigo-200"
+                className="w-full h-full bg-indigo-500"
               />
             </div>
           </div>
@@ -201,23 +201,19 @@ const FormModule = ({ icon: Icon, label, x, y, delay, color, mouseX, mouseY, con
 
 // ─── MAIN AUTH PAGE ──────────────────────────────────────────────────────────────
 const AuthPage = () => {
-  const [isLogin, setIsLogin] = useState(true);
+  const [view, setView] = useState('LOGIN'); // 'LOGIN', 'REGISTER', 'VERIFY_OTP', 'FORGOT_PASSWORD', 'RESET_PASSWORD'
   const [formData, setFormData] = useState({
     username: '',
     fullName: '',
     email: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    otp: ''
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login, register } = useAuth();
+  const { login, register, verifyRegistration, forgotPassword, resetPassword } = useAuth();
   const navigate = useNavigate();
-
-  const handleToggle = () => {
-    setIsLogin(!isLogin);
-    setError('');
-  };
 
   const handleAction = async (e) => {
     e.preventDefault();
@@ -225,11 +221,11 @@ const AuthPage = () => {
     setError('');
 
     try {
-      if (isLogin) {
+      if (view === 'LOGIN') {
         await login(formData.username, formData.password);
-        toast.success('Secure Access Granted: Terminal connected.');
+        toast.success('Login successful. Welcome!');
         navigate('/dashboard');
-      } else {
+      } else if (view === 'REGISTER') {
         if (formData.password !== formData.confirmPassword) {
           throw new Error("Passwords do not match");
         }
@@ -239,11 +235,26 @@ const AuthPage = () => {
           email: formData.email,
           password: formData.password
         });
-        setIsLogin(true);
-        toast.success('Entry Permit Issued: Registration successful.');
+        toast.success('Registration successful. Please check your email for the OTP.');
+        setView('VERIFY_OTP');
+      } else if (view === 'VERIFY_OTP') {
+        await verifyRegistration(formData.email, formData.otp);
+        toast.success('Account verified successfully.');
+        setView('LOGIN');
+      } else if (view === 'FORGOT_PASSWORD') {
+        await forgotPassword(formData.username); // using username field for email/username
+        toast.success('We have sent a reset OTP to your email.');
+        setView('RESET_PASSWORD');
+      } else if (view === 'RESET_PASSWORD') {
+        if (formData.password !== formData.confirmPassword) {
+          throw new Error("Passwords do not match");
+        }
+        await resetPassword(formData.username, formData.otp, formData.password);
+        toast.success('Password updated successfully.');
+        setView('LOGIN');
       }
     } catch (err) {
-      const msg = err?.message || 'Authentication failed.';
+      const msg = err?.response?.data?.message || err?.message || 'Authentication failed.';
       setError(msg);
       toast.error(`Access Denied: ${msg}`);
     } finally {
@@ -251,129 +262,62 @@ const AuthPage = () => {
     }
   };
 
-  const slideVariants = {
-    enter: (direction) => ({
-      x: direction > 0 ? 1000 : -1000,
-      opacity: 0
-    }),
-    center: {
-      zIndex: 1,
-      x: 0,
-      opacity: 1
-    },
-    exit: (direction) => ({
-      zIndex: 0,
-      x: direction < 0 ? 1000 : -1000,
-      opacity: 0
-    })
+  const isRegisterGroup = ['REGISTER', 'VERIFY_OTP'].includes(view);
+
+  // Split-screen Panel Animation Variants (Desktop only)
+  const isDesktop = typeof window !== 'undefined' ? window.innerWidth >= 1024 : true;
+
+  const panelVariants = {
+    login: { x: '0%', opacity: 1 },
+    register: { x: isDesktop ? '-100%' : '0%', opacity: 1 }
+  };
+
+  const brandVariants = {
+    login: { x: '0%', opacity: 1 },
+    register: { x: isDesktop ? '100%' : '0%', opacity: 1 }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex overflow-hidden font-sans">
+    <div className="min-h-screen bg-white flex overflow-hidden font-sans relative">
+      
+      {/* Branding Side (Sliding Overlay) */}
+      <motion.div
+        animate={isRegisterGroup ? 'register' : 'login'}
+        variants={brandVariants}
+        transition={{ type: 'spring', stiffness: 200, damping: 25, mass: 1 }}
+        className="hidden lg:flex absolute left-0 top-0 bottom-0 w-1/2 bg-brand-default z-20 flex-col items-center justify-center p-12 overflow-hidden"
+      >
+        <FormNodeAnimation color="#FFFFFF" />
+      </motion.div>
 
-      {/* Dynamic Split Panel Arrangement */}
-      <AnimatePresence mode="wait" custom={isLogin ? -1 : 1}>
-        {isLogin ? (
-          <motion.div
-            key="login-view"
-            custom={-1}
-            variants={slideVariants}
-            initial="enter"
-            animate="center"
-            exit="exit"
-            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-            className="flex w-full"
-          >
-            {/* Branding Panel (LEFT on Login) */}
-            <div className="hidden lg:flex w-1/2 bg-indigo-50 relative flex-col items-center justify-center p-12">
-              <FormNodeAnimation color="#4f46e5" />
-            </div>
-
-            {/* Form Panel (RIGHT on Login) */}
-            <div className="w-full lg:w-1/2 bg-white flex items-center justify-center p-8 md:p-16 relative z-10">
-              <div className="w-full max-w-[420px]">
-                <AuthHeader title="Welcome back" subtitle="Please sign in to manage your workspace" />
-
-                <ErrorMessage error={error} />
-
-                <form onSubmit={handleAction} className="space-y-5">
-                  <InputField
-                    label="Username"
-                    icon={User}
-                    placeholder="operator_alias"
-                    value={formData.username}
-                    onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                  />
-                  <InputField
-                    label="Password"
-                    icon={Lock}
-                    type="password"
-                    placeholder="••••••••"
-                    value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    forgot={true}
-                  />
-                  <SubmitButton loading={loading} text="Sign In to Dashboard" />
-                </form>
-
-                <AuthToggle
-                  isLogin={isLogin}
-                  onToggle={handleToggle}
-                  label="REQUIREMENT: NEW OPERATOR ACCESS"
-                  action="Initialize Registration"
-                />
-              </div>
-            </div>
-          </motion.div>
-        ) : (
-          <motion.div
-            key="register-view"
-            custom={1}
-            variants={slideVariants}
-            initial="enter"
-            animate="center"
-            exit="exit"
-            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-            className="flex w-full flex-row-reverse"
-          >
-            {/* Branding Panel (RIGHT on Register) */}
-            <div className="hidden lg:flex w-1/2 bg-indigo-50 relative flex-col items-center justify-center p-12">
-              <FormNodeAnimation color="#4f46e5" />
-            </div>
-
-            {/* Form Panel (LEFT on Register) */}
-            <div className="w-full lg:w-1/2 bg-white flex items-center justify-center p-8 md:p-16 relative z-10">
-              <div className="w-full max-w-[480px]">
-                <AuthHeader title="Create Space" subtitle="Join the elite community of digital architects" />
-
-                <ErrorMessage error={error} />
-
-                <form onSubmit={handleAction} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+      {/* Form Side (Sliding Panel) */}
+      <motion.div
+        animate={isRegisterGroup ? 'register' : 'login'}
+        variants={panelVariants}
+        transition={{ type: 'spring', stiffness: 200, damping: 25, mass: 1 }}
+        className="absolute right-0 top-0 bottom-0 w-full lg:w-1/2 bg-white flex items-center justify-center p-8 md:p-16 z-10 overflow-y-auto no-scrollbar"
+      >
+        <div className="w-full max-w-[420px] py-12">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={view}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              {view === 'LOGIN' && (
+                <>
+                  <AuthHeader title="Welcome back" subtitle="Please sign in to manage your workspace" />
+                  <ErrorMessage error={error} />
+                  <form onSubmit={handleAction} className="space-y-5">
                     <InputField
-                      label="Full Identity"
+                      label="Username or Email"
                       icon={User}
-                      placeholder="John Doe"
-                      value={formData.fullName}
-                      onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                    />
-                    <InputField
-                      label="Username"
-                      icon={Zap}
-                      placeholder="alias"
+                      placeholder="Username"
                       value={formData.username}
                       onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                     />
-                  </div>
-                  <InputField
-                    label="Email Address"
-                    icon={Mail}
-                    type="email"
-                    placeholder="operator@company.com"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  />
-                  <div className="grid grid-cols-2 gap-4">
                     <InputField
                       label="Password"
                       icon={Lock}
@@ -381,34 +325,167 @@ const AuthPage = () => {
                       placeholder="••••••••"
                       value={formData.password}
                       onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      forgot={true}
+                      onForgot={() => setView('FORGOT_PASSWORD')}
                     />
-                    <InputField
-                      label="Confirm"
-                      icon={Shield}
-                      type="password"
-                      placeholder="••••••••"
-                      value={formData.confirmPassword}
-                      onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                    />
-                  </div>
-                  <SubmitButton loading={loading} text="Create Workspace" />
-                </form>
+                    <SubmitButton loading={loading} text="Sign In" />
+                  </form>
+                  <AuthToggle
+                    label="Don't have an account?"
+                    action="Register Now"
+                    onToggle={() => setView('REGISTER')}
+                  />
+                </>
+              )}
 
-                <AuthToggle
-                  isLogin={isLogin}
-                  onToggle={handleToggle}
-                  label="EXISTING: ADMINISTRATIVE ENTITY"
-                  action="Return to Login"
-                />
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+              {view === 'REGISTER' && (
+                <div className="max-w-[480px]">
+                  <AuthHeader title="Create Account" subtitle="Join our community of developers" />
+                  <ErrorMessage error={error} />
+                  <form onSubmit={handleAction} className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <InputField
+                        label="Full Name"
+                        icon={User}
+                        placeholder="John Doe"
+                        value={formData.fullName}
+                        onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                      />
+                      <InputField
+                        label="Username"
+                        icon={Zap}
+                        placeholder="username"
+                        value={formData.username}
+                        onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                      />
+                    </div>
+                    <InputField
+                      label="Email Address"
+                      icon={Mail}
+                      type="email"
+                      placeholder="user@example.com"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    />
+                    <div className="grid grid-cols-2 gap-4">
+                      <InputField
+                        label="Password"
+                        icon={Lock}
+                        type="password"
+                        placeholder="••••••••"
+                        value={formData.password}
+                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      />
+                      <InputField
+                        label="Confirm"
+                        icon={Shield}
+                        type="password"
+                        placeholder="••••••••"
+                        value={formData.confirmPassword}
+                        onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                      />
+                    </div>
+                    <SubmitButton loading={loading} text="Create Account" />
+                  </form>
+                  <AuthToggle
+                    label="Already have an account?"
+                    action="Log In"
+                    onToggle={() => setView('LOGIN')}
+                  />
+                </div>
+              )}
+
+              {view === 'VERIFY_OTP' && (
+                <>
+                  <AuthHeader title="Verify Account" subtitle={`Enter the OTP sent to ${formData.email}`} />
+                  <ErrorMessage error={error} />
+                  <form onSubmit={handleAction} className="space-y-6">
+                    <InputField
+                      label="Verification Code (6 Digits)"
+                      icon={Lock}
+                      placeholder="000000"
+                      value={formData.otp}
+                      onChange={(e) => setFormData({ ...formData, otp: e.target.value })}
+                    />
+                    <SubmitButton loading={loading} text="Verify Account" />
+                  </form>
+                  <AuthToggle
+                    label="Made a mistake?"
+                    action="Back to Registration"
+                    onToggle={() => setView('REGISTER')}
+                  />
+                </>
+              )}
+
+              {view === 'FORGOT_PASSWORD' && (
+                <>
+                  <AuthHeader title="Reset Password" subtitle="Enter your email to receive a reset OTP" />
+                  <ErrorMessage error={error} />
+                  <form onSubmit={handleAction} className="space-y-6">
+                    <InputField
+                      label="Username or Email"
+                      icon={User}
+                      placeholder="Username"
+                      value={formData.username}
+                      onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                    />
+                    <SubmitButton loading={loading} text="Send OTP" />
+                  </form>
+                  <AuthToggle
+                    label="Remembered your password?"
+                    action="Back to Login"
+                    onToggle={() => setView('LOGIN')}
+                  />
+                </>
+              )}
+
+              {view === 'RESET_PASSWORD' && (
+                <>
+                  <AuthHeader title="Update Password" subtitle="Enter the OTP and your new password" />
+                  <ErrorMessage error={error} />
+                  <form onSubmit={handleAction} className="space-y-4">
+                    <InputField
+                      label="OTP Code"
+                      icon={Shield}
+                      placeholder="000000"
+                      value={formData.otp}
+                      onChange={(e) => setFormData({ ...formData, otp: e.target.value })}
+                    />
+                    <div className="grid grid-cols-2 gap-4">
+                      <InputField
+                        label="New Password"
+                        icon={Lock}
+                        type="password"
+                        placeholder="••••••••"
+                        value={formData.password}
+                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      />
+                      <InputField
+                        label="Confirm Password"
+                        icon={CheckCircle2}
+                        type="password"
+                        placeholder="••••••••"
+                        value={formData.confirmPassword}
+                        onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                      />
+                    </div>
+                    <SubmitButton loading={loading} text="Update Password" />
+                  </form>
+                  <AuthToggle
+                    label="Cancel reset?"
+                    action="Back to Login"
+                    onToggle={() => setView('LOGIN')}
+                  />
+                </>
+              )}
+            </motion.div>
+          </AnimatePresence>
+        </div>
+      </motion.div>
 
       <footer className="fixed bottom-6 left-0 right-0 flex justify-center pointer-events-none opacity-40">
         <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.4em]">
-          &copy; {new Date().getFullYear()} FormCraft Inc. // System Active
+          &copy; {new Date().getFullYear()} FormCraft Inc. All rights reserved.
         </p>
       </footer>
     </div>
@@ -443,21 +520,31 @@ const ErrorMessage = ({ error }) => (
   </AnimatePresence>
 );
 
-const InputField = ({ label, icon: Icon, type = 'text', placeholder, value, onChange, forgot }) => (
+const InputField = ({ label, icon: Icon, type = 'text', placeholder, value, onChange, forgot, onForgot, required = true }) => (
   <div className="space-y-2 group">
     <div className="flex items-center justify-between px-1">
-      <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest group-focus-within:text-indigo-600 transition-colors">{label}</label>
-      {forgot && <button type="button" className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-700 transition-colors uppercase tracking-widest">Forgot?</button>}
+      <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest group-focus-within:text-brand-600 transition-colors">
+        {label} {required && <span className="text-rose-500 ml-0.5">*</span>}
+      </label>
+      {forgot && (
+        <button 
+          type="button" 
+          onClick={onForgot}
+          className="text-[10px] font-semibold text-brand-600 hover:text-brand-500 transition-colors uppercase tracking-widest"
+        >
+          Forgot?
+        </button>
+      )}
     </div>
     <div className="relative">
-      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-indigo-600 transition-colors">
+      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-brand-600 transition-colors">
         <Icon size={18} strokeWidth={2.5} />
       </div>
       <input
         type={type}
-        required
+        required={required}
         placeholder={placeholder}
-        className="w-full h-14 bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-4 text-sm font-semibold text-slate-900 outline-none focus:bg-white focus:border-indigo-600 focus:ring-4 focus:ring-indigo-500/10 transition-all placeholder:text-slate-300"
+        className="w-full h-14 bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-4 text-sm font-semibold text-slate-900 outline-none focus:bg-white focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 transition-all placeholder:text-slate-300"
         value={value}
         onChange={onChange}
       />
@@ -469,7 +556,7 @@ const SubmitButton = ({ loading, text }) => (
   <button
     type="submit"
     disabled={loading}
-    className="w-full h-14 bg-slate-900 text-white rounded-2xl font-semibold text-xs uppercase tracking-[0.4em] flex items-center justify-center gap-3 hover:bg-slate-800 transition-all active:scale-[0.98] shadow-xl shadow-slate-200 mt-8"
+    className="w-full h-14 bg-brand-default text-white rounded-2xl font-semibold text-xs uppercase tracking-[0.4em] flex items-center justify-center gap-3 hover:bg-brand-600 transition-all active:scale-[0.98] shadow-xl shadow-brand-500/20 mt-8"
   >
     {loading ? (
       <Loader2 className="animate-spin" size={20} />
@@ -491,7 +578,7 @@ const AuthToggle = ({ onToggle, label, action }) => (
       <span className="text-[10px] font-semibold text-slate-300 uppercase tracking-[0.3em] group-hover:text-slate-400 transition-colors">
         {label}
       </span>
-      <span className="text-xs font-semibold text-indigo-600 uppercase tracking-widest border-b-2 border-transparent group-hover:border-indigo-600 py-1 transition-all">
+      <span className="text-xs font-semibold text-slate-900 uppercase tracking-widest border-b-2 border-transparent group-hover:border-slate-900 py-1 transition-all">
         {action}
       </span>
     </button>

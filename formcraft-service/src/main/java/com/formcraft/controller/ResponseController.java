@@ -11,27 +11,32 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 import java.util.UUID;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.Parameter;
+
 @RestController
 @RequestMapping("/api/responses")
 @RequiredArgsConstructor
-@io.swagger.v3.oas.annotations.tags.Tag(name = "Strategic Response Intelligence", description = "Management protocols for gathered form data and submission tracking.")
+@Tag(name = "Form Responses", description = "View and manage all the answers people have submitted through your forms.")
 public class ResponseController {
 
     private final FormService formService;
 
+    @Operation(summary = "Remove a response", description = "Permanently delete a single form submission.")
     @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<Void>> deleteResponse(@PathVariable("id") UUID id) {
+    public ResponseEntity<ApiResponse<Void>> deleteResponse(@Parameter(description = "The unique ID of the response to delete") @PathVariable("id") UUID id) {
         formService.deleteResponse(id);
         return ResponseEntity.ok(ApiResponse.success(null, "Response deleted successfully"));
     }
 
+    @Operation(summary = "Edit a response", description = "Update the answers in an existing form submission.")
     @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
-    @io.swagger.v3.oas.annotations.Operation(summary = "Update Strategic Response", description = "Modifies existing response data via a dynamic JSON mapping.")
     public ResponseEntity<ApiResponse<ResponseDto>> updateResponse(
-            @PathVariable("id") UUID id, 
-            @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Map of response changes") @RequestBody Map<String, Object> responses) {
+            @Parameter(description = "The unique ID of the response to update") @PathVariable("id") UUID id, 
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "The new answers for this response") @RequestBody Map<String, Object> responses) {
         ResponseDto updatedResponse = formService.updateResponse(id, responses);
         return ResponseEntity.ok(ApiResponse.success(updatedResponse, "Response updated successfully"));
     }

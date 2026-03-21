@@ -34,19 +34,19 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(AiProtocolException.class)
     public ResponseEntity<ApiResponse<Void>> handleAiProtocolException(AiProtocolException ex) {
-        log.error("AI Link Conflict: {}", ex.getMessage());
-        return new ResponseEntity<>(ApiResponse.error("Neural Link Interrupted: " + ex.getMessage()), HttpStatus.SERVICE_UNAVAILABLE);
+        log.error("AI Error: {}", ex.getMessage());
+        return new ResponseEntity<>(ApiResponse.error("AI Service Error: " + ex.getMessage()), HttpStatus.SERVICE_UNAVAILABLE);
     }
 
     @ExceptionHandler(BusinessLogicException.class)
     public ResponseEntity<ApiResponse<Void>> handleBusinessLogicException(BusinessLogicException ex) {
-        log.warn("Logic Violation: {}", ex.getMessage());
-        return new ResponseEntity<>(ApiResponse.error("Strategic Conflict: " + ex.getMessage()), HttpStatus.UNPROCESSABLE_ENTITY);
+        log.warn("Business Logic Error: {}", ex.getMessage());
+        return new ResponseEntity<>(ApiResponse.error("Error: " + ex.getMessage()), HttpStatus.UNPROCESSABLE_ENTITY);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<Map<String, String>>> handleValidationExceptions(MethodArgumentNotValidException ex) {
-        log.warn("Validation Rejection: {} errors detected", ex.getBindingResult().getErrorCount());
+        log.warn("Validation Error: {} errors found", ex.getBindingResult().getErrorCount());
         Map<String, String> errors = new HashMap<>();
         ex.getBindingResult().getAllErrors().forEach((error) -> {
             String fieldName = ((FieldError) error).getField();
@@ -58,19 +58,25 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<ApiResponse<Void>> handleBadCredentialsException(BadCredentialsException ex) {
-        log.warn("Security Rejection: Unauthorized access attempt detected.");
+        log.warn("Login Failed: Invalid attempt detected.");
         return new ResponseEntity<>(ApiResponse.error("Invalid username or password"), HttpStatus.UNAUTHORIZED);
     }
 
     @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
     public ResponseEntity<ApiResponse<Void>> handleAccessDeniedException(org.springframework.security.access.AccessDeniedException ex) {
-        log.warn("Authority Warning: Access denied to user.");
+        log.warn("Access Denied: User lack permissions.");
         return new ResponseEntity<>(ApiResponse.error("Access denied: You do not have permission to perform this action"), HttpStatus.FORBIDDEN);
+    }
+
+    @ExceptionHandler({AccountLockedException.class, org.springframework.security.authentication.LockedException.class})
+    public ResponseEntity<ApiResponse<Void>> handleLockedException(Exception ex) {
+        log.warn("Security Event: Account locked.");
+        return new ResponseEntity<>(ApiResponse.error(ex.getMessage()), HttpStatus.LOCKED);
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGeneralException(Exception ex) {
-        log.error("CRITICAL SYSTEM INTERRUPTION: ", ex);
-        return new ResponseEntity<>(ApiResponse.error("Internal Server Error: A technical interruption occurred."), HttpStatus.INTERNAL_SERVER_ERROR);
+        log.error("Unhandled System Error: ", ex);
+        return new ResponseEntity<>(ApiResponse.error("Internal Server Error: " + ex.getMessage()), HttpStatus.INTERNAL_SERVER_ERROR);
     }
 }

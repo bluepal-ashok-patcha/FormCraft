@@ -52,6 +52,10 @@ public class FormValidator {
                         if (!EMAIL_PATTERN.matcher(valueStr).matches()) {
                             throw new BadRequestException("Field '" + label + "' must be a valid email address.");
                         }
+                    } else if ("file".equalsIgnoreCase(type)) {
+                        if (!valueStr.startsWith("http")) {
+                            throw new BadRequestException("Field '" + label + "' must contain a secure link to the attachment.");
+                        }
                     }
 
                     // Advanced Validation Rules

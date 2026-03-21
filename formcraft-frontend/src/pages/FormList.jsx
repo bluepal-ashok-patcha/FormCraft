@@ -817,7 +817,7 @@ const FormList = () => {
                 {/* SCROLLABLE BODY */}
                 <div className="flex-1 overflow-y-auto p-8 space-y-6 custom-scrollbar">
                   <div>
-                    <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-2 block">Asset Designation</label>
+                    <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-2 block">Asset Designation <span className="text-red-500">*</span></label>
                     <input
                       type="text"
                       value={editForm.name}

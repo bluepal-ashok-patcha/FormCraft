@@ -74,11 +74,6 @@ const MainLayout = ({ children }) => {
         </div>
 
         <div className="flex items-center gap-4">
-          <button className="p-2 text-slate-400 hover:text-brand-default transition-colors hover:bg-brand-50 rounded-md relative group">
-            <Bell size={14} />
-            <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-accent-orange rounded-full border-2 border-white"></span>
-          </button>
-          <div className="h-6 w-px bg-slate-100"></div>
           <div className="flex items-center gap-3">
             <div className="text-right hidden sm:block">
               <p className="text-xs font-semibold text-slate-900 leading-none">{user?.fullName || user?.username}</p>

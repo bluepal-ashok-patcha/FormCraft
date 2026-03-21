@@ -33,7 +33,8 @@ import {
   Layout,
   Edit,
   Star,
-  Sliders
+  Sliders,
+  Upload
 } from 'lucide-react';
 import { motion, Reorder, AnimatePresence, useDragControls } from 'framer-motion';
 import api from '../services/api';
@@ -63,6 +64,7 @@ const FIELD_TYPES = [
   { type: 'textarea', label: 'Long Answer', icon: AlignLeft, description: 'Multiple lines of text' },
   { type: 'rating', label: 'Rating', icon: Star, description: 'Star-based rating' },
   { type: 'linear-scale', label: 'Linear Scale', icon: Sliders, description: 'Range scale selector' },
+  { type: 'file', label: 'File Upload', icon: Upload, description: 'Accept documents or images' },
 ];
 
 const FormBuilder = () => {
@@ -481,6 +483,7 @@ const FormBuilder = () => {
                     if (nameError) setNameError(false);
                   }}
                 />
+                {!formName && <span className="absolute left-[2px] top-[1px] pointer-events-none text-red-500 font-bold">*</span>}
               </div>
               <div className="flex items-center gap-3 mt-0.5">
                 <span className="flex items-center gap-1.5 px-2 py-0.5 bg-brand-50 text-[9px] font-bold text-brand-default rounded-md uppercase tracking-wider border border-brand-200/50">
@@ -1194,6 +1197,19 @@ const FormBuilder = () => {
                               readOnly
                               className="w-full bg-transparent border-b-2 border-slate-200 py-3 px-1 text-sm font-semibold text-slate-700 pointer-events-none"
                             />
+                          ) : field.type?.toLowerCase() === 'file' ? (
+                            <div className="flex items-center gap-4 bg-slate-50 border-2 border-dashed border-slate-200 rounded-xl p-6 transition-all group-hover:border-brand-default/40">
+                              <div className="w-10 h-10 rounded-full bg-brand-50 flex items-center justify-center text-brand-default shrink-0">
+                                <Upload size={18} />
+                              </div>
+                              <div className="flex-1">
+                                <p className="text-[11px] font-bold text-slate-700 uppercase tracking-widest">Secure File Uplink</p>
+                                <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest mt-1">Accepts documents, images, and research data</p>
+                              </div>
+                              <div className="px-4 py-1.5 bg-white border border-slate-200 rounded-lg text-[9px] font-bold text-slate-400 uppercase tracking-widest shadow-sm">
+                                Terminal Active
+                              </div>
+                            </div>
                           ) : field.type?.toLowerCase() === 'radio' || field.type?.toLowerCase() === 'checkbox' ? (
                             <div className="space-y-4">
                               {(field.options || []).map((opt, oIdx) => (
@@ -1719,7 +1735,7 @@ const FormBuilder = () => {
 
           <div className="space-y-4 pt-4 border-t border-slate-50">
             <div className="space-y-1.5">
-              <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Blueprint Designation</label>
+              <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Blueprint Designation <span className="text-red-500">*</span></label>
               <input
                 type="text"
                 placeholder="Ex. Customer Satisfaction v2..."
@@ -1730,7 +1746,7 @@ const FormBuilder = () => {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Strategic Category</label>
+              <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Strategic Category <span className="text-red-500">*</span></label>
               <select
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-semibold text-slate-800 outline-none focus:border-brand-default transition-all"
                 value={templateData.categoryId}

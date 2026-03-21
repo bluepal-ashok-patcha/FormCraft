@@ -9,6 +9,7 @@ import com.formcraft.repository.TemplateRepository;
 import com.formcraft.exception.ResourceNotFoundException;
 import com.formcraft.service.TemplateService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,12 +34,16 @@ public class TemplateServiceImpl implements TemplateService {
                     .orElse(null);
         }
 
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        boolean isSuperAdmin = auth != null && auth.getAuthorities()
+                .stream().anyMatch(a -> a.getAuthority().equals("ROLE_SUPER_ADMIN"));
+
         Template template = Template.builder()
                 .name(templateDTO.getName())
                 .description(templateDTO.getDescription())
                 .category(category)
                 .schema(templateDTO.getSchema())
-                .global(false)
+                .global(isSuperAdmin)
                 .requestedForGlobal(false)
                 .thumbnailUrl(templateDTO.getThumbnailUrl())
                 .build();
@@ -49,8 +54,9 @@ public class TemplateServiceImpl implements TemplateService {
 
     @Override
     public List<TemplateDTO> getAllVisibleTemplates(String filter) {
-        String currentUser = SecurityContextHolder.getContext().getAuthentication().getName();
-        boolean isSuperAdmin = SecurityContextHolder.getContext().getAuthentication().getAuthorities()
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String currentUser = auth != null ? auth.getName() : null;
+        boolean isSuperAdmin = auth != null && auth.getAuthorities()
                 .stream().anyMatch(a -> a.getAuthority().equals("ROLE_SUPER_ADMIN"));
 
         List<Template> templates;

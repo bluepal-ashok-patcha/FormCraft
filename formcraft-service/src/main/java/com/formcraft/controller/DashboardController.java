@@ -10,17 +10,22 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.Parameter;
+
 @RestController
 @RequestMapping("/api/dashboard")
 @RequiredArgsConstructor
-@io.swagger.v3.oas.annotations.tags.Tag(name = "Executive Operations Dashboard", description = "Protocols for real-time strategic intelligence and enterprise-wide data metrics.")
+@Tag(name = "Dashboard Statistics", description = "Get an overview of form activity and data.")
 public class DashboardController {
 
     private final DashboardService dashboardService;
 
+    @Operation(summary = "Get overview statistics", description = "View charts and numbers about form creation and responses.")
     @GetMapping("/stats")
     public ResponseEntity<ApiResponse<DashboardStatsResponse>> getStats(
-            @RequestParam(name = "range", required = false, defaultValue = "7d") String range) {
+            @Parameter(description = "Time range for stats (e.g., 7d, 30d)") @RequestParam(name = "range", required = false, defaultValue = "7d") String range) {
         DashboardStatsResponse stats = dashboardService.getDashboardStats(range);
         return ResponseEntity.ok(ApiResponse.success(stats, "Dashboard statistics fetched successfully"));
     }

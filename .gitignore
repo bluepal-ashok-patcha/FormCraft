@@ -1,0 +1,17 @@
+# FormCraft Exclusion Registry
+.env
+.DS_Store
+*.log
+
+# Backend Registry Exclusions
+formcraft-service/target/
+formcraft-service/.settings/
+formcraft-service/.classpath
+formcraft-service/.project
+formcraft-service/.factorypath
+
+# Frontend Registry Exclusions
+formcraft-frontend/node_modules/
+formcraft-frontend/dist/
+formcraft-frontend/.env*
+formcraft-frontend/.DS_Store

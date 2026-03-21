@@ -8,33 +8,33 @@ import java.util.Map;
 
 @Data
 @Builder
-@io.swagger.v3.oas.annotations.media.Schema(description = "Executive Statistics Blueprint: A high-fidelity data summary of the platform's strategic metrics.")
+@io.swagger.v3.oas.annotations.media.Schema(description = "An overview of stats for your dashboard.")
 public class DashboardStatsResponse {
-    @io.swagger.v3.oas.annotations.media.Schema(description = "Total count of form architectures preserved in the registry.")
+    @io.swagger.v3.oas.annotations.media.Schema(description = "The total number of forms you've created.")
     private long totalForms;
     
-    @io.swagger.v3.oas.annotations.media.Schema(description = "Aggregate count of all gathered strategic responses.")
+    @io.swagger.v3.oas.annotations.media.Schema(description = "The total number of responses your forms have received.")
     private long totalResponses;
     
-    @io.swagger.v3.oas.annotations.media.Schema(description = "Current number of forms that are actively gathering data.")
+    @io.swagger.v3.oas.annotations.media.Schema(description = "The number of forms currently open for answers.")
     private long activeForms;
     
-    @io.swagger.v3.oas.annotations.media.Schema(description = "Precise count of responses synchronized within the last 24-hour cycle.")
+    @io.swagger.v3.oas.annotations.media.Schema(description = "The number of responses received in the last 24 hours.")
     private long responsesToday;
     
-    @io.swagger.v3.oas.annotations.media.Schema(description = "Efficiency percentage: the rate of link-to-submission conversion.")
+    @io.swagger.v3.oas.annotations.media.Schema(description = "The percentage of people who started a form and finished it.")
     private double submissionRate; 
     
-    @io.swagger.v3.oas.annotations.media.Schema(description = "Baseline average of responses per form blueprint.")
+    @io.swagger.v3.oas.annotations.media.Schema(description = "The average number of answers each form gets.")
     private double avgResponsesPerForm;
-    @io.swagger.v3.oas.annotations.media.Schema(description = "Mission Activity Map: Chronological data for visual metrics.")
+    @io.swagger.v3.oas.annotations.media.Schema(description = "Data used to draw the activity charts.")
     private List<ChartData> chartData;
-    @io.swagger.v3.oas.annotations.media.Schema(description = "Real-time log of the latest identity and architecture events.")
+    @io.swagger.v3.oas.annotations.media.Schema(description = "A list of the most recent things that happened.")
     private List<RecentActivity> recentActivity;
 
     @Data
     @Builder
-    @io.swagger.v3.oas.annotations.media.Schema(description = "Chronological Data Point for metric visualization.")
+    @io.swagger.v3.oas.annotations.media.Schema(description = "A single point of data for a chart.")
     public static class ChartData {
         private String date;
         private long count;
@@ -42,7 +42,7 @@ public class DashboardStatsResponse {
 
     @Data
     @Builder
-    @io.swagger.v3.oas.annotations.media.Schema(description = "Real-time activity log entry.")
+    @io.swagger.v3.oas.annotations.media.Schema(description = "A record of a single recent activity.")
     public static class RecentActivity {
         private String id;
         private String type; // FORM_CREATED, RESPONSE_RECEIVED

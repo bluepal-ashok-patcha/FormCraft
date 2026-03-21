@@ -34,6 +34,27 @@ export const AuthProvider = ({ children }) => {
     return await api.post('/auth/register', userData);
   };
 
+  const verifyRegistration = async (email, otp) => {
+    const params = new URLSearchParams();
+    params.append('email', email);
+    params.append('otp', otp);
+    return await api.post(`/auth/verify-registration?${params.toString()}`);
+  };
+
+  const forgotPassword = async (identity) => {
+    const params = new URLSearchParams();
+    params.append('identity', identity);
+    return await api.post(`/auth/forgot-password?${params.toString()}`);
+  };
+
+  const resetPassword = async (identity, otp, newPassword) => {
+    const params = new URLSearchParams();
+    params.append('identity', identity);
+    params.append('otp', otp);
+    params.append('newPassword', newPassword);
+    return await api.post(`/auth/reset-password?${params.toString()}`);
+  };
+
   const logout = async () => {
     try {
       await api.post('/auth/logout');
@@ -44,7 +65,16 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, register, loading }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      login, 
+      logout, 
+      register, 
+      verifyRegistration, 
+      forgotPassword, 
+      resetPassword, 
+      loading 
+    }}>
       {!loading && children}
     </AuthContext.Provider>
   );

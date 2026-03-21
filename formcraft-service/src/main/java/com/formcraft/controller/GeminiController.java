@@ -11,16 +11,20 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 @RestController
 @RequestMapping("/api/ai")
 @RequiredArgsConstructor
 @Slf4j
-@io.swagger.v3.oas.annotations.tags.Tag(name = "Neural Orchestration Strategy", description = "High-end AI services for design synthesis, regex extraction, and visual prompt generation.")
+@Tag(name = "AI Tools", description = "Smart assistant tools to help you create forms and validation rules.")
 @CrossOrigin(origins = "*") 
 public class GeminiController {
 
     private final GeminiService geminiService;
 
+    @Operation(summary = "Generate validation rules", description = "Ask AI to create complex validation rules for your form fields.")
     @PostMapping("/generate-regex")
     public ResponseEntity<ApiResponse<Map<String, String>>> generateRegex(@RequestBody Map<String, String> request) {
         String prompt = request.get("prompt");
@@ -44,10 +48,10 @@ public class GeminiController {
         }
     }
 
-    @io.swagger.v3.oas.annotations.Operation(summary = "Synthesize Neural Blueprint", description = "Uses high-end AI orchestration to generate a structural form architecture from a natural language prompt.")
+    @Operation(summary = "Draft form structure", description = "Describe what you want, and AI will suggest fields for your form.")
     @PostMapping("/generate-blueprint")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> generateBlueprint(
-            @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Map containing the design vision and existing context.") @RequestBody Map<String, Object> request) {
+            @RequestBody Map<String, Object> request) {
         String description = (String) request.get("description");
         List<Map<String, Object>> currentFields = (List<Map<String, Object>>) request.get("currentFields");
         
@@ -67,6 +71,7 @@ public class GeminiController {
         }
     }
 
+    @Operation(summary = "Suggest form design", description = "Get AI-powered recommendations for colors and styling based on your form's title.")
     @PostMapping("/recommend-theme")
     public ResponseEntity<ApiResponse<Map<String, String>>> recommendTheme(@RequestBody Map<String, String> request) {
         String title = request.get("title");

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Star } from 'lucide-react';
+import { Star, Upload } from 'lucide-react';
 
 const FormPreview = ({ fields = [], name, bannerUrl, thumbnailUrl }) => {
   const displayUrl = bannerUrl || thumbnailUrl;
@@ -111,6 +111,16 @@ const FormPreview = ({ fields = [], name, bannerUrl, thumbnailUrl }) => {
                       {[...Array(field.max || 5)].map((_, i) => (
                         <Star key={i} size={18} className="text-slate-200 fill-slate-50" />
                       ))}
+                    </div>
+                  ) : field.type?.toUpperCase() === 'FILE' ? (
+                    <div className="flex items-center gap-3 bg-slate-50 border border-dashed border-slate-200 rounded-lg p-4">
+                      <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
+                        <Upload size={14} />
+                      </div>
+                      <div className="flex-1">
+                        <div className="h-2 w-20 bg-slate-200 rounded mb-1" />
+                        <div className="h-1.5 w-32 bg-slate-100 rounded" />
+                      </div>
                     </div>
                   ) : field.type?.toUpperCase() === 'LINEAR-SCALE' ? (
                     <div className="flex items-center justify-center gap-6 py-2">

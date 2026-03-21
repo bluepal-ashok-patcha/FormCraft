@@ -1,32 +1,29 @@
 package com.formcraft.controller;
 
 import com.formcraft.dto.request.LoginRequest;
+import com.formcraft.dto.request.RegisterRequest;
+import com.formcraft.dto.request.TokenRefreshRequest;
 import com.formcraft.dto.response.ApiResponse;
 import com.formcraft.dto.response.JwtResponse;
-import com.formcraft.service.AuthService;
-import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-
-import com.formcraft.dto.request.TokenRefreshRequest;
 import com.formcraft.entity.RefreshToken;
 import com.formcraft.security.jwt.JwtTokenProvider;
+import com.formcraft.service.AuthService;
 import com.formcraft.service.RefreshTokenService;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
-
-import com.formcraft.dto.request.RegisterRequest;
+import org.springframework.web.bind.annotation.*;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.Parameter;
 
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
-@Tag(name = "Authentication Strategy", description = "Protocols for secure identity indexing and neural link establishment.")
+@Tag(name = "Security", description = "Actions for logging in, creating accounts, and managing passwords.")
 public class AuthController {
 
     private final AuthService authService;
@@ -34,28 +31,21 @@ public class AuthController {
     private final JwtTokenProvider jwtTokenProvider;
     private final UserDetailsService userDetailsService;
 
-    @io.swagger.v3.oas.annotations.Operation(summary = "Establish Neural Link", description = "Authenticates a user and returns a synchronized JWT access token.")
-    @io.swagger.v3.oas.annotations.responses.ApiResponses(value = {
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Link Established: Token synthesized."),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Security Rejection: Invalid credentials.")
-    })
+    @Operation(summary = "Login to account", description = "Enter your email and password to access your account.")
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<JwtResponse>> login(@Valid @RequestBody LoginRequest loginRequest) {
         JwtResponse jwtResponse = authService.login(loginRequest);
         return ResponseEntity.ok(ApiResponse.success(jwtResponse, "Login successful"));
     }
 
-    @io.swagger.v3.oas.annotations.Operation(summary = "Index New Identity", description = "Registers a new user in the enterprise perimeter and establishes access protocols.")
-    @io.swagger.v3.oas.annotations.responses.ApiResponses(value = {
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Identity Synchronized: Registration complete."),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "422", description = "Strategic Conflict: Identity already indexed.")
-    })
+    @Operation(summary = "Create new account", description = "Sign up to start building and managing forms.")
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<String>> register(@Valid @RequestBody RegisterRequest registerRequest) {
         String response = authService.register(registerRequest);
-        return ResponseEntity.ok(ApiResponse.success(response, "Registration successful"));
+        return ResponseEntity.ok(ApiResponse.success(response, response));
     }
 
+    @Operation(summary = "Keep session active", description = "Refresh your login so you don't have to sign in again.")
     @PostMapping("/refresh-token")
     public ResponseEntity<ApiResponse<JwtResponse>> refreshToken(@Valid @RequestBody TokenRefreshRequest request) {
         String requestRefreshToken = request.getRefreshToken();
@@ -72,14 +62,39 @@ public class AuthController {
                     JwtResponse response = new JwtResponse();
                     response.setAccessToken(token);
                     response.setRefreshToken(requestRefreshToken);
-                    return ResponseEntity.ok(ApiResponse.success(response, "Token refreshed successfully"));
+                    return ResponseEntity.ok(ApiResponse.success(response, "Session updated successfully"));
                 })
-                .orElseThrow(() -> new RuntimeException("Refresh token is not in database!"));
+                .orElseThrow(() -> new RuntimeException("Error: Invalid session token."));
     }
 
+    @Operation(summary = "Logout", description = "Safely end your current session.")
     @PostMapping("/logout")
     public ResponseEntity<ApiResponse<Void>> logoutUser() {
         authService.logout();
-        return ResponseEntity.ok(ApiResponse.success(null, "Log out successful!"));
+        return ResponseEntity.ok(ApiResponse.success(null, "Logged out successfully."));
+    }
+
+    @Operation(summary = "Verify account", description = "Activate your account with the code sent to your email.")
+    @PostMapping("/verify-registration")
+    public ResponseEntity<ApiResponse<String>> verifyRegistration(@Parameter(description = "Your email address") @RequestParam(name = "email") String email, 
+                                                                 @Parameter(description = "The code you received in your email") @RequestParam(name = "otp") String otp) {
+        authService.verifyRegistrationOtp(email, otp);
+        return ResponseEntity.ok(ApiResponse.success("Account activated successfully.", "Verification complete"));
+    }
+
+    @Operation(summary = "Forgot password request", description = "Ask for a password reset code if you can't log in.")
+    @PostMapping("/forgot-password")
+    public ResponseEntity<ApiResponse<String>> forgotPassword(@Parameter(description = "Your email or username") @RequestParam(name = "identity") String identity) {
+        authService.forgotPasswordRequest(identity);
+        return ResponseEntity.ok(ApiResponse.success("OTP sent to your email successfully.", "Request complete"));
+    }
+
+    @Operation(summary = "Set new password", description = "Create a new password using the reset code you were sent.")
+    @PostMapping("/reset-password")
+    public ResponseEntity<ApiResponse<String>> resetPassword(@Parameter(description = "Your email or username") @RequestParam(name = "identity") String identity,
+                                                            @Parameter(description = "The reset code you received") @RequestParam(name = "otp") String otp,
+                                                            @Parameter(description = "Your new password") @RequestParam(name = "newPassword") String newPassword) {
+        authService.resetPasswordWithOtp(identity, otp, newPassword);
+        return ResponseEntity.ok(ApiResponse.success("Your password has been reset successfully.", "Success"));
     }
 }

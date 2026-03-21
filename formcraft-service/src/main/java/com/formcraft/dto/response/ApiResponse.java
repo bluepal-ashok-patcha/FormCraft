@@ -11,19 +11,19 @@ import java.time.LocalDateTime;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-@io.swagger.v3.oas.annotations.media.Schema(description = "Enterprise Data Capsule: A standardized success or error protocol for all system interactions.")
+@io.swagger.v3.oas.annotations.media.Schema(description = "A standard container for all responses from the system, whether they are successful or have an error.")
 public class ApiResponse<T> {
     
-    @io.swagger.v3.oas.annotations.media.Schema(description = "True if the strategic link was established successfully.")
+    @io.swagger.v3.oas.annotations.media.Schema(description = "Will be true if the action was successful.")
     private boolean success;
     
-    @io.swagger.v3.oas.annotations.media.Schema(description = "Industry-standard status or error message.")
+    @io.swagger.v3.oas.annotations.media.Schema(description = "A message explaining the result or any error that occurred.")
     private String message;
     
-    @io.swagger.v3.oas.annotations.media.Schema(description = "Payload of the high-fidelity response data.")
+    @io.swagger.v3.oas.annotations.media.Schema(description = "The actual data requested or the result of the action.")
     private T data;
     
-    @io.swagger.v3.oas.annotations.media.Schema(description = "The precise millisecond of the system event orchestration.")
+    @io.swagger.v3.oas.annotations.media.Schema(description = "The exact time when the response was created.")
     private LocalDateTime timestamp;
 
     public static <T> ApiResponse<T> success(T data, String message) {

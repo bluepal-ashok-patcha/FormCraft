@@ -66,6 +66,7 @@ public class DataInitializer implements CommandLineRunner {
             admin.setCreatedAt(LocalDateTime.now());
             admin.setUpdatedAt(LocalDateTime.now());
             admin.setCreatedBy("SYSTEM");
+            admin.setActive(true);
 
             Set<Role> roles = new HashSet<>();
             roleRepository.findByName(RoleName.ROLE_SUPER_ADMIN).ifPresent(roles::add);
@@ -75,6 +76,13 @@ public class DataInitializer implements CommandLineRunner {
             userRepository.save(admin);
             log.info("Super Admin account provisioned: {} / {} ", adminUsername, adminEmail);
         } else {
+            userRepository.findByUsername(adminUsername).ifPresent(u -> {
+                if (!u.isActive()) {
+                    u.setActive(true);
+                    userRepository.save(u);
+                    log.info("Super Admin account restored to ACTIVE status.");
+                }
+            });
             log.info("Super Admin account identity already verified in registry.");
         }
     }

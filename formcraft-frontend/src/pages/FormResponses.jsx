@@ -20,7 +20,8 @@ import {
   X,
   ClipboardList,
   MoreVertical,
-  History
+  History,
+  Paperclip
 } from 'lucide-react';
 import api from '../services/api';
 import { toast } from 'react-toastify';
@@ -331,8 +332,10 @@ const FormResponses = () => {
                 </div>
              </div>
              <div className="flex bg-slate-50 rounded-lg p-1 border border-slate-200">
-               <button className="px-3 py-1.5 text-[9px] font-semibold text-white bg-slate-900 rounded-md uppercase tracking-widest shadow-sm">Tabular</button>
-               <button className="px-3 py-1.5 text-[9px] font-semibold text-slate-400 hover:text-slate-600 uppercase tracking-widest transition-colors">Grid View</button>
+               <div className="px-4 py-1.5 text-[9px] font-semibold text-white bg-slate-900 rounded-md uppercase tracking-widest shadow-sm flex items-center gap-2">
+                 <TableIcon size={12} />
+                 Tabular Registry
+               </div>
              </div>
           </div>
 
@@ -370,7 +373,11 @@ const FormResponses = () => {
                     {headers.map(h => (
                       <td key={h} className="px-8 py-5">
                         <span className="text-sm font-semibold text-slate-700">
-                          {Array.isArray(resp.responseData[h]) ? resp.responseData[h].join(', ') : (resp.responseData[h] || '-')}
+                          {Array.isArray(resp.responseData[h]) 
+                            ? resp.responseData[h].join(', ') 
+                            : (typeof resp.responseData[h] === 'string' && resp.responseData[h].startsWith('http') && resp.responseData[h].includes('cloudinary')
+                                ? <a href={resp.responseData[h]} target="_blank" rel="noopener noreferrer" className="text-brand-default hover:underline flex items-center gap-1"><Paperclip size={12} /> View Asset</a>
+                                : (resp.responseData[h] || '-'))}
                         </span>
                       </td>
                     ))}
@@ -518,11 +525,30 @@ const FormResponses = () => {
                       />
                     ) : (
                       <div className="p-3 bg-slate-50 border border-slate-100 rounded-[4px]">
-                        <p className="text-sm font-semibold text-slate-700">
-                          {Array.isArray(selectedResponse.responseData[field.label]) 
-                            ? selectedResponse.responseData[field.label].join(', ') 
-                            : (selectedResponse.responseData[field.label] || '-')}
-                        </p>
+                        {typeof selectedResponse.responseData[field.label] === 'string' && selectedResponse.responseData[field.label].startsWith('http') && selectedResponse.responseData[field.label].includes('cloudinary') ? (
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 bg-brand-50 text-brand-default rounded flex items-center justify-center">
+                                <Paperclip size={14} />
+                              </div>
+                              <span className="text-sm font-semibold text-brand-default">External Attachment</span>
+                            </div>
+                            <a 
+                              href={selectedResponse.responseData[field.label]} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="px-3 py-1 bg-white border border-slate-200 rounded text-[10px] font-bold text-slate-600 hover:text-brand-default hover:border-brand-default transition-all shadow-sm"
+                            >
+                              Open Protocol
+                            </a>
+                          </div>
+                        ) : (
+                          <p className="text-sm font-semibold text-slate-700">
+                            {Array.isArray(selectedResponse.responseData[field.label]) 
+                              ? selectedResponse.responseData[field.label].join(', ') 
+                              : (selectedResponse.responseData[field.label] || '-')}
+                          </p>
+                        )}
                       </div>
                     )}
                   </div>

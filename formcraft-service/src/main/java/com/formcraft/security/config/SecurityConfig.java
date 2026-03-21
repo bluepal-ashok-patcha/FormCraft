@@ -43,6 +43,7 @@ public class SecurityConfig {
                         authorize.requestMatchers(HttpMethod.POST, "/api/auth/register").permitAll()
                                 .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                                 .requestMatchers("/api/auth/**").permitAll()
+                                .requestMatchers(HttpMethod.POST, "/api/forms/upload-attachment").permitAll()
                                 .requestMatchers(HttpMethod.POST, "/api/forms/submit").permitAll()
                                 .requestMatchers(HttpMethod.GET, "/api/forms/**").permitAll()
                                 .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()

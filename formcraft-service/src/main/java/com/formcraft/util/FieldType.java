@@ -10,5 +10,6 @@ public enum FieldType {
     DATE,
     TEXTAREA,
     RATING,
-    LINEAR_SCALE
+    LINEAR_SCALE,
+    FILE
 }

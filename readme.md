@@ -1,79 +1,65 @@
-# FormCraft - Dynamic Form Builder Platform
+# FormCraft - Enterprise Form Building Re-imagined
 
-FormCraft is a production-ready, industry-standard Spring Boot application designed to build, render, and manage dynamic forms. It features a flexible schema system that stores form structures and user responses as JSONB in PostgreSQL.
+![FormCraft Banner](https://img.shields.io/badge/FormCraft-V1.0.0-blue?style=for-the-badge&logo=spring&logoColor=white)
+![Build Status](https://img.shields.io/badge/Build-Passing-success?style=for-the-badge)
+![License](https://img.shields.io/badge/License-Proprietary-red?style=for-the-badge)
 
-## 🚀 Core Features
+FormCraft is a high-performance, industry-ready platform designed to model, render, and manage dynamic forms with extreme flexibility. Built using **Spring Boot 3.2** and **React + Vite**, it leverages a JSONB-based schema architecture within PostgreSQL to enable schema-less data storage while maintaining strict backend validation.
 
-- **Dynamic Form Builder**: Support for custom JSON schemas defining fields like Text, Number, Email, Dropdowns, and more.
-- **Dynamic Rendering Support**: API endpoints to fetch schemas for runtime rendering.
-- **Robust Validation**: Backend schema-based validation ensuring data integrity (Required fields, Email formats, etc.).
-- **Security**: Stateless JWT Authentication with Refresh Token support and RBAC (Admin/Guest).
-- **Audit Logging**: Automatic tracking of `createdAt`, `updatedAt`, `createdBy`, and `updatedBy`.
-- **Performance**: Paginated responses for forms and submissions.
-- **DevOps Ready**: Docker and Docker Compose support, health monitoring via Actuator, and Request Tracing via MDC.
+---
 
-## 🛠️ Tech Stack
+## 🚀 Vision
+Standard forms are rigid. **FormCraft** allows developers and businesses to create complex, multi-field forms on-the-fly, validate them with high precision, and analyze the resulting data in real-time. With the integration of **Google Gemini AI**, form creation is as easy as describing what you need.
 
-- **Backend**: Java 17, Spring Boot 3.2.x
-- **Database**: PostgreSQL 15 (using JSONB for dynamic data)
-- **Security**: Spring Security 6, JJWT
-- **Migrations**: Flyway
-- **Documentation**: SpringDoc OpenAPI (Swagger UI)
-- **Monitoring**: Spring Boot Actuator
+## 🛠 Features
+- **Dynamic Field System**: Support for diverse input types (Text, Number, Email, Dropdowns, Date, File Uploads).
+- **AI-Powered Builder**: Generate entire form structures from simple natural language prompts.
+- **Stateless Security**: Secure JWT-based authentication with high-integrity Refresh Token rotation.
+- **Enterprise Auditing**: Complete history tracking for all form modifications and responses.
+- **Production Performance**: Paginated APIs, optimized JSONB queries, and high-speed delivery.
+- **Sleek Interface**: A modern, high-end UI built with React, Tailwind CSS, and Framer Motion.
 
-## 🏗️ Architecture
+---
 
-The project follows a **Layered Architecture**:
-1. **Controller**: Handles REST endpoints and user authorization.
-2. **Service**: Contains business logic, including dynamic schema validation.
-3. **Repository**: Data access layer using Spring Data JPA.
-4. **Entity**: JPA entities extending a `BaseEntity` for auditing.
-5. **DTO/Mapper**: Decouples internal data models from API contracts.
+## 🧩 Tech Ecosystem
 
-## 🏁 Getting Started
+| Tier | Technologies |
+| :--- | :--- |
+| **Frontend** | React, Vite, Tailwind CSS, Radix UI, Framer Motion |
+| **Backend** | Java 17, Spring Boot 3.2, Spring Security 6 |
+| **Database** | PostgreSQL 15 (JSONB), Flyway |
+| **AI Integration** | Google Gemini Generative AI |
+| **Storage** | Cloudinary (Image/Assets) |
+| **Monitoring** | Spring Boot Actuator, MDC Logging |
 
-### Prerequisites
-- Docker & Docker Compose
-- Maven (if running without Docker)
-- Java 17
+---
 
-### Local setup with Docker (Recommended)
+## 📖 Complete Documentation
+
+Explore our deep-dive documentation for technical details, setup guides, and API specifications:
+
+1.  **[Getting Started](./docs/Setup.md)**: Standard installation and Docker orchestration.
+2.  **[System Architecture](./docs/Architecture.md)**: Data models, security flows, and architecture principles.
+3.  **[Backend Engineering](./docs/Backend.md)**: Service layer, Security, and JPA implementations.
+4.  **[Frontend UI Guide](./docs/Frontend.md)**: Design system, components, and state management.
+5.  **[API Reference](./docs/API_Reference.md)**: Comprehensive REST API specifications.
+6.  **[Contributing](./docs/Contributing.md)**: Development standards and workflow.
+
+---
+
+## ⚡ Quick Start (Docker)
+
+Spin up the entire stack with a single command:
+
 ```bash
-docker-compose up --build
+docker-compose up -d --build
 ```
-This will start the PostgreSQL database and the Spring Boot API on port `8080`.
 
-### Database Migrations
-Flyway automatically runs migrations on startup. Initial roles and schema are defined in `src/main/resources/db/migration/V1__init_schema.sql`.
+- **Frontend**: [http://localhost:5173](http://localhost:5173)
+- **Backend API**: [http://localhost:8080/api](http://localhost:8080/api)
+- **Swagger UI**: [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
 
-## 📖 API Documentation
-Once the application is running, access the Swagger UI at:
-`http://localhost:8080/swagger-ui.html`
+---
 
-## 🔐 Authentication
-- **Login**: `POST /api/auth/login`
-- **Refresh**: `POST /api/auth/refresh-token`
-- **Logout**: `POST /api/auth/logout`
-
-## 📝 Schema Example
-To create a form, send a POST request with a schema like this:
-```json
-{
-  "name": "Contact Form",
-  "schema": {
-    "fields": [
-      { "type": "text", "label": "Full Name", "required": true },
-      { "type": "email", "label": "Work Email", "required": true }
-    ]
-  }
-}
-```
-Validation will ensure that submissions to this form contain both fields and that the email is valid.
-
-## 📁 Project Structure
-- `com.formcraft.controller`: REST APIs
-- `com.formcraft.service`: Business Logic & Validation
-- `com.formcraft.entity`: Database Models (JSONB)
-- `com.formcraft.security`: JWT & RBAC Logic
-- `com.formcraft.config`: Global configurations (CORS, Swagger, Auditing)
-- `com.formcraft.util`: Helpers (MDC Tracing, Form Validator)
+## ✉️ Support & License
+Developed for Murali Sir Projects. Proprietary License. All rights reserved.
