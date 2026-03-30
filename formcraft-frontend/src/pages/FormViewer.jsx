@@ -241,6 +241,20 @@ const FormViewer = () => {
     </div>
   );
 
+  // If form is null after loading, or critical error occurred
+  if (!form || error) {
+    return (
+      <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center p-6 text-center">
+        <div className="max-w-md w-full bg-white p-10 rounded-3xl shadow-sm border border-slate-100">
+           <AlertCircle size={48} className="text-red-500 mx-auto mb-4" />
+           <h2 className="text-xl font-bold text-slate-900 mb-2">Node Isolation Failure</h2>
+           <p className="text-slate-500 text-sm mb-6">{error || "The form you are looking for does not exist or has been disconnected."}</p>
+           <Link to="/" className="text-xs font-bold text-slate-400 uppercase tracking-widest hover:text-slate-900">Return to Portal</Link>
+        </div>
+      </div>
+    );
+  }
+
   if (submitted) return (
     <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center p-6">
       <motion.div 
