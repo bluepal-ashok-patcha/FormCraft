@@ -62,7 +62,7 @@ const CategoryManager = ({ isOpen, onClose }) => {
   };
 
   const handleDeleteCategory = async (id) => {
-    if (!window.confirm('PROTOCOL WARNING: Deleting this sector may leave associated blueprints uncategorized. Proceed?')) return;
+    if (!window.confirm('WARNING: Deleting this category will leave its forms uncategorized. Proceed?')) return;
     
     try {
       await api.delete(`/templates/categories/${id}`);
@@ -98,8 +98,8 @@ const CategoryManager = ({ isOpen, onClose }) => {
               <Settings2 className="text-brand-default" size={20} />
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-slate-900 uppercase tracking-tight leading-none">Taxonomy Command Center</h2>
-              <p className="text-slate-400 text-[9px] font-semibold uppercase tracking-[0.2em] mt-2 opacity-80">Manage Industry Sectors // v1.0</p>
+              <h2 className="text-lg font-semibold text-slate-900 uppercase tracking-tight leading-none">Category Manager</h2>
+              <p className="text-slate-400 text-[9px] font-semibold uppercase tracking-[0.2em] mt-2 opacity-80">Organize Form Topics</p>
             </div>
           </div>
           <button 
@@ -118,7 +118,7 @@ const CategoryManager = ({ isOpen, onClose }) => {
               className="w-full py-4 border-2 border-dashed border-slate-200 rounded-2xl flex items-center justify-center gap-3 text-slate-400 hover:border-brand-default hover:text-brand-default hover:bg-brand-50/30 transition-all group"
             >
               <Plus size={20} className="group-hover:rotate-90 transition-transform" />
-              <span className="text-xs font-semibold uppercase tracking-widest">Register New Industry Sector</span>
+              <span className="text-xs font-semibold uppercase tracking-widest">Add New Category</span>
             </button>
 
             <AnimatePresence>
@@ -130,26 +130,16 @@ const CategoryManager = ({ isOpen, onClose }) => {
                   onSubmit={handleAddCategory}
                   className="overflow-hidden mt-4 bg-slate-50 rounded-2xl border border-slate-100 p-6"
                 >
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div className="grid grid-cols-1 gap-4 mb-4">
                     <div className="space-y-1.5">
-                      <label className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest">Sector Label (UI)</label>
+                      <label className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest">Category Name</label>
                       <input 
                         type="text"
-                        placeholder="Ex. User Registration"
-                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-brand-default transition-all"
+                        placeholder="Ex. Marketing Forms"
+                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3.5 text-xs font-semibold text-slate-800 outline-none focus:border-brand-default transition-all"
                         value={newCategory.label}
                         onChange={(e) => setNewCategory({...newCategory, label: e.target.value})}
                         required
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest">Logic Name (Technical)</label>
-                      <input 
-                        type="text"
-                        placeholder="Ex. USER_REGISTRATION"
-                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-brand-default transition-all"
-                        value={newCategory.name}
-                        onChange={(e) => setNewCategory({...newCategory, name: e.target.value})}
                       />
                     </div>
                   </div>
@@ -158,7 +148,7 @@ const CategoryManager = ({ isOpen, onClose }) => {
                       type="submit"
                       className="flex-1 py-2.5 bg-brand-default text-white rounded-xl text-[10px] font-semibold uppercase tracking-widest shadow-lg shadow-brand-default/20 hover:scale-[1.02] active:scale-95 transition-all"
                     >
-                      Authorize Registration
+                      Save Category
                     </button>
                     <button 
                       type="button"
@@ -177,7 +167,7 @@ const CategoryManager = ({ isOpen, onClose }) => {
           <div className="space-y-3">
             <h4 className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
               <Tag size={12} />
-              Active Industry Registry
+              Existing Form Categories
             </h4>
             
             {loading ? (

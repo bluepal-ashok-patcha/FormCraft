@@ -23,6 +23,7 @@ public class DashboardService {
 
     private final FormRepository formRepository;
     private final FormResponseRepository formResponseRepository;
+    private final com.formcraft.repository.builder.FormDraftRepository formDraftRepository;
 
     @Transactional(readOnly = true)
     public DashboardStatsResponse getDashboardStats(String range) {
@@ -31,14 +32,17 @@ public class DashboardService {
                 .stream().anyMatch(a -> a.getAuthority().equals("ROLE_SUPER_ADMIN"));
         
         long totalForms = isSuperAdmin ? formRepository.count() : formRepository.countByCreatedBy(username);
-        long totalResponses = isSuperAdmin ? formResponseRepository.count() : formResponseRepository.countByFormCreatedBy(username);
+        long totalDrafts = isSuperAdmin ? formDraftRepository.count() : formDraftRepository.countByCreatedBy(username);
         long activeForms = isSuperAdmin ? formRepository.countByStatus(com.formcraft.enums.FormStatus.ACTIVE) : formRepository.countByCreatedByAndStatus(username, com.formcraft.enums.FormStatus.ACTIVE);
         
-        LocalDateTime startOfToday = LocalDateTime.now().withHour(0).withMinute(0).withSecond(0).withNano(0);
-        long responsesToday = isSuperAdmin ? formResponseRepository.countByCreatedAtGreaterThanEqual(startOfToday) : formResponseRepository.countByFormCreatedByAndCreatedAtGreaterThanEqual(username, startOfToday);
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime tomorrowAfter = now.plusHours(48);
+        long expiringSoon = isSuperAdmin ? formRepository.countByExpiresAtBetween(now, tomorrowAfter) : formRepository.countByCreatedByAndExpiresAtBetween(username, now, tomorrowAfter);
+
+        LocalDateTime startOfLast24h = LocalDateTime.now().minusHours(24);
+        long responsesLast24h = isSuperAdmin ? formResponseRepository.countByCreatedAtGreaterThanEqual(startOfLast24h) : formResponseRepository.countByFormCreatedByAndCreatedAtGreaterThanEqual(username, startOfLast24h);
         
-        double rate = totalForms > 0 ? (double) activeForms / totalForms * 100 : 0;
-        double avgResponses = totalForms > 0 ? (double) totalResponses / totalForms : 0;
+        double avgResponses = totalForms > 0 ? (double) (isSuperAdmin ? formResponseRepository.count() : formResponseRepository.countByFormCreatedBy(username)) / totalForms : 0;
         
         // Recently created forms
         List<Form> recentForms = isSuperAdmin ? formRepository.findTop5ByOrderByCreatedAtDesc() : formRepository.findTop5ByCreatedByOrderByCreatedAtDesc(username);
@@ -86,10 +90,10 @@ public class DashboardService {
                 
         return DashboardStatsResponse.builder()
                 .totalForms(totalForms)
-                .totalResponses(totalResponses)
+                .totalDrafts(totalDrafts)
                 .activeForms(activeForms)
-                .responsesToday(responsesToday)
-                .submissionRate(rate)
+                .responsesLast24h(responsesLast24h)
+                .expiringSoon(expiringSoon)
                 .avgResponsesPerForm(avgResponses)
                 .recentActivity(activities.stream().limit(5).collect(Collectors.toList()))
                 .chartData(chartData)

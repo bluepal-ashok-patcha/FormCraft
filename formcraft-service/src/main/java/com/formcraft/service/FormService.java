@@ -28,4 +28,10 @@ public interface FormService {
     
     void deleteForm(UUID id);
     FormDto updateForm(UUID id, FormRequest request);
+    
+    // Form Builder Draft Methods
+    java.util.UUID saveDraft(UUID draftId, UUID formId, FormRequest request);
+    com.formcraft.dto.response.FormDraftDto getDraft(UUID formId);
+    java.util.List<com.formcraft.dto.response.FormDraftDto> getAllDrafts();
+    void deleteDraft(UUID formId, UUID draftId);
 }

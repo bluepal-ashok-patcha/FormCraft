@@ -147,9 +147,9 @@ const FormResponses = () => {
     );
   });
 
-  // Extract keys from response data to use as headers
-  // We'll use the first response's keys or fallback to schema fields
-  const headers = form?.schema?.fields?.map(f => f.label) || [];
+  // Extract mapping from schema fields
+  const fieldMapping = form?.schema?.fields || [];
+  const headers = fieldMapping.map(f => ({ id: f.id, label: f.label }));
 
   if (loading) return (
     <div className="flex items-center justify-center h-[60vh]">
@@ -345,7 +345,7 @@ const FormResponses = () => {
               <tr className="border-b border-slate-100">
                 <th className="px-8 py-4 text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Record Profile</th>
                 {headers.map(h => (
-                  <th key={h} className="px-8 py-4 text-[11px] font-semibold text-slate-400 uppercase tracking-widest">{h}</th>
+                  <th key={h.id} className="px-8 py-4 text-[11px] font-semibold text-slate-400 uppercase tracking-widest">{h.label}</th>
                 ))}
                 <th className="px-8 py-4 text-[11px] font-semibold text-slate-400 uppercase tracking-widest text-right">Receipt Details</th>
                 <th className="px-8 py-4 text-[11px] font-semibold text-slate-400 uppercase tracking-widest text-center">Actions</th>
@@ -370,17 +370,20 @@ const FormResponses = () => {
                         <span className="text-[11px] font-semibold text-slate-500 font-mono tracking-tight">#{resp.id.split('-')[0].toUpperCase()}</span>
                       </div>
                     </td>
-                    {headers.map(h => (
-                      <td key={h} className="px-8 py-5">
-                        <span className="text-sm font-semibold text-slate-700">
-                          {Array.isArray(resp.responseData[h]) 
-                            ? resp.responseData[h].join(', ') 
-                            : (typeof resp.responseData[h] === 'string' && resp.responseData[h].startsWith('http') && resp.responseData[h].includes('cloudinary')
-                                ? <a href={resp.responseData[h]} target="_blank" rel="noopener noreferrer" className="text-brand-default hover:underline flex items-center gap-1"><Paperclip size={12} /> View Asset</a>
-                                : (resp.responseData[h] || '-'))}
-                        </span>
-                      </td>
-                    ))}
+                    {headers.map(h => {
+                      const value = resp.responseData[h.id] !== undefined ? resp.responseData[h.id] : resp.responseData[h.label];
+                      return (
+                        <td key={h.id} className="px-8 py-5">
+                          <span className="text-sm font-semibold text-slate-700">
+                            {Array.isArray(value) 
+                              ? value.join(', ') 
+                              : (typeof value === 'string' && value.startsWith('http') && value.includes('cloudinary')
+                                  ? <a href={value} target="_blank" rel="noopener noreferrer" className="text-brand-default hover:underline flex items-center gap-1"><Paperclip size={12} /> View Asset</a>
+                                  : (value || '-'))}
+                          </span>
+                        </td>
+                      );
+                    })}
                     <td className="px-8 py-5 text-right whitespace-nowrap">
                         <span className="text-[11px] font-semibold text-slate-700 uppercase tracking-tight">
                           {new Date(resp.submittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -519,36 +522,39 @@ const FormResponses = () => {
                     {isEditing ? (
                       <input 
                         className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-[4px] text-sm font-medium focus:outline-none focus:border-brand-default transition-all"
-                        value={editData[field.label] || ''}
-                        onChange={(e) => setEditData({ ...editData, [field.label]: e.target.value })}
+                        value={editData[field.id] !== undefined ? editData[field.id] : editData[field.label] || ''}
+                        onChange={(e) => setEditData({ ...editData, [field.id]: e.target.value })}
                         placeholder={`Enter ${field.label.toLowerCase()}...`}
                       />
                     ) : (
                       <div className="p-3 bg-slate-50 border border-slate-100 rounded-[4px]">
-                        {typeof selectedResponse.responseData[field.label] === 'string' && selectedResponse.responseData[field.label].startsWith('http') && selectedResponse.responseData[field.label].includes('cloudinary') ? (
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <div className="w-8 h-8 bg-brand-50 text-brand-default rounded flex items-center justify-center">
-                                <Paperclip size={14} />
+                        {(() => {
+                           const value = selectedResponse.responseData[field.id] !== undefined ? selectedResponse.responseData[field.id] : selectedResponse.responseData[field.label];
+                           return typeof value === 'string' && value.startsWith('http') && value.includes('cloudinary') ? (
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 bg-brand-50 text-brand-default rounded flex items-center justify-center">
+                                  <Paperclip size={14} />
+                                </div>
+                                <span className="text-sm font-semibold text-brand-default">External Attachment</span>
                               </div>
-                              <span className="text-sm font-semibold text-brand-default">External Attachment</span>
+                              <a 
+                                href={value} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="px-3 py-1 bg-white border border-slate-200 rounded text-[10px] font-bold text-slate-600 hover:text-brand-default hover:border-brand-default transition-all shadow-sm"
+                              >
+                                Open Protocol
+                              </a>
                             </div>
-                            <a 
-                              href={selectedResponse.responseData[field.label]} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="px-3 py-1 bg-white border border-slate-200 rounded text-[10px] font-bold text-slate-600 hover:text-brand-default hover:border-brand-default transition-all shadow-sm"
-                            >
-                              Open Protocol
-                            </a>
-                          </div>
-                        ) : (
-                          <p className="text-sm font-semibold text-slate-700">
-                            {Array.isArray(selectedResponse.responseData[field.label]) 
-                              ? selectedResponse.responseData[field.label].join(', ') 
-                              : (selectedResponse.responseData[field.label] || '-')}
-                          </p>
-                        )}
+                          ) : (
+                            <p className="text-sm font-semibold text-slate-700">
+                              {Array.isArray(value) 
+                                ? value.join(', ') 
+                                : (value || '-')}
+                            </p>
+                          );
+                        })()}
                       </div>
                     )}
                   </div>

@@ -2,9 +2,11 @@ package com.formcraft.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import lombok.Data;
 
-@Data
+@lombok.Data
+@lombok.Builder
+@lombok.NoArgsConstructor
+@lombok.AllArgsConstructor
 @io.swagger.v3.oas.annotations.media.Schema(description = "Details needed to create or update a form.")
 public class FormRequest {
     @NotBlank(message = "Form name is required")

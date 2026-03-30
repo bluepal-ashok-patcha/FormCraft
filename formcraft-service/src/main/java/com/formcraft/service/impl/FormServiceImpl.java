@@ -34,6 +34,7 @@ import java.util.ArrayList;
 @RequiredArgsConstructor
 public class FormServiceImpl implements FormService {
 
+    private final com.formcraft.repository.builder.FormDraftRepository formDraftRepository;
     private final FormRepository formRepository;
     private final FormResponseRepository formResponseRepository;
     private final FormMapper formMapper;
@@ -299,6 +300,102 @@ public class FormServiceImpl implements FormService {
             if (startsAt != null && expiresAt.isBefore(startsAt)) {
                 throw new BusinessLogicException("Expiration date must be after the start date.");
             }
+        }
+    }
+
+    @Override
+    @Transactional
+    public java.util.UUID saveDraft(UUID draftId, UUID formId, FormRequest request) {
+        String username = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+        com.formcraft.entity.builder.FormDraft draft = null;
+        
+        // 1. Try to find by draftId first (Session Restoration)
+        if (draftId != null) {
+            draft = formDraftRepository.findById(draftId).orElse(null);
+        }
+        
+        // 2. If nothing found, but we are editing an existing form, check by formId
+        if (draft == null && formId != null) {
+            draft = formDraftRepository.findByCreatedByAndFormId(username, formId).orElse(null);
+        }
+
+        // 3. Last fallback: Create a new draft session (don't clobber others)
+        if (draft == null) {
+            draft = com.formcraft.entity.builder.FormDraft.builder()
+                    .createdBy(username)
+                    .formId(formId)
+                    .build();
+        }
+
+        draft.setName(request.getName());
+        draft.setSchema(request.getSchema());
+        draft.setStartsAt(request.getStartsAt());
+        draft.setExpiresAt(request.getExpiresAt());
+        draft.setBannerUrl(request.getBannerUrl());
+        draft.setThemeColor(request.getThemeColor());
+        
+        return formDraftRepository.save(draft).getId();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public com.formcraft.dto.response.FormDraftDto getDraft(UUID formId) {
+        String username = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+        com.formcraft.entity.builder.FormDraft draft = null;
+        
+        if (formId != null) {
+            draft = formDraftRepository.findByCreatedByAndFormId(username, formId).orElse(null);
+        } else {
+            // Finding the LATEST draft for new forms
+            draft = formDraftRepository.findAllByCreatedBy(username).stream()
+                    .filter(d -> d.getFormId() == null)
+                    .max(java.util.Comparator.comparing(com.formcraft.entity.builder.FormDraft::getUpdatedAt))
+                    .orElse(null);
+        }
+
+        if (draft == null) return null;
+
+        return com.formcraft.dto.response.FormDraftDto.builder()
+                .id(draft.getId())
+                .formId(draft.getFormId())
+                .name(draft.getName())
+                .schema(draft.getSchema())
+                .startsAt(draft.getStartsAt())
+                .expiresAt(draft.getExpiresAt())
+                .bannerUrl(draft.getBannerUrl())
+                .themeColor(draft.getThemeColor())
+                .updatedAt(draft.getUpdatedAt())
+                .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public java.util.List<com.formcraft.dto.response.FormDraftDto> getAllDrafts() {
+        String username = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+        return formDraftRepository.findAllByCreatedBy(username).stream()
+                .map(draft -> com.formcraft.dto.response.FormDraftDto.builder()
+                        .id(draft.getId())
+                        .formId(draft.getFormId())
+                        .name(draft.getName())
+                        .schema(draft.getSchema())
+                        .startsAt(draft.getStartsAt())
+                        .expiresAt(draft.getExpiresAt())
+                        .bannerUrl(draft.getBannerUrl())
+                        .themeColor(draft.getThemeColor())
+                        .updatedAt(draft.getUpdatedAt())
+                        .build())
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    @Override
+    @Transactional
+    public void deleteDraft(UUID formId, UUID draftId) {
+        String username = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+        
+        if (draftId != null) {
+             formDraftRepository.findById(draftId).ifPresent(formDraftRepository::delete);
+        } else if (formId != null) {
+            formDraftRepository.findByCreatedByAndFormId(username, formId).ifPresent(formDraftRepository::delete);
         }
     }
 }

@@ -224,7 +224,7 @@ const TemplateHub = () => {
   const [showCategoryManager, setShowCategoryManager] = useState(false);
   const [modalConfig, setModalConfig] = useState({ isOpen: false });
 
-  const isAdmin = user?.roles?.includes('ROLE_ADMIN') || user?.roles?.includes('ROLE_SUPER_ADMIN');
+  const isSuperAdmin = user?.roles?.includes('ROLE_SUPER_ADMIN');
 
   useEffect(() => {
     fetchInitialData();
@@ -390,13 +390,13 @@ const TemplateHub = () => {
           </div>
           
           <div className="flex items-center gap-3 shrink-0 w-full md:w-auto">
-            {isAdmin && (
+            {isSuperAdmin && (
               <button 
                 onClick={() => setShowCategoryManager(true)}
                 className="px-6 py-3 bg-white/5 hover:bg-white/10 rounded-xl text-[10px] font-semibold uppercase tracking-widest text-brand-default border border-white/10 transition-all flex items-center gap-2 group"
               >
                 <Settings2 size={16} className="group-hover:rotate-90 transition-transform duration-500" />
-                Manage Taxonomy
+                Manage Categories
               </button>
             )}
             <button 

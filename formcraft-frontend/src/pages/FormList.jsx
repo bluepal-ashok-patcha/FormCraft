@@ -27,7 +27,8 @@ import {
   List,
   MoreVertical,
   ExternalLink,
-  Palette
+  Palette,
+  Layout
 } from 'lucide-react';
 import api from '../services/api';
 import { toast } from 'react-toastify';
@@ -50,7 +51,7 @@ const DEFAULT_THEMES = [
 ];
 
 /* ── Professional Technical Registry Card — Focal Reveal Effect ── */
-const FormCard = ({ form, idx, isLive, isOffline, onNavigateResponses, activeMenuId, setActiveMenuId, onOpenForm, onEditForm, onToggleStatus, onCopyLink, onDeleteForm }) => {
+const FormCard = ({ form, idx, isLive, isOffline, onNavigateResponses, activeMenuId, setActiveMenuId, onOpenForm, onEditForm, onEditArchitecture, onToggleStatus, onCopyLink, onDeleteForm }) => {
   const [hovered, setHovered] = useState(false);
 
   const statusConfig = isLive
@@ -70,9 +71,9 @@ const FormCard = ({ form, idx, isLive, isOffline, onNavigateResponses, activeMen
     >
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header: Identity & Status */}
-        <div className={`p-5 flex items-start justify-between border-b border-slate-50 bg-slate-50/30 transition-all duration-500 ${hovered ? 'bg-white' : ''}`}>
-          <div className="space-y-1 truncate">
-            <h3 className="text-base font-bold text-slate-900 truncate uppercase tracking-tight">
+        <div className={`p-5 flex items-start gap-4 border-b border-slate-50 bg-slate-50/30 transition-all duration-500 ${hovered ? 'bg-white' : ''}`}>
+          <div className="space-y-1 min-w-0 flex-1">
+            <h3 className="text-base font-bold text-slate-900 truncate uppercase tracking-tight" title={form.name}>
               {form.name}
             </h3>
             <div className="flex items-center gap-2">
@@ -102,9 +103,10 @@ const FormCard = ({ form, idx, isLive, isOffline, onNavigateResponses, activeMen
                     className="absolute right-0 top-full mt-2 w-48 bg-white border border-slate-200 rounded-xl shadow-2xl z-30 py-2 overflow-hidden"
                   >
                     {[
-                      { label: 'Analyze Data', icon: BarChart2, onClick: () => onNavigateResponses(form.id) },
-                      { label: 'Edit Form', icon: Edit, onClick: () => onEditForm(form) },
-                      { label: 'Preview', icon: Eye, onClick: () => onOpenForm(form.slug) },
+                      { label: 'View Responses', icon: BarChart2, onClick: () => onNavigateResponses(form.id) },
+                      { label: 'Edit Fields', icon: Layout, onClick: () => onEditArchitecture(form) },
+                      { label: 'Edit Metadata', icon: Edit, onClick: () => onEditForm(form) },
+                      { label: 'Open Form', icon: Eye, onClick: () => onOpenForm(form.slug) },
                       { label: 'Copy Link', icon: Share2, onClick: () => onCopyLink(form.slug, form.id) },
                       { label: isLive ? 'Take Offline' : 'Go Live', icon: Power, onClick: () => onToggleStatus(form.id), danger: isLive },
                       { label: 'Delete Form', icon: Trash2, onClick: () => onDeleteForm(form), danger: true }
@@ -288,6 +290,11 @@ const FormList = () => {
     }
   };
 
+  const handleEditArchitecture = (form) => {
+    navigate('/builder', { state: { form, isEdit: true, isLiveForm: true } });
+    toast.info('Architectural Link Established: Loading live blueprint for recalibration.');
+  };
+
   const handleDeleteForm = (form) => {
     setModal({ isOpen: true, type: 'delete', form });
   };
@@ -408,18 +415,6 @@ const FormList = () => {
               <Plus size={14} />
               Register New Form
             </button>
-            {/* The following buttons seem to be misplaced from a FormBuilder component's tab navigation */}
-            {/* I'm commenting them out as they don't fit the context of FormList's header */}
-            {/* <Clock size={14} />
-            <span>Schedule</span>
-            </button>
-            <button
-                onClick={() => setActiveTab('theme')}
-                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition-all ${activeTab === 'theme' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-            >
-                <Palette size={14} />
-                <span>Appearance</span>
-            </button> */}
           </div>
         </div>
       </motion.div>
@@ -521,31 +516,6 @@ const FormList = () => {
         </div>
       </motion.div>
 
-      {/* 📊 ANALYTIC CHIPS */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        {[
-          { label: 'Total Registry', value: stats.totalForms || totalElements, icon: FileText, color: 'blue' },
-          { label: 'Active Assets', value: stats.activeForms || 0, icon: Power, color: 'emerald' },
-          { label: 'Form Responses', value: stats.totalResponses || 0, icon: BarChart2, color: 'orange' },
-          { label: 'Offline Assets', value: (stats.totalForms || 0) - (stats.activeForms || 0), icon: X, color: 'rose' }
-        ].map((stat, i) => (
-          <motion.div
-            key={stat.label}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.1 }}
-            className="bg-white border border-slate-100 p-5 rounded-enterprise shadow-sm flex items-center gap-5 group hover:border-brand-default/30 transition-all"
-          >
-            <div className={`w-12 h-12 rounded-xl bg-${stat.color === 'blue' ? 'blue' : stat.color === 'emerald' ? 'emerald' : stat.color === 'orange' ? 'orange' : 'purple'}-500/10 text-${stat.color === 'blue' ? 'blue' : stat.color === 'emerald' ? 'emerald' : stat.color === 'orange' ? 'orange' : 'purple'}-500 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform`}>
-              <stat.icon size={20} />
-            </div>
-            <div>
-              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">{stat.label}</p>
-              <h4 className="text-2xl font-bold text-slate-900 tracking-tight">{stat.value}</h4>
-            </div>
-          </motion.div>
-        ))}
-      </div>
 
       {/* 🕹️ OPERATIONAL VIEWPORT */}
       <div className={`transition-opacity duration-300 ${refreshing ? 'opacity-50' : 'opacity-100'}`}>
@@ -574,6 +544,7 @@ const FormList = () => {
                   setActiveMenuId={setActiveMenuId}
                   onOpenForm={(slug) => window.open(`/f/${slug}`, '_blank')}
                   onEditForm={openEditModal}
+                  onEditArchitecture={handleEditArchitecture}
                   onToggleStatus={handleToggleStatus}
                   onCopyLink={handleCopyLink}
                   onDeleteForm={handleDeleteForm}
@@ -686,11 +657,18 @@ const FormList = () => {
                                         <span className="text-[11px] font-semibold text-slate-600 uppercase tracking-widest">Open Form</span>
                                       </button>
                                       <button
+                                        onClick={() => { handleEditArchitecture(form); setActiveMenuId(null); }}
+                                        className="w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-slate-50 transition-colors"
+                                      >
+                                        <Layout size={14} className="text-indigo-500" />
+                                        <span className="text-[11px] font-semibold text-slate-600 uppercase tracking-widest">Edit Fields</span>
+                                      </button>
+                                      <button
                                         onClick={() => { openEditModal(form); setActiveMenuId(null); }}
                                         className="w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-slate-50 transition-colors"
                                       >
                                         <Edit size={14} className="text-blue-500" />
-                                        <span className="text-[11px] font-semibold text-slate-600 uppercase tracking-widest">Edit Form</span>
+                                        <span className="text-[11px] font-semibold text-slate-600 uppercase tracking-widest">Edit Metadata</span>
                                       </button>
                                       <button
                                         onClick={() => { handleToggleStatus(form.id); setActiveMenuId(null); }}

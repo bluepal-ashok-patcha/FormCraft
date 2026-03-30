@@ -137,9 +137,9 @@ const FormViewer = () => {
     let firstErrorField = null;
 
     fields.forEach(field => {
-        const errorMsg = validateField(field, responses[field.label]);
+        const errorMsg = validateField(field, responses[field.id]);
         if (errorMsg) {
-            newErrors[field.label] = errorMsg;
+            newErrors[field.id] = errorMsg;
             if (!firstErrorField) firstErrorField = field.id;
         }
     });
@@ -171,39 +171,39 @@ const FormViewer = () => {
 
   const handleCheckboxChange = (field, option, checked) => {
     setResponses(prev => {
-      const current = prev[field.label] || [];
+      const current = prev[field.id] || [];
       const newValue = checked ? [...current, option] : current.filter(item => item !== option);
       
       // Inline Validation (only if touched or previously errored)
-      if (touched[field.label] || Object.keys(formErrors).length > 0) {
+      if (touched[field.id] || Object.keys(formErrors).length > 0) {
         const errorMsg = validateField(field, newValue);
-        setFormErrors(prevErrors => ({ ...prevErrors, [field.label]: errorMsg }));
+        setFormErrors(prevErrors => ({ ...prevErrors, [field.id]: errorMsg }));
       }
       
-      return { ...prev, [field.label]: newValue };
+      return { ...prev, [field.id]: newValue };
     });
   };
 
   const handleBlur = (field) => {
-    setTouched(prev => ({ ...prev, [field.label]: true }));
-    const errorMsg = validateField(field, responses[field.label]);
-    setFormErrors(prev => ({ ...prev, [field.label]: errorMsg }));
+    setTouched(prev => ({ ...prev, [field.id]: true }));
+    const errorMsg = validateField(field, responses[field.id]);
+    setFormErrors(prev => ({ ...prev, [field.id]: errorMsg }));
   };
 
   const handleChange = (field, value) => {
-    setResponses(prev => ({ ...prev, [field.label]: value }));
+    setResponses(prev => ({ ...prev, [field.id]: value }));
     
     // Inline Validation (only if touched or previously errored)
-    if (touched[field.label] || Object.keys(formErrors).length > 0) {
+    if (touched[field.id] || Object.keys(formErrors).length > 0) {
       const errorMsg = validateField(field, value);
-      setFormErrors(prev => ({ ...prev, [field.label]: errorMsg }));
+      setFormErrors(prev => ({ ...prev, [field.id]: errorMsg }));
     }
   };
 
   const handleFileUpload = async (field, file) => {
     if (!file) return;
 
-    setUploadingFields(prev => ({ ...prev, [field.label]: true }));
+    setUploadingFields(prev => ({ ...prev, [field.id]: true }));
     const formData = new FormData();
     formData.append('file', file);
 
@@ -223,7 +223,7 @@ const FormViewer = () => {
       console.error('Upload failed:', err);
       toast.error(`Protocol Error: Asset synchronization for ${file.name} failed.`);
     } finally {
-      setUploadingFields(prev => ({ ...prev, [field.label]: false }));
+      setUploadingFields(prev => ({ ...prev, [field.id]: false }));
     }
   };
 
@@ -361,7 +361,7 @@ const FormViewer = () => {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {form.schema?.fields?.map((field) => (
-            <div id={`field-${field.id}`} key={field.id} className={`bg-white p-6 md:p-8 rounded-xl border transition-all duration-300 shadow-sm space-y-6 ${formErrors[field.label] ? 'border-red-200 ring-2 ring-red-50' : 'border-slate-200'}`}>
+            <div id={`field-${field.id}`} key={field.id} className={`bg-white p-6 md:p-8 rounded-xl border transition-all duration-300 shadow-sm space-y-6 ${formErrors[field.id] ? 'border-red-200 ring-2 ring-red-50' : 'border-slate-200'}`}>
               <div className="space-y-2">
                 <label className="text-base font-normal text-slate-900 flex items-center gap-1">
                   {field.label}
@@ -375,7 +375,7 @@ const FormViewer = () => {
                         className="w-full bg-transparent border-b-2 border-slate-200 outline-none focus:border-brand-default transition-all py-3 px-1 text-sm font-semibold text-slate-700 min-h-[50px] resize-none placeholder:text-slate-300 placeholder:font-normal"
                         placeholder={field.placeholder || "Please provide details..."}
                         required={field.required}
-                        value={responses[field.label] || ''}
+                        value={responses[field.id] || ''}
                         onChange={(e) => handleChange(field, e.target.value)}
                         onBlur={() => handleBlur(field)}
                       />
@@ -384,7 +384,7 @@ const FormViewer = () => {
                         <select 
                         className="w-full bg-transparent border-b-2 border-slate-200 outline-none focus:border-brand-default transition-all py-3 px-1 text-sm font-semibold text-slate-700 appearance-none cursor-pointer pr-12"
                           required={field.required}
-                          value={responses[field.label] || ''}
+                          value={responses[field.id] || ''}
                           onChange={(e) => handleChange(field, e.target.value)}
                           onBlur={() => handleBlur(field)}
                         >
@@ -399,7 +399,7 @@ const FormViewer = () => {
                           type="date"
                           className="w-full bg-transparent border-b-2 border-slate-200 outline-none focus:border-brand-default transition-all py-3 px-1 text-sm font-semibold text-slate-700"
                           required={field.required}
-                          value={responses[field.label] || ''}
+                          value={responses[field.id] || ''}
                           onChange={(e) => handleChange(field, e.target.value)}
                           onBlur={() => handleBlur(field)}
                         />
@@ -409,7 +409,7 @@ const FormViewer = () => {
                         type="number"
                         className="w-full bg-transparent border-b-2 border-slate-200 outline-none focus:border-brand-default transition-all py-3 px-1 text-sm font-semibold text-slate-700 placeholder:text-slate-300 placeholder:font-normal"
                         placeholder={field.placeholder || "0"}
-                        value={responses[field.label] || ''}
+                        value={responses[field.id] || ''}
                         onChange={(e) => handleChange(field, e.target.value)}
                         onBlur={() => handleBlur(field)}
                       />
@@ -427,7 +427,7 @@ const FormViewer = () => {
                             <Star 
                               size={36} 
                               className={`transition-all duration-300 ${
-                                (hoverRating.fieldId === field.id ? hoverRating.value : (responses[field.label] || 0)) > i 
+                                (hoverRating.fieldId === field.id ? hoverRating.value : (responses[field.id] || 0)) > i 
                                   ? "fill-amber-400 text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.4)]" 
                                   : "text-slate-200"
                               }`} 
@@ -440,7 +440,7 @@ const FormViewer = () => {
                         <span className="text-sm text-slate-800 mt-6 font-normal min-w-[80px] text-right">{field.minLabel || ''}</span>
                         <div className="flex items-center gap-6">
                           {Array.from({ length: (field.max || 5) - (field.min || 0) + 1 }, (_, i) => (field.min || 0) + i).map((val) => {
-                             const isSelected = responses[field.label] === val;
+                             const isSelected = responses[field.id] === val;
                              return (
                               <div key={val} className="flex flex-col items-center gap-3">
                                   <span className="text-sm text-slate-600 font-normal">{val}</span>
@@ -466,11 +466,11 @@ const FormViewer = () => {
                                 type="radio"
                                 name={field.id}
                                 value={opt}
-                                checked={responses[field.label] === opt}
-                                required={field.required && !responses[field.label]}
+                                checked={responses[field.id] === opt}
+                                required={field.required && !responses[field.id]}
                                 onChange={(e) => handleChange(field, e.target.value)}
                                 className="peer h-5 w-5 cursor-pointer appearance-none rounded-full border border-slate-300 transition-all"
-                                style={responses[field.label] === opt ? { borderColor: form?.themeColor || '#6366f1' } : {}}
+                                style={responses[field.id] === opt ? { borderColor: form?.themeColor || '#6366f1' } : {}}
                               />
                               <div className="absolute h-2.5 w-2.5 rounded-full opacity-0 peer-checked:opacity-100 transition-opacity" style={{ backgroundColor: form?.themeColor || '#6366f1' }} />
                             </div>
@@ -486,10 +486,10 @@ const FormViewer = () => {
                               <input 
                                 type="checkbox"
                                 value={opt}
-                                checked={(responses[field.label] || []).includes(opt)}
+                                checked={(responses[field.id] || []).includes(opt)}
                                 onChange={(e) => handleCheckboxChange(field, opt, e.target.checked)}
                                 className="peer h-5 w-5 cursor-pointer appearance-none rounded border border-slate-300 transition-all rounded"
-                                style={(responses[field.label] || []).includes(opt) ? { borderColor: form?.themeColor || '#6366f1', backgroundColor: form?.themeColor || '#6366f1' } : {}}
+                                style={(responses[field.id] || []).includes(opt) ? { borderColor: form?.themeColor || '#6366f1', backgroundColor: form?.themeColor || '#6366f1' } : {}}
                               />
                               <CheckCircle2 className="absolute text-white opacity-0 peer-checked:opacity-100 transition-opacity" size={14} strokeWidth={4} />
                             </div>
@@ -499,15 +499,15 @@ const FormViewer = () => {
                       </div>
                     ) : field.type === 'file' ? (
                       <div className="space-y-4">
-                        <div className={`relative group transition-all duration-300 ${uploadingFields[field.label] ? 'opacity-70 pointer-events-none' : ''}`}>
-                          {responses[field.label] ? (
+                        <div className={`relative group transition-all duration-300 ${uploadingFields[field.id] ? 'opacity-70 pointer-events-none' : ''}`}>
+                          {responses[field.id] ? (
                             <div className="flex items-center gap-4 bg-emerald-50 border border-emerald-100 rounded-xl p-4 animate-in fade-in zoom-in duration-300">
                                <div className="w-10 h-10 bg-emerald-500 text-white rounded-lg flex items-center justify-center shadow-md">
                                   <Paperclip size={18} />
                                </div>
                                <div className="flex-1 min-w-0">
                                   <p className="text-[10px] font-bold text-emerald-800 uppercase tracking-widest truncate">Asset Synchronized</p>
-                                  <a href={responses[field.label]} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-emerald-600 hover:underline truncate block">View Attachment</a>
+                                  <a href={responses[field.id]} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-emerald-600 hover:underline truncate block">View Attachment</a>
                                </div>
                                <button 
                                  type="button"
@@ -519,29 +519,29 @@ const FormViewer = () => {
                             </div>
                           ) : (
                             <label className={`flex flex-col items-center justify-center gap-3 py-8 px-6 border-2 border-dashed rounded-xl cursor-pointer transition-all ${
-                              formErrors[field.label] ? 'bg-red-50/30 border-red-200' : 'bg-slate-50 border-slate-200 hover:border-brand-default hover:bg-white active:scale-[0.99]'
+                              formErrors[field.id] ? 'bg-red-50/30 border-red-200' : 'bg-slate-50 border-slate-200 hover:border-brand-default hover:bg-white active:scale-[0.99]'
                             }`}>
-                              <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${uploadingFields[field.label] ? 'bg-brand-50' : 'bg-slate-100 text-slate-400 group-hover:bg-brand-50 group-hover:text-brand-default'}`}>
-                                {uploadingFields[field.label] ? (
+                              <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${uploadingFields[field.id] ? 'bg-brand-50' : 'bg-slate-100 text-slate-400 group-hover:bg-brand-50 group-hover:text-brand-default'}`}>
+                                {uploadingFields[field.id] ? (
                                   <Loader2 className="animate-spin text-brand-default" size={24} />
                                 ) : (
                                   <Upload size={24} />
                                 )}
                               </div>
                               <div className="text-center">
-                                <p className="text-xs font-bold text-slate-700 uppercase tracking-widest">{uploadingFields[field.label] ? 'Uploading...' : 'Transmit Asset'}</p>
+                                <p className="text-xs font-bold text-slate-700 uppercase tracking-widest">{uploadingFields[field.id] ? 'Uploading...' : 'Transmit Asset'}</p>
                                 <p className="text-[10px] font-medium text-slate-400 uppercase tracking-widest mt-1">Select or drag & drop</p>
                               </div>
                               <input 
                                 type="file"
                                 className="hidden"
                                 onChange={(e) => handleFileUpload(field, e.target.files[0])}
-                                disabled={uploadingFields[field.label]}
+                                disabled={uploadingFields[field.id]}
                               />
                             </label>
                           )}
                         </div>
-                        {uploadingFields[field.label] && (
+                        {uploadingFields[field.id] && (
                            <div className="flex items-center gap-3 px-2">
                              <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                                 <motion.div 
@@ -559,10 +559,10 @@ const FormViewer = () => {
                       <input 
                         type={field.type === 'number' ? 'number' : field.type === 'email' ? 'email' : 'text'}
                         className="w-full bg-transparent border-b-2 border-slate-200 outline-none transition-all py-3 px-1 text-sm font-semibold text-slate-700 placeholder:text-slate-300 placeholder:font-medium"
-                        style={{ borderBottomColor: touched[field.label] ? (form?.themeColor || '#6366f1') : '' }}
+                        style={{ borderBottomColor: touched[field.id] ? (form?.themeColor || '#6366f1') : '' }}
                         placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
                         required={field.required}
-                        value={responses[field.label] || ''}
+                        value={responses[field.id] || ''}
                         onChange={(e) => handleChange(field, e.target.value)}
                         onBlur={() => handleBlur(field)}
                       />
@@ -571,7 +571,7 @@ const FormViewer = () => {
 
                   {/* Field Error Display */}
                   <AnimatePresence>
-                    {formErrors[field.label] && (
+                    {formErrors[field.id] && (
                         <motion.div 
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: 'auto' }}
@@ -580,7 +580,7 @@ const FormViewer = () => {
                         >
                             <AlertCircle size={14} className="text-red-500 shrink-0" />
                             <p className="text-[11px] font-bold text-red-600 uppercase tracking-widest leading-none">
-                                {formErrors[field.label]}
+                                {formErrors[field.id]}
                             </p>
                         </motion.div>
                     )}

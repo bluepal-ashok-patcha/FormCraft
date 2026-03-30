@@ -14,11 +14,11 @@ import {
   Plus,
   Save,
   Eye,
-  Layers,
   Code,
   Clock,
   ArrowRight,
   ShieldCheck,
+  History,
   MousePointer2,
   Zap,
   GripVertical,
@@ -39,8 +39,11 @@ import {
 import { motion, Reorder, AnimatePresence, useDragControls } from 'framer-motion';
 import api from '../services/api';
 import { toast } from 'react-toastify';
+import FormPreview from '../components/FormPreview';
 import Modal from '../components/Modal';
+import GovernanceModal from '../components/GovernanceModal';
 import TemplateGallery from '../components/TemplateGallery';
+import DraftGallery from '../components/DraftGallery';
 
 const DEFAULT_THEMES = [
   { name: 'Indigo', color: '#6366f1' },
@@ -89,6 +92,7 @@ const FormBuilder = () => {
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [isDraggingTemplate, setIsDraggingTemplate] = useState(false);
   const [showGallery, setShowGallery] = useState(false);
+  const [showDrafts, setShowDrafts] = useState(false);
   const [showSaveTemplateModal, setShowSaveTemplateModal] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(null); // field.id
   const [templateData, setTemplateData] = useState({ name: '', description: '', categoryId: '', thumbnailUrl: '' });
@@ -110,17 +114,71 @@ const FormBuilder = () => {
   // AI Style State
   // AI Style State
   const [isStyling, setIsStyling] = useState(false);
-  const [backgroundColor, setBackgroundColor] = useState('#f8fafc'); 
+  const [backgroundColor, setBackgroundColor] = useState('#f8fafc');
+  const [draftStatus, setDraftStatus] = useState('idle'); // idle, saving, saved
+  const [skipDraftPulse, setSkipDraftPulse] = useState(true); // Don't save initial state set
+  const [currentDraftId, setCurrentDraftId] = useState(null);
+  const [isLiveForm, setIsLiveForm] = useState(false);
+  const [editFormId, setEditFormId] = useState(null);
+  const [govModal, setGovModal] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {}, confirmText: 'Confirm' });
+  const [pendingDeleteId, setPendingDeleteId] = useState(null);
 
   useEffect(() => {
     fetchCategories();
+    // Auto-saves enabled after initialization
+    setSkipDraftPulse(false);
+    
     // Handle incoming template from Template Hub
     if (location.state?.template) {
       handleSelectTemplate(location.state.template, location.state.isEdit);
-      // Clear location state to prevent reload reset issues
+      window.history.replaceState({}, document.title);
+    }
+    
+    // Handle incoming live form for Re-Architecting
+    if (location.state?.form && location.state?.isLiveForm) {
+      handleSelectLiveForm(location.state.form);
       window.history.replaceState({}, document.title);
     }
   }, []);
+
+
+  // Debounced Auto-Save Mechanism
+  useEffect(() => {
+    if (skipDraftPulse || fields.length === 0 || isLiveForm || isEditTemplate) return;
+
+    setDraftStatus('saving');
+    const timer = setTimeout(async () => {
+      try {
+        const payload = {
+          name: formName || 'Untitled Architectural Prototype',
+          schema: { fields, backgroundColor },
+          startsAt: startsAt || null,
+          expiresAt: expiresAt || null,
+          bannerUrl: bannerUrl || null,
+          themeColor: themeColor || '#6366f1'
+        };
+        
+        const res = await api.post('/forms/draft', payload, {
+          params: {
+            draftId: currentDraftId,
+            formId: (isEditTemplate && editTemplateId) ? editTemplateId : (isLiveForm && editFormId) ? editFormId : null
+          }
+        });
+        
+        if (res.success && res.data) {
+          setCurrentDraftId(res.data); // Lock into this draft session ID
+        }
+
+        setDraftStatus('saved');
+        // Reset to idle after 2 seconds
+        setTimeout(() => setDraftStatus('idle'), 2000);
+      } catch (err) {
+        setDraftStatus('idle');
+      }
+    }, 2000); // 2 second debounce
+
+    return () => clearTimeout(timer);
+  }, [fields, formName, startsAt, expiresAt, bannerUrl, themeColor, backgroundColor, currentDraftId]);
 
   useEffect(() => {
     if (selectedField && selectedField !== 'header') {
@@ -281,9 +339,38 @@ const FormBuilder = () => {
     setFields(prev => prev.map(f => f.id === id ? { ...f, ...updates } : f));
   };
 
+  const handleUpdateFieldType = (field, newType) => {
+    if (isLiveForm && field.type !== newType) {
+      setGovModal({
+        isOpen: true,
+        title: 'Architectural Shift Alert',
+        message: 'Changing the question type on a live form might make your existing response data difficult to read in analytics. Are you sure you want to proceed?',
+        onConfirm: () => updateField(field.id, { type: newType }),
+        confirmText: 'Change Type'
+      });
+      return;
+    }
+    updateField(field.id, { type: newType });
+  };
+
   const removeField = (id) => {
-    setFields(fields.filter(f => f.id !== id));
+    if (isLiveForm) {
+      setGovModal({
+        isOpen: true,
+        title: 'Field Deletion Warning',
+        message: 'This form is live. Deleting this question might cause issues with any responses you have already collected. Are you sure you want to remove it?',
+        onConfirm: () => executeRemoveField(id),
+        confirmText: 'Delete Field'
+      });
+      return;
+    }
+    executeRemoveField(id);
+  };
+
+  const executeRemoveField = (id) => {
+    setFields(prev => prev.filter(f => f.id !== id));
     if (selectedField === id) setSelectedField(null);
+    setPendingDeleteId(null);
   };
 
   const handleSave = async () => {
@@ -319,7 +406,38 @@ const FormBuilder = () => {
       return;
     }
 
+    // Live Re-Architecting Pulse: Update existing live form
+    if (isLiveForm && editFormId) {
+      setLoading(true);
+      try {
+        const payload = {
+          name: formName,
+          schema: { fields, backgroundColor },
+          startsAt: startsAt || null,
+          expiresAt: expiresAt || null,
+          bannerUrl: bannerUrl || null,
+          themeColor: themeColor || '#6366f1'
+        };
+        const response = await api.put(`/forms/${editFormId}`, payload);
+        toast.success('Architecture Upgraded: Live form has been successfully recalibrated.');
+        
+        setModal({
+          isOpen: true,
+          title: 'Form Updated Successfully',
+          message: 'Your changes have been saved and are now live for all users.',
+          type: 'success',
+          form: response.data
+        });
+      } catch (err) {
+        toast.error('Recalibration Failure: Could not update live architecture.');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     setLoading(true);
+    setSkipDraftPulse(true); // Lock auto-save to prevent race conditions during publish
     try {
       const payload = {
         name: formName,
@@ -329,15 +447,30 @@ const FormBuilder = () => {
         bannerUrl: bannerUrl || null,
         themeColor: themeColor || '#6366f1'
       };
+      
       const response = await api.post('/forms', payload);
       toast.success('Strategy Encoded: Your form has been saved successfully.');
+      
+      // Clean up draft after successful publish
+      try {
+        await api.delete('/forms/draft', {
+          params: { draftId: currentDraftId }
+        });
+      } catch (e) {
+        console.warn('Draft Purge Skipped: No session identified.');
+      }
+
       setModal({
         isOpen: true,
-        title: 'Success!',
-        message: 'Your form has been saved successfully.',
+        title: 'Mission Absolute',
+        message: 'Your architectural strategy has been successfully encoded and deployed.',
         type: 'success',
         form: response.data
       });
+    } catch (err) {
+      console.error('Publish Failure:', err);
+      toast.error('Uplink Terminated: Error persisting the record to the registry.');
+      setSkipDraftPulse(false); // Enable auto-save back if publish failed
     } finally {
       setLoading(false);
     }
@@ -365,6 +498,28 @@ const FormBuilder = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSelectLiveForm = (form) => {
+    const normalizedFields = (form.schema?.fields || []).map(f => {
+      if (['dropdown', 'radio', 'checkbox'].includes(f.type) && !f.options) {
+        return { ...f, options: ['Option 1', 'Option 2'] };
+      }
+      return f;
+    });
+    setFields(normalizedFields);
+    setFormName(form.name);
+    setThemeColor(form.themeColor || '#6366f1');
+    setBackgroundColor(form.schema?.backgroundColor || '#f8fafc');
+    setBannerUrl(form.bannerUrl || '');
+    setStartsAt(form.startsAt || '');
+    setExpiresAt(form.expiresAt || '');
+    
+    setIsLiveForm(true);
+    setEditFormId(form.id);
+    
+    setShowGallery(false);
+    toast.success('Strategic Connection: Re-architecting live form instance.');
   };
 
   const handleImageUpload = async (e) => {
@@ -429,8 +584,37 @@ const FormBuilder = () => {
     toast.success(isEdit ? 'Architecture Rooted: Session primed for blueprint refinement.' : 'Registry Synchronized: Architecture deployed from blueprint.');
   };
 
+  const handleSelectDraft = (draft) => {
+    setFields(draft.schema?.fields || []);
+    setFormName(draft.name || '');
+    setThemeColor(draft.themeColor || '#6366f1');
+    setBackgroundColor(draft.schema?.backgroundColor || '#f8fafc');
+    setBannerUrl(draft.bannerUrl || '');
+    setStartsAt(draft.startsAt || '');
+    setExpiresAt(draft.expiresAt || '');
+    setCurrentDraftId(draft.id || null);
+    
+    // Clear draft session indicator
+    setShowDrafts(false);
+    toast.success('System Recovery: Architectural session restored from cloud draft.');
+  };
+
   // Stagger-cascade: adds fields one-by-one with animated delay
-  const handleDeployFields = ({ fields: newFields, name, bannerUrl: banner }) => {
+  const handleDeployFields = (payload) => {
+    if (isLiveForm && fields.length > 0) {
+      setGovModal({
+        isOpen: true,
+        title: 'Strategy Expansion Warning',
+        message: 'Deploying a new blueprint into this live instance will significantly alter its current architecture. Do you want to continue?',
+        onConfirm: () => executeDeployFields(payload),
+        confirmText: 'Deploy Blueprint'
+      });
+      return;
+    }
+    executeDeployFields(payload);
+  };
+
+  const executeDeployFields = ({ fields: newFields, name, bannerUrl: banner }) => {
     // If setting a completely new form name from template, clear fields.
     setFormName(name);
     setBannerUrl(banner || '');
@@ -446,8 +630,6 @@ const FormBuilder = () => {
     const deploySessionId = Math.random().toString(36).substr(2, 5);
     
     // Stagger process: we add to the existing fields array instead of resetting it completely if it already has items
-    const startIdx = fields.length;
-
     newFields.forEach((field, i) => {
       setTimeout(() => {
         setFields(prev => {
@@ -493,6 +675,18 @@ const FormBuilder = () => {
                 <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest opacity-60">
                   {fields.length} Components Integrated
                 </span>
+                {draftStatus !== 'idle' && (
+                  <motion.span 
+                    initial={{ opacity: 0 }} 
+                    animate={{ opacity: 1 }}
+                    className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest"
+                  >
+                    <div className={`w-1 h-1 rounded-full ${draftStatus === 'saving' ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`} />
+                    <span className={draftStatus === 'saving' ? 'text-amber-500' : 'text-emerald-500'}>
+                      {draftStatus === 'saving' ? 'Saving Blueprint...' : 'Progress Locked'}
+                    </span>
+                  </motion.span>
+                )}
               </div>
             </div>
           </div>
@@ -501,11 +695,25 @@ const FormBuilder = () => {
           <div className="flex items-center gap-3">
             <div className="hidden lg:flex items-center bg-slate-50 border border-slate-200 rounded-xl p-0.5 gap-0.5">
               <button
-                onClick={() => setShowGallery(true)}
+                onClick={() => {
+                  setShowGallery(true);
+                  setShowDrafts(false);
+                }}
                 className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold text-slate-500 hover:bg-white hover:text-brand-default transition-all"
               >
                 <Sparkles size={14} className="text-amber-500" />
                 <span>Templates</span>
+              </button>
+              <div className="w-px h-4 bg-slate-200 mx-0.5" />
+              <button
+                onClick={() => {
+                  setShowDrafts(true);
+                  setShowGallery(false);
+                }}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold text-slate-500 hover:bg-white hover:text-indigo-600 transition-all"
+              >
+                <History size={14} className="text-indigo-600" />
+                <span>Drafts</span>
               </button>
               <div className="w-px h-4 bg-slate-200 mx-0.5" />
               <button
@@ -549,6 +757,15 @@ const FormBuilder = () => {
             onDeployFields={handleDeployFields}
             onTemplateDragStart={() => setIsDraggingTemplate(true)}
             onTemplateDragEnd={() => setIsDraggingTemplate(false)}
+          />
+
+          <DraftGallery
+            isOpen={showDrafts}
+            onClose={() => setShowDrafts(false)}
+            onSelect={handleSelectDraft}
+            onDeployFields={handleDeployFields}
+            onDraftDragStart={() => setIsDraggingTemplate(true)}
+            onDraftDragEnd={() => setIsDraggingTemplate(false)}
           />
 
           <div className="flex bg-white p-1 rounded-xl border border-slate-200">
@@ -1017,7 +1234,7 @@ const FormBuilder = () => {
                                             key={type.type}
                                             onClick={(e) => {
                                               e.stopPropagation();
-                                              updateField(field.id, { type: type.type });
+                                              handleUpdateFieldType(field, type.type);
                                               setOpenTypeDropdownId(null);
                                             }}
                                             className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors text-left ${field.type === type.type ? 'bg-slate-50' : ''}`}
@@ -1628,15 +1845,9 @@ const FormBuilder = () => {
           <div className="flex gap-3 w-full">
             <button
               onClick={() => setModal({ ...modal, isOpen: false })}
-              className="flex-1 h-11 bg-slate-50 text-slate-500 rounded-xl text-[10px] font-semibold uppercase tracking-widest border border-slate-100 hover:bg-slate-100 transition-all"
-            >
-              Dismiss
-            </button>
-            <button
-              onClick={() => setModal({ ...modal, isOpen: false })}
               className="flex-1 btn-primary h-11 text-[10px] font-semibold uppercase tracking-[0.2em]"
             >
-              Ready for Uplink
+              Confirm
             </button>
           </div>
         }
@@ -1650,11 +1861,11 @@ const FormBuilder = () => {
               <div className="flex items-center gap-2 mb-1">
                 <h3 className="text-lg font-semibold text-slate-900 uppercase tracking-tight leading-none">{modal.title}</h3>
                 {modal.type === 'success' && (
-                  <span className="bg-emerald-50 text-emerald-600 border border-emerald-100 px-2 py-0.5 rounded text-[8px] font-semibold uppercase tracking-widest">Encoded</span>
+                  <span className="bg-emerald-50 text-emerald-600 border border-emerald-100 px-2 py-0.5 rounded text-[8px] font-semibold uppercase tracking-widest">Live</span>
                 )}
               </div>
               <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest opacity-80 leading-tight">
-                {modal.type === 'error' ? 'Operational Halt' : 'Transaction Complete'} // {new Date().toLocaleTimeString()}
+                {modal.type === 'error' ? 'Error Detail' : 'Submission Details'} // {new Date().toLocaleTimeString()}
               </p>
             </div>
           </div>
@@ -1668,7 +1879,7 @@ const FormBuilder = () => {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <LinkIcon size={10} className="text-brand-default" />
-                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Public Uplink</span>
+                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Form Link</span>
                 </div>
               </div>
 
@@ -1692,7 +1903,7 @@ const FormBuilder = () => {
 
               <div className="flex items-center gap-3 pt-2">
                 <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-[0.2em]">Signal status: ACTIVE // BROADCASTING</span>
+                <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-[0.2em]">Form Status: ACTIVE</span>
               </div>
             </div>
           )}
@@ -1802,6 +2013,15 @@ const FormBuilder = () => {
         </div>
       </Modal>
 
+      <GovernanceModal 
+        isOpen={govModal.isOpen}
+        title={govModal.title}
+        message={govModal.message}
+        onConfirm={govModal.onConfirm}
+        onClose={() => setGovModal({ ...govModal, isOpen: false })}
+        confirmText={govModal.confirmText}
+        type="danger"
+      />
     </div>
   );
 };

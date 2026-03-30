@@ -144,4 +144,40 @@ public class FormController {
         FormDto updatedForm = formService.updateForm(id, request);
         return ResponseEntity.ok(ApiResponse.success(updatedForm, "Form updated successfully"));
     }
+
+    @Operation(summary = "Save form draft", description = "Auto-save your progress while building or editing a form.")
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/draft")
+    public ResponseEntity<ApiResponse<java.util.UUID>> saveDraft(
+            @Parameter(description = "Optional draft session ID") @RequestParam(value = "draftId", required = false) java.util.UUID draftId,
+            @Parameter(description = "Optional form ID if editing") @RequestParam(value = "formId", required = false) java.util.UUID formId, 
+            @RequestBody FormRequest request) {
+        java.util.UUID savedDraftId = formService.saveDraft(draftId, formId, request);
+        return ResponseEntity.ok(ApiResponse.success(savedDraftId, "Draft saved"));
+    }
+
+    @Operation(summary = "Get form draft", description = "Restore your last auto-saved version of a form.")
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/draft")
+    public ResponseEntity<ApiResponse<com.formcraft.dto.response.FormDraftDto>> getDraft(@Parameter(description = "Optional form ID if editing") @RequestParam(value = "formId", required = false) java.util.UUID formId) {
+        com.formcraft.dto.response.FormDraftDto draft = formService.getDraft(formId);
+        return ResponseEntity.ok(ApiResponse.success(draft, "Draft fetched"));
+    }
+
+    @Operation(summary = "List all form drafts", description = "Get a list of all auto-saved form sessions for this user.")
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/drafts")
+    public ResponseEntity<ApiResponse<java.util.List<com.formcraft.dto.response.FormDraftDto>>> listDrafts() {
+        return ResponseEntity.ok(ApiResponse.success(formService.getAllDrafts(), "Drafts fetched successfully"));
+    }
+
+    @Operation(summary = "Purge form draft", description = "Delete the auto-save data for a specific form session.")
+    @PreAuthorize("hasRole('ADMIN')")
+    @DeleteMapping("/draft")
+    public ResponseEntity<ApiResponse<Void>> deleteDraft(
+            @Parameter(description = "Optional form ID if editing") @RequestParam(value = "formId", required = false) java.util.UUID formId,
+            @Parameter(description = "Optional draft session ID") @RequestParam(value = "draftId", required = false) java.util.UUID draftId) {
+        formService.deleteDraft(formId, draftId);
+        return ResponseEntity.ok(ApiResponse.success(null, "Draft purged"));
+    }
 }

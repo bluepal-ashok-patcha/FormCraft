@@ -11,7 +11,9 @@ import {
   BarChart3,
   ExternalLink,
   ClipboardList,
-  Ghost
+  Ghost,
+  ShieldAlert,
+  History
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
@@ -99,21 +101,11 @@ const Dashboard = () => {
               Form Intelligence // <span className="text-brand-500">CONTROL</span>
             </h1>
             <p className="text-slate-500 text-[9px] font-semibold uppercase tracking-widest opacity-80">
-              Deployment Registry & Lifecycle Monitor
+              Form Management & Activity Monitor
             </p>
           </div>
           
           <div className="flex items-center gap-4 shrink-0 w-full md:w-auto">
-            <div className="hidden lg:flex gap-4 mr-4 border-r border-slate-800 pr-8">
-              <div className="text-center">
-                <p className="text-[8px] font-semibold text-slate-500 uppercase mb-0.5">Responses Today</p>
-                <p className="text-sm font-bold text-white">{stats?.responsesToday || 0}</p>
-              </div>
-              <div className="text-center">
-                <p className="text-[8px] font-semibold text-slate-500 uppercase mb-0.5">Active Load</p>
-                <p className="text-sm font-bold text-white">{Math.round(stats?.submissionRate || 0)}%</p>
-              </div>
-            </div>
             <button 
               onClick={() => navigate('/builder')}
               className="px-6 bg-brand-default text-white h-10 rounded-md font-semibold uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 hover:bg-brand-600 transition-all shadow-lg shadow-brand-500/10"
@@ -127,10 +119,10 @@ const Dashboard = () => {
 
       {/* 📊 ANALYTIC GRID */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatChip label="Total Forms" value={stats?.totalForms || 0} icon={FileText} colorClass="bg-blue-500" />
-        <StatChip label="Total Responses" value={stats?.totalResponses || 0} icon={ClipboardList} colorClass="bg-emerald-500" />
-        <StatChip label="Active Forms" value={stats?.activeForms || 0} icon={Activity} colorClass="bg-brand-500" />
-        <StatChip label="Completion Rate" value={`${Math.round(stats?.submissionRate || 0)}%`} icon={TrendingUp} colorClass="bg-brand-500" />
+        <StatChip label="All My Forms" value={stats?.totalForms || 0} icon={FileText} colorClass="bg-blue-500" />
+        <StatChip label="Unsaved Drafts" value={stats?.totalDrafts || 0} icon={History} colorClass="bg-amber-500" />
+        <StatChip label="Currently Live" value={stats?.activeForms || 0} icon={Activity} colorClass="bg-emerald-500" />
+        <StatChip label="Ending Soon" value={stats?.expiringSoon || 0} icon={ShieldAlert} colorClass="bg-rose-500" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">

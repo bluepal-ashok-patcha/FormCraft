@@ -12,18 +12,18 @@ import java.util.Map;
 public class DashboardStatsResponse {
     @io.swagger.v3.oas.annotations.media.Schema(description = "The total number of forms you've created.")
     private long totalForms;
-    
-    @io.swagger.v3.oas.annotations.media.Schema(description = "The total number of responses your forms have received.")
-    private long totalResponses;
+
+    @io.swagger.v3.oas.annotations.media.Schema(description = "The number of architectural drafts currently in progress.")
+    private long totalDrafts;
     
     @io.swagger.v3.oas.annotations.media.Schema(description = "The number of forms currently open for answers.")
     private long activeForms;
     
     @io.swagger.v3.oas.annotations.media.Schema(description = "The number of responses received in the last 24 hours.")
-    private long responsesToday;
+    private long responsesLast24h;
     
-    @io.swagger.v3.oas.annotations.media.Schema(description = "The percentage of people who started a form and finished it.")
-    private double submissionRate; 
+    @io.swagger.v3.oas.annotations.media.Schema(description = "The number of forms scheduled to expire within the next 48 hours.")
+    private long expiringSoon; 
     
     @io.swagger.v3.oas.annotations.media.Schema(description = "The average number of answers each form gets.")
     private double avgResponsesPerForm;
