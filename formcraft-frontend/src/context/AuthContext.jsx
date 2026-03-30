@@ -16,17 +16,19 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
-  const login = async (usernameOrEmail, password) => {
-    const response = await api.post('/auth/login', { usernameOrEmail, password });
-    const { accessToken, refreshToken, username, email, fullName, roles } = response.data;
-    
-    const userInfo = { username, email, fullName, roles }; 
-    
+  const saveAuthData = (data) => {
+    const { accessToken, refreshToken, username, email, fullName, roles } = data;
+    const userInfo = { username, email, fullName, roles };
     localStorage.setItem('token', accessToken);
     localStorage.setItem('refreshToken', refreshToken);
     localStorage.setItem('user', JSON.stringify(userInfo));
-    
     setUser(userInfo);
+    return userInfo;
+  };
+
+  const login = async (usernameOrEmail, password) => {
+    const response = await api.post('/auth/login', { usernameOrEmail, password });
+    saveAuthData(response.data);
     return response;
   };
 
@@ -38,7 +40,15 @@ export const AuthProvider = ({ children }) => {
     const params = new URLSearchParams();
     params.append('email', email);
     params.append('otp', otp);
-    return await api.post(`/auth/verify-registration?${params.toString()}`);
+    const response = await api.post(`/auth/verify-registration?${params.toString()}`);
+    saveAuthData(response.data);
+    return response;
+  };
+
+  const resendVerification = async (email) => {
+    const params = new URLSearchParams();
+    params.append('email', email);
+    return await api.post(`/auth/resend-verification?${params.toString()}`);
   };
 
   const forgotPassword = async (identity) => {
@@ -52,7 +62,9 @@ export const AuthProvider = ({ children }) => {
     params.append('identity', identity);
     params.append('otp', otp);
     params.append('newPassword', newPassword);
-    return await api.post(`/auth/reset-password?${params.toString()}`);
+    const response = await api.post(`/auth/reset-password?${params.toString()}`);
+    saveAuthData(response.data);
+    return response;
   };
 
   const logout = async () => {
@@ -71,6 +83,7 @@ export const AuthProvider = ({ children }) => {
       logout, 
       register, 
       verifyRegistration, 
+      resendVerification,
       forgotPassword, 
       resetPassword, 
       loading 

@@ -74,12 +74,19 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success(null, "Logged out successfully."));
     }
 
-    @Operation(summary = "Verify account", description = "Activate your account with the code sent to your email.")
+    @Operation(summary = "Verify account", description = "Activate your account and log in automatically using the code sent to your email.")
     @PostMapping("/verify-registration")
-    public ResponseEntity<ApiResponse<String>> verifyRegistration(@Parameter(description = "Your email address") @RequestParam(name = "email") String email, 
-                                                                 @Parameter(description = "The code you received in your email") @RequestParam(name = "otp") String otp) {
-        authService.verifyRegistrationOtp(email, otp);
-        return ResponseEntity.ok(ApiResponse.success("Account activated successfully.", "Verification complete"));
+    public ResponseEntity<ApiResponse<JwtResponse>> verifyRegistration(@Parameter(description = "Your email address") @RequestParam(name = "email") String email, 
+                                                                  @Parameter(description = "The code you received in your email") @RequestParam(name = "otp") String otp) {
+        JwtResponse response = authService.verifyRegistrationOtp(email, otp);
+        return ResponseEntity.ok(ApiResponse.success(response, "Account activated and logged in successfully."));
+    }
+
+    @Operation(summary = "Resend verification code", description = "Get a new code if your previous one expired or was lost.")
+    @PostMapping("/resend-verification")
+    public ResponseEntity<ApiResponse<String>> resendVerification(@Parameter(description = "Your email address") @RequestParam(name = "email") String email) {
+        authService.resendVerificationOtp(email);
+        return ResponseEntity.ok(ApiResponse.success("Verification code resent successfully.", "Success"));
     }
 
     @Operation(summary = "Forgot password request", description = "Ask for a password reset code if you can't log in.")
@@ -89,12 +96,12 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success("OTP sent to your email successfully.", "Request complete"));
     }
 
-    @Operation(summary = "Set new password", description = "Create a new password using the reset code you were sent.")
+    @Operation(summary = "Set new password", description = "Create a new password and log in immediately using the reset code you were sent.")
     @PostMapping("/reset-password")
-    public ResponseEntity<ApiResponse<String>> resetPassword(@Parameter(description = "Your email or username") @RequestParam(name = "identity") String identity,
+    public ResponseEntity<ApiResponse<JwtResponse>> resetPassword(@Parameter(description = "Your email or username") @RequestParam(name = "identity") String identity,
                                                             @Parameter(description = "The reset code you received") @RequestParam(name = "otp") String otp,
                                                             @Parameter(description = "Your new password") @RequestParam(name = "newPassword") String newPassword) {
-        authService.resetPasswordWithOtp(identity, otp, newPassword);
-        return ResponseEntity.ok(ApiResponse.success("Your password has been reset successfully.", "Success"));
+        JwtResponse response = authService.resetPasswordWithOtp(identity, otp, newPassword);
+        return ResponseEntity.ok(ApiResponse.success(response, "Password reset and logged in successfully."));
     }
 }

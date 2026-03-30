@@ -83,30 +83,34 @@ public class AuthServiceImpl implements AuthService {
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
 
-            // Reset failed login attempts on success
-            user.setFailedLoginAttempts(0);
-            user.setLockoutTime(null);
-            userRepository.save(user);
-
-            String token = jwtTokenProvider.generateToken(authentication);
-            RefreshToken refreshToken = refreshTokenService.createRefreshToken(user.getUsername());
-
-            JwtResponse jwtResponse = new JwtResponse();
-            jwtResponse.setAccessToken(token);
-            jwtResponse.setRefreshToken(refreshToken.getToken());
-            jwtResponse.setUsername(user.getUsername());
-            jwtResponse.setEmail(user.getEmail());
-            jwtResponse.setFullName(user.getFullName());
-            jwtResponse.setRoles(user.getRoles().stream()
-                    .map(role -> role.getName().name())
-                    .collect(java.util.stream.Collectors.toList()));
-            
-            log.info("User '{}' logged in successfully.", user.getUsername());
-            return jwtResponse;
+            return handleSuccessfulLogin(user, authentication);
         } catch (BadCredentialsException e) {
             self.handleFailedLogin(user.getId());
             throw new BadCredentialsException("Error: Invalid username or password.");
         }
+    }
+
+    private JwtResponse handleSuccessfulLogin(User user, Authentication authentication) {
+        // Reset failed login attempts on success
+        user.setFailedLoginAttempts(0);
+        user.setLockoutTime(null);
+        userRepository.save(user);
+
+        String token = jwtTokenProvider.generateToken(authentication);
+        RefreshToken refreshToken = refreshTokenService.createRefreshToken(user.getUsername());
+
+        JwtResponse jwtResponse = new JwtResponse();
+        jwtResponse.setAccessToken(token);
+        jwtResponse.setRefreshToken(refreshToken.getToken());
+        jwtResponse.setUsername(user.getUsername());
+        jwtResponse.setEmail(user.getEmail());
+        jwtResponse.setFullName(user.getFullName());
+        jwtResponse.setRoles(user.getRoles().stream()
+                .map(role -> role.getName().name())
+                .collect(java.util.stream.Collectors.toList()));
+        
+        log.info("User '{}' successfully authenticated.", user.getUsername());
+        return jwtResponse;
     }
 
     @org.springframework.transaction.annotation.Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
@@ -127,15 +131,22 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public String register(RegisterRequest registerRequest) {
+        java.util.Optional<User> existingUserByEmail = userRepository.findByEmail(registerRequest.getEmail());
+        
+        if (existingUserByEmail.isPresent()) {
+            User user = existingUserByEmail.get();
+            if (user.isActive()) {
+                throw new BusinessLogicException("Email already exists. Please log in.");
+            }
+            // Throw a specialized message for unverified accounts
+            throw new BusinessLogicException("UNVERIFIED_ACCOUNT: Account already exists but is unverified.");
+        }
+
         if (userRepository.existsByUsername(registerRequest.getUsername())) {
             throw new BusinessLogicException("Username already exists.");
         }
 
-        if (userRepository.existsByEmail(registerRequest.getEmail())) {
-            throw new BusinessLogicException("Email already exists.");
-        }
-
-        String otp = String.format("%06d", new Random().nextInt(1000000));
+        String otp = generateOtp();
         
         User user = User.builder()
                 .username(registerRequest.getUsername())
@@ -152,15 +163,38 @@ public class AuthServiceImpl implements AuthService {
         user.setRoles(Collections.singleton(adminRole));
 
         userRepository.save(user);
-        emailService.sendOtpEmail(user.getEmail(), otp);
+        emailService.sendVerificationEmail(user.getEmail(), otp);
         
-        log.info("Registration: User '{}' awaiting email verification.", user.getUsername());
+        log.info("Registration: New user '{}' awaiting email verification.", user.getUsername());
         return "Registration successful! Please check your email for the OTP.";
     }
 
     @Override
     @Transactional
-    public void verifyRegistrationOtp(String email, String otp) {
+    public void resendVerificationOtp(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Error: User record with this email not found."));
+
+        if (user.isActive()) {
+            throw new BusinessLogicException("Account is already active. Please login.");
+        }
+
+        String otp = generateOtp();
+        user.setOtpCode(otp);
+        user.setOtpExpiry(LocalDateTime.now().plusMinutes(otpExpirationMinutes));
+        userRepository.save(user);
+
+        emailService.sendVerificationEmail(user.getEmail(), otp);
+        log.info("Registration: Verification OTP resent to user '{}'.", user.getUsername());
+    }
+
+    private String generateOtp() {
+        return String.format("%06d", new Random().nextInt(1000000));
+    }
+
+    @Override
+    @Transactional
+    public JwtResponse verifyRegistrationOtp(String email, String otp) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("Error: User not found."));
 
@@ -175,6 +209,11 @@ public class AuthServiceImpl implements AuthService {
         user.setOtpExpiry(null);
         userRepository.save(user);
         log.info("Verification: Account '{}' activated successfully.", user.getUsername());
+
+        // Perform manual authentication to generate tokens
+        Authentication authentication = new UsernamePasswordAuthenticationToken(user.getUsername(), null, Collections.emptyList());
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+        return handleSuccessfulLogin(user, authentication);
     }
 
     @Override
@@ -183,18 +222,22 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepository.findByUsernameOrEmail(identity, identity)
                 .orElseThrow(() -> new ResourceNotFoundException("Error: User not found."));
 
-        String otp = String.format("%06d", new Random().nextInt(1000000));
+        if (!user.isActive()) {
+            throw new BusinessLogicException("Account is unverified. Please verify your email first.");
+        }
+
+        String otp = generateOtp();
         user.setOtpCode(otp);
         user.setOtpExpiry(LocalDateTime.now().plusMinutes(otpExpirationMinutes));
         userRepository.save(user);
 
-        emailService.sendOtpEmail(user.getEmail(), otp);
+        emailService.sendForgotPasswordEmail(user.getEmail(), otp);
         log.info("Password Reset: OTP sent to user '{}'.", user.getUsername());
     }
 
     @Override
     @Transactional
-    public void resetPasswordWithOtp(String identity, String otp, String newPassword) {
+    public JwtResponse resetPasswordWithOtp(String identity, String otp, String newPassword) {
         User user = userRepository.findByUsernameOrEmail(identity, identity)
                 .orElseThrow(() -> new ResourceNotFoundException("Error: User not found."));
 
@@ -209,6 +252,11 @@ public class AuthServiceImpl implements AuthService {
         
         userRepository.save(user);
         log.info("Password Reset: User '{}' successfully updated their password.", user.getUsername());
+
+        // Log them in immediately
+        Authentication authentication = new UsernamePasswordAuthenticationToken(user.getUsername(), null, Collections.emptyList());
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+        return handleSuccessfulLogin(user, authentication);
     }
 
     private void validateOtp(User user, String otp) {

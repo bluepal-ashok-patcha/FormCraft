@@ -31,6 +31,7 @@ function App() {
             {/* Public Routes */}
             <Route path="/login" element={<AuthPage />} />
             <Route path="/register" element={<AuthPage />} />
+            <Route path="/forgot-password" element={<AuthPage />} />
             <Route path="/f/:slug" element={<FormViewer />} />
             
             {/* Protected Enterprise Routes */}

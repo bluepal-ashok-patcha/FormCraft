@@ -201,7 +201,13 @@ const FormModule = ({ icon: Icon, label, x, y, delay, color, mouseX, mouseY, con
 
 // ─── MAIN AUTH PAGE ──────────────────────────────────────────────────────────────
 const AuthPage = () => {
-  const [view, setView] = useState('LOGIN'); // 'LOGIN', 'REGISTER', 'VERIFY_OTP', 'FORGOT_PASSWORD', 'RESET_PASSWORD'
+  const navigate = useNavigate();
+  const [view, setView] = useState(() => {
+    const path = window.location.pathname;
+    if (path === '/register') return 'REGISTER';
+    if (path === '/forgot-password') return 'FORGOT_PASSWORD';
+    return 'LOGIN';
+  });
   const [formData, setFormData] = useState({
     username: '',
     fullName: '',
@@ -212,11 +218,93 @@ const AuthPage = () => {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login, register, verifyRegistration, forgotPassword, resetPassword } = useAuth();
-  const navigate = useNavigate();
+  const { login, register, verifyRegistration, resendVerification, forgotPassword, resetPassword } = useAuth();
+
+  // ─── MAGIC LINK / AUTO-FILL HANDLER ───────────────────────────
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const email = params.get('email');
+    const otp = params.get('otp');
+    const identity = params.get('identity');
+
+    if (email && otp) {
+      // Direct Registration Verification Link
+      setFormData(prev => ({ ...prev, email, otp }));
+      setView('VERIFY_OTP');
+      
+      // Auto-trigger verification pulse
+      const autoVerify = async () => {
+        setLoading(true);
+        try {
+          await verifyRegistration(email, otp);
+          toast.success('Direct link activated. Accessing workspace...');
+          navigate('/dashboard');
+          // Optional: Auto-login if backend returned tokens. 
+          // Current backend doesn't, so we just move to Login view.
+        } catch (err) {
+          setError(err?.response?.data?.message || 'Verification link expired or invalid.');
+        } finally {
+          setLoading(false);
+        }
+      };
+      autoVerify();
+    } else if (identity && otp) {
+      // Direct Reset Password Link
+      setFormData(prev => ({ ...prev, username: identity, otp }));
+      setView('RESET_PASSWORD');
+      toast.info('Identity verified. Please set your new password.');
+    }
+  }, []); // Run on mount
+
+  // Clear errors and local state when view changes (unless it's an auto-fill link)
+  useEffect(() => {
+    setError('');
+    
+    // Safety: Skip clearing if we just landed from a Magic Link (URL has params)
+    const hasParams = new URLSearchParams(window.location.search).has('otp');
+    if (hasParams) return;
+
+    // Clear sensitive fields in formData when switching major flows
+    setFormData(prev => ({ ...prev, password: '', confirmPassword: '', otp: '' }));
+  }, [view]);
+
+  const handleSmartVerify = async () => {
+    if (formData.email) {
+      setLoading(true);
+      setError('');
+      try {
+        await resendVerification(formData.email);
+        toast.success('Fresh verification code dispatched to your email.');
+        // Clear OTP field from any previous attempts
+        setFormData(prev => ({ ...prev, otp: '' })); 
+        setView('VERIFY_OTP');
+      } catch (err) {
+        setError(err?.response?.data?.message || 'Failed to send verification code.');
+        toast.error('Identity Verification Failed.');
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      setView('RESEND_VERIFICATION');
+    }
+  };
+
+  const handleResendReset = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      await forgotPassword(formData.username);
+      toast.success('Fresh security pulse dispatched to your inbox.');
+      setFormData(prev => ({ ...prev, otp: '' })); 
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Failed to dispatch reset code.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleAction = async (e) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
     setLoading(true);
     setError('');
 
@@ -237,6 +325,12 @@ const AuthPage = () => {
         });
         toast.success('Registration successful. Please check your email for the OTP.');
         setView('VERIFY_OTP');
+      } else if (view === 'RESEND_VERIFICATION') {
+        await resendVerification(formData.email);
+        toast.success('A new verification code has been sent to your email.');
+        // Clear OTP field before moving to entry screen
+        setFormData(prev => ({ ...prev, otp: '' })); 
+        setView('VERIFY_OTP');
       } else if (view === 'VERIFY_OTP') {
         await verifyRegistration(formData.email, formData.otp);
         toast.success('Account verified successfully.');
@@ -244,6 +338,8 @@ const AuthPage = () => {
       } else if (view === 'FORGOT_PASSWORD') {
         await forgotPassword(formData.username); // using username field for email/username
         toast.success('We have sent a reset OTP to your email.');
+        // Set up the state for the reset view
+        setFormData(prev => ({ ...prev, otp: '' })); 
         setView('RESET_PASSWORD');
       } else if (view === 'RESET_PASSWORD') {
         if (formData.password !== formData.confirmPassword) {
@@ -316,7 +412,7 @@ const AuthPage = () => {
                       icon={User}
                       placeholder="Username"
                       value={formData.username}
-                      onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                      onChange={(e) => setFormData({ ...formData, username: e.target.value.toLowerCase() })}
                     />
                     <InputField
                       label="Password"
@@ -356,7 +452,7 @@ const AuthPage = () => {
                         icon={Zap}
                         placeholder="username"
                         value={formData.username}
-                        onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                        onChange={(e) => setFormData({ ...formData, username: e.target.value.toLowerCase() })}
                       />
                     </div>
                     <InputField
@@ -365,7 +461,7 @@ const AuthPage = () => {
                       type="email"
                       placeholder="user@example.com"
                       value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value.toLowerCase() })}
                     />
                     <div className="grid grid-cols-2 gap-4">
                       <InputField
@@ -392,20 +488,50 @@ const AuthPage = () => {
                     action="Log In"
                     onToggle={() => setView('LOGIN')}
                   />
+                  <AuthToggle
+                    label=""
+                    action="Verify Your Account"
+                    onToggle={handleSmartVerify}
+                  />
                 </div>
+              )}
+
+              {view === 'RESEND_VERIFICATION' && (
+                <>
+                  <AuthHeader title="Verify Account" subtitle="Enter your email to receive a verification code" />
+                  <form onSubmit={handleAction} className="space-y-6">
+                    <ErrorMessage error={error} />
+                    <InputField
+                      label="Email Address"
+                      icon={Mail}
+                      type="email"
+                      placeholder="user@example.com"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value.toLowerCase() })}
+                    />
+                    <SubmitButton loading={loading} text="Send Code" />
+                  </form>
+                  <AuthToggle
+                    label="Back to registration?"
+                    action="Create Account"
+                    onToggle={() => setView('REGISTER')}
+                  />
+                </>
               )}
 
               {view === 'VERIFY_OTP' && (
                 <>
                   <AuthHeader title="Verify Account" subtitle={`Enter the OTP sent to ${formData.email}`} />
-                  <ErrorMessage error={error} />
-                  <form onSubmit={handleAction} className="space-y-6">
-                    <InputField
-                      label="Verification Code (6 Digits)"
-                      icon={Lock}
-                      placeholder="000000"
-                      value={formData.otp}
-                      onChange={(e) => setFormData({ ...formData, otp: e.target.value })}
+                  <form onSubmit={handleAction} className="space-y-8">
+                    <ErrorMessage error={error} />
+                    <SixDigitPinInput 
+                      value={formData.otp} 
+                      onChange={(otp) => setFormData({ ...formData, otp })} 
+                      onComplete={() => handleAction({ preventDefault: () => {} })}
+                    />
+                    <ResendLink 
+                      onResend={handleSmartVerify} 
+                      loading={loading} 
                     />
                     <SubmitButton loading={loading} text="Verify Account" />
                   </form>
@@ -427,7 +553,7 @@ const AuthPage = () => {
                       icon={User}
                       placeholder="Username"
                       value={formData.username}
-                      onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                      onChange={(e) => setFormData({ ...formData, username: e.target.value.toLowerCase() })}
                     />
                     <SubmitButton loading={loading} text="Send OTP" />
                   </form>
@@ -442,14 +568,11 @@ const AuthPage = () => {
               {view === 'RESET_PASSWORD' && (
                 <>
                   <AuthHeader title="Update Password" subtitle="Enter the OTP and your new password" />
-                  <ErrorMessage error={error} />
-                  <form onSubmit={handleAction} className="space-y-4">
-                    <InputField
-                      label="OTP Code"
-                      icon={Shield}
-                      placeholder="000000"
-                      value={formData.otp}
-                      onChange={(e) => setFormData({ ...formData, otp: e.target.value })}
+                  <form onSubmit={handleAction} className="space-y-8">
+                    <ErrorMessage error={error} />
+                    <SixDigitPinInput 
+                      value={formData.otp} 
+                      onChange={(otp) => setFormData({ ...formData, otp })} 
                     />
                     <div className="grid grid-cols-2 gap-4">
                       <InputField
@@ -469,6 +592,10 @@ const AuthPage = () => {
                         onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                       />
                     </div>
+                    <ResendLink 
+                      onResend={handleResendReset} 
+                      loading={loading} 
+                    />
                     <SubmitButton loading={loading} text="Update Password" />
                   </form>
                   <AuthToggle
@@ -494,6 +621,19 @@ const AuthPage = () => {
 
 // ─── HELPER COMPONENTS ──────────────────────────────────────────────────────────
 
+const ResendLink = ({ onResend, loading }) => (
+  <div className="flex justify-center mt-6">
+    <button
+      type="button"
+      disabled={loading}
+      onClick={onResend}
+      className="text-[10px] font-bold text-slate-400 hover:text-brand-default transition-colors uppercase tracking-[0.2em] border-b border-transparent hover:border-brand-default pb-0.5 disabled:opacity-50"
+    >
+      {loading ? 'Processing...' : "Resend OTP"}
+    </button>
+  </div>
+);
+
 const AuthHeader = ({ title, subtitle }) => (
   <div className="mb-10">
     <h2 className="text-4xl font-bold text-slate-900 tracking-tighter mb-2">{title}</h2>
@@ -501,24 +641,26 @@ const AuthHeader = ({ title, subtitle }) => (
   </div>
 );
 
-const ErrorMessage = ({ error }) => (
-  <AnimatePresence mode="wait">
-    {error && (
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -10 }}
-        className={`mb-6 p-4 rounded-xl flex items-center gap-3 text-[11px] font-semibold uppercase tracking-wider border ${error.startsWith('success:')
-            ? 'bg-emerald-50 border-emerald-100 text-emerald-700'
-            : 'bg-red-50 border-red-100 text-red-700'
-          }`}
-      >
-        {error.startsWith('success:') ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
-        {error.replace('success:', '')}
-      </motion.div>
-    )}
-  </AnimatePresence>
-);
+const ErrorMessage = ({ error }) => {
+  if (!error) return null;
+
+  const cleanMessage = error.replace("UNVERIFIED_ACCOUNT:", "").trim();
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -10, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      className={`mb-6 p-4 rounded-xl flex items-center gap-3 border ${
+        error.startsWith('success:')
+          ? 'bg-emerald-50 border-emerald-100 text-emerald-700'
+          : 'bg-red-50 border-red-100 text-red-700'
+      }`}
+    >
+      {error.startsWith('success:') ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+      {cleanMessage}
+    </motion.div>
+  );
+};
 
 const InputField = ({ label, icon: Icon, type = 'text', placeholder, value, onChange, forgot, onForgot, required = true }) => (
   <div className="space-y-2 group">
@@ -551,6 +693,66 @@ const InputField = ({ label, icon: Icon, type = 'text', placeholder, value, onCh
     </div>
   </div>
 );
+
+const SixDigitPinInput = ({ value, onChange, onComplete }) => {
+  const inputsRef = useRef([]);
+
+  const handleChange = (e, index) => {
+    const val = e.target.value.replace(/[^0-9]/g, '');
+    if (!val) return;
+
+    const newOtp = value.split('');
+    newOtp[index] = val.substring(val.length - 1);
+    const finalOtp = newOtp.join('');
+    onChange(finalOtp);
+
+    // Auto-focus next
+    if (index < 5) {
+      inputsRef.current[index + 1].focus();
+    } else if (finalOtp.length === 6 && onComplete) {
+      onComplete();
+    }
+  };
+
+  const handleKeyDown = (e, index) => {
+    if (e.key === 'Backspace' && !value[index] && index > 0) {
+      inputsRef.current[index - 1].focus();
+    }
+  };
+
+  const handlePaste = (e) => {
+    e.preventDefault();
+    const pastedData = e.clipboardData.getData('text').substring(0, 6).replace(/[^0-9]/g, '');
+    if (pastedData.length === 6) {
+      onChange(pastedData);
+      inputsRef.current[5].focus();
+      if (onComplete) onComplete();
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+      <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest px-1">
+        Pulse Identification Code
+      </label>
+      <div className="flex justify-between gap-3" onPaste={handlePaste}>
+        {[0, 1, 2, 3, 4, 5].map((index) => (
+          <input
+            key={index}
+            ref={(el) => (inputsRef.current[index] = el)}
+            type="text"
+            inputMode="numeric"
+            maxLength={1}
+            value={value[index] || ''}
+            onChange={(e) => handleChange(e, index)}
+            onKeyDown={(e) => handleKeyDown(e, index)}
+            className="w-12 h-16 md:w-14 md:h-18 bg-slate-50 border-2 border-slate-200 rounded-2xl text-center text-2xl font-bold text-slate-900 focus:bg-white focus:border-brand-default focus:ring-4 focus:ring-brand-default/10 transition-all outline-none"
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
 
 const SubmitButton = ({ loading, text }) => (
   <button

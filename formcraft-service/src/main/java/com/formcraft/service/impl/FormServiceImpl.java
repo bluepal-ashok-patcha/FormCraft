@@ -76,6 +76,15 @@ public class FormServiceImpl implements FormService {
     public FormDto getFormBySlug(String slug) {
         Form form = formRepository.findBySlug(slug)
                 .orElseThrow(() -> new ResourceNotFoundException("Form not found with slug: " + slug));
+
+        // Security check: If form is inactive, only Admins/Super Admins can see it.
+        boolean isAdmin = org.springframework.security.core.context.SecurityContextHolder.getContext()
+                .getAuthentication().getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") || a.getAuthority().equals("ROLE_SUPER_ADMIN"));
+
+        if (form.getStatus() != com.formcraft.enums.FormStatus.ACTIVE && !isAdmin) {
+             throw new org.springframework.security.access.AccessDeniedException("Terminal Access Restricted: This form identity is currently offline.");
+        }
         
         return formMapper.toDto(form);
     }

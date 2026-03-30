@@ -58,7 +58,7 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
     void setUp() {
         refreshTokenRepository.deleteAll();
         userRepository.deleteAll();
-        doNothing().when(emailService).sendOtpEmail(anyString(), anyString());
+        doNothing().when(emailService).sendVerificationEmail(anyString(), anyString());
     }
 
     @Test

@@ -49,6 +49,7 @@ public class FormController {
     }
 
     @Operation(summary = "Get form details", description = "Find a specific form using its unique ID.")
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<FormDto>> getFormById(@Parameter(description = "The unique ID of the form") @PathVariable("id") UUID id) {
         FormDto form = formService.getFormById(id);

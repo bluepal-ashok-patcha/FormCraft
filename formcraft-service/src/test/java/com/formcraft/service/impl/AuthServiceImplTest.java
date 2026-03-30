@@ -91,7 +91,7 @@ class AuthServiceImplTest {
 
         assertEquals("Registration successful! Please check your email for the OTP.", result);
         verify(userRepository, times(1)).save(any(User.class));
-        verify(emailService, times(1)).sendOtpEmail(anyString(), anyString());
+        verify(emailService, times(1)).sendVerificationEmail(anyString(), anyString());
     }
 
     @Test
