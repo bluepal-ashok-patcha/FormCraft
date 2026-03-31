@@ -139,6 +139,11 @@ const FormBuilder = () => {
       handleSelectLiveForm(location.state.form);
       window.history.replaceState({}, document.title);
     }
+
+    if (location.state?.showDrafts) {
+      setShowDrafts(true);
+      window.history.replaceState({}, document.title);
+    }
   }, []);
 
 
@@ -1914,21 +1919,21 @@ const FormBuilder = () => {
       <Modal
         isOpen={showSaveTemplateModal}
         onClose={() => setShowSaveTemplateModal(false)}
-        title="Blueprint Encoding"
+        title="Save as Template"
         footer={
           <div className="flex gap-3 w-full">
             <button
               onClick={() => setShowSaveTemplateModal(false)}
               className="flex-1 h-11 bg-slate-50 text-slate-500 rounded-xl text-[10px] font-semibold uppercase tracking-widest border border-slate-100"
             >
-              Abort
+              Cancel
             </button>
             <button
               onClick={handleSaveAsTemplate}
               disabled={loading || !templateData.name}
               className="flex-1 btn-primary h-11 text-[10px] font-semibold uppercase tracking-[0.2em] shadow-lg shadow-brand-500/20"
             >
-              {loading ? 'Processing...' : 'Secure Blueprint'}
+              {loading ? 'Saving...' : 'Save Template'}
             </button>
           </div>
         }
@@ -1939,14 +1944,14 @@ const FormBuilder = () => {
               <Layout size={20} />
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-slate-900 uppercase tracking-tight leading-none">Save to Registry</h3>
-              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mt-1">Convert Architecture to Asset</p>
+              <h3 className="text-lg font-semibold text-slate-900 uppercase tracking-tight leading-none">Template Gallery</h3>
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mt-1">Store this as a reusable template</p>
             </div>
           </div>
 
           <div className="space-y-4 pt-4 border-t border-slate-50">
             <div className="space-y-1.5">
-              <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Blueprint Designation <span className="text-red-500">*</span></label>
+              <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Template Name <span className="text-red-500">*</span></label>
               <input
                 type="text"
                 placeholder="Ex. Customer Satisfaction v2..."

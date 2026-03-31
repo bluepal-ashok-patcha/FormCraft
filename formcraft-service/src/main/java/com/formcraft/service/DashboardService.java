@@ -24,6 +24,7 @@ public class DashboardService {
     private final FormRepository formRepository;
     private final FormResponseRepository formResponseRepository;
     private final com.formcraft.repository.builder.FormDraftRepository formDraftRepository;
+    private final com.formcraft.repository.TemplateRepository templateRepository;
 
     @Transactional(readOnly = true)
     public DashboardStatsResponse getDashboardStats(String range) {
@@ -36,11 +37,14 @@ public class DashboardService {
         long activeForms = isSuperAdmin ? formRepository.countByStatus(com.formcraft.enums.FormStatus.ACTIVE) : formRepository.countByCreatedByAndStatus(username, com.formcraft.enums.FormStatus.ACTIVE);
         
         LocalDateTime now = LocalDateTime.now();
-        LocalDateTime tomorrowAfter = now.plusHours(48);
-        long expiringSoon = isSuperAdmin ? formRepository.countByExpiresAtBetween(now, tomorrowAfter) : formRepository.countByCreatedByAndExpiresAtBetween(username, now, tomorrowAfter);
+        LocalDateTime tomorrow = now.plusHours(24);
+        long expiringSoon = isSuperAdmin ? formRepository.countByExpiresAtBetween(now, tomorrow) : formRepository.countByCreatedByAndExpiresAtBetween(username, now, tomorrow);
 
         LocalDateTime startOfLast24h = LocalDateTime.now().minusHours(24);
         long responsesLast24h = isSuperAdmin ? formResponseRepository.countByCreatedAtGreaterThanEqual(startOfLast24h) : formResponseRepository.countByFormCreatedByAndCreatedAtGreaterThanEqual(username, startOfLast24h);
+        
+        long totalTemplates = isSuperAdmin ? templateRepository.countByGlobal(true) : 0;
+        long pendingPromotions = isSuperAdmin ? templateRepository.countByRequestedForGlobalTrueAndGlobalFalse() : 0;
         
         double avgResponses = totalForms > 0 ? (double) (isSuperAdmin ? formResponseRepository.count() : formResponseRepository.countByFormCreatedBy(username)) / totalForms : 0;
         
@@ -88,21 +92,58 @@ public class DashboardService {
                         .build())
                 .collect(Collectors.toList());
                 
+        // Expiring forms list
+        List<Form> expiringSoonForms = isSuperAdmin ? formRepository.findAllByExpiresAtBetweenOrderByExpiresAtAsc(now, tomorrow) : formRepository.findAllByCreatedByAndExpiresAtBetweenOrderByExpiresAtAsc(username, now, tomorrow);
+        
+        List<DashboardStatsResponse.ExpiringForm> expiringForms = expiringSoonForms.stream()
+                .map(f -> DashboardStatsResponse.ExpiringForm.builder()
+                        .id(f.getId().toString())
+                        .name(f.getName())
+                        .timeLeft(calculateTimeLeft(f.getExpiresAt()))
+                        .expiresAt(f.getExpiresAt())
+                        .build())
+                .collect(Collectors.toList());
+
+        // Promotion requests for super admin
+        List<DashboardStatsResponse.PromotionRequest> promotionRequests = new java.util.ArrayList<>();
+        if (isSuperAdmin) {
+            promotionRequests = templateRepository.findByRequestedForGlobalTrueAndGlobalFalse().stream()
+                .map(t -> DashboardStatsResponse.PromotionRequest.builder()
+                        .id(t.getId().toString())
+                        .name(t.getName())
+                        .requester(t.getCreatedBy())
+                        .timeAgo(getTimeAgo(t.getCreatedAt()))
+                        .build())
+                .collect(Collectors.toList());
+        }
+
         return DashboardStatsResponse.builder()
                 .totalForms(totalForms)
                 .totalDrafts(totalDrafts)
                 .activeForms(activeForms)
                 .responsesLast24h(responsesLast24h)
                 .expiringSoon(expiringSoon)
+                .totalTemplates(totalTemplates)
+                .pendingPromotions(pendingPromotions)
                 .avgResponsesPerForm(avgResponses)
                 .recentActivity(activities.stream().limit(5).collect(Collectors.toList()))
+                .expiringForms(expiringForms)
+                .promotionRequests(promotionRequests)
                 .chartData(chartData)
                 .build();
     }
 
     private String getTimeAgo(LocalDateTime dateTime) {
         if (dateTime == null) return "Just now";
-        // Simple implementation
         return dateTime.format(DateTimeFormatter.ofPattern("HH:mm"));
+    }
+
+    private String calculateTimeLeft(LocalDateTime expiresAt) {
+        if (expiresAt == null) return "Unknown";
+        java.time.Duration duration = java.time.Duration.between(LocalDateTime.now(), expiresAt);
+        long hours = duration.toHours();
+        if (hours > 0) return hours + "h";
+        long minutes = duration.toMinutes();
+        return (minutes > 0 ? minutes : 0) + "m";
     }
 }

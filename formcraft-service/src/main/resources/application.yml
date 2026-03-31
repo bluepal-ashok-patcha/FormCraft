@@ -31,6 +31,17 @@ spring:
           starttls:
             enable: true
 
+logging:
+  file:
+    name: logs/formcraft.log
+  logback:
+    rollingpolicy:
+      max-file-size: 10MB
+      max-history: 7
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - [ID: %X{correlationId}] [Who: %X{username}] - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - [ID: %X{correlationId}] [Who: %X{username}] - %msg%n"
+
 app:
   jwt-secret: "daf66e01593f39ad35b44ca18a442751745465e9c0634606f731190978642091" # Placeholder 256-bit secret
   jwt-expiration-milliseconds: 3600000

@@ -33,7 +33,7 @@ import {
 import api from '../services/api';
 import { toast } from 'react-toastify';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useSidebar } from '../context/SidebarContext';
 
 import FormPreview from '../components/FormPreview';
@@ -205,6 +205,7 @@ const FormCard = ({ form, idx, isLive, isOffline, onNavigateResponses, activeMen
 
 const FormList = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { sidebarCollapsed } = useSidebar();
   const [forms, setForms] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -230,6 +231,29 @@ const FormList = () => {
   const now = new Date();
   const offset = now.getTimezoneOffset() * 60000;
   const minDateTime = new Date(now - offset).toISOString().slice(0, 16);
+
+  useEffect(() => {
+    // Check for incoming filter from dashboard
+    if (location.state?.filter) {
+      const filter = location.state.filter;
+      if (filter === 'active') {
+        setStatusFilter('active');
+      } else if (filter === 'inactive') {
+        setStatusFilter('inactive');
+      } else if (filter === 'expiring') {
+        const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+        setDateRange({ 
+          start: now.toISOString().split('T')[0], 
+          end: tomorrow.toISOString().split('T')[0] 
+        });
+      } else if (filter === 'drafts') {
+        // Technically drafts are handled by FormDraftRepository 
+        // In FormList, we might show inactive forms or similar
+        // For now, let's just clear filters to show everything if 'drafts' is clicked
+        setStatusFilter('inactive');
+      }
+    }
+  }, [location.state]);
 
   const fetchForms = async () => {
     if (!loading) setRefreshing(true);

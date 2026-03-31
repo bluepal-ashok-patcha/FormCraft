@@ -28,8 +28,10 @@ public class GeminiController {
     @PostMapping("/generate-regex")
     public ResponseEntity<ApiResponse<Map<String, String>>> generateRegex(@RequestBody Map<String, String> request) {
         String prompt = request.get("prompt");
+        log.info("Neural Pattern Request: Generating validation logic for '{}'", prompt);
         
         if (prompt == null || prompt.trim().isEmpty()) {
+            log.warn("Neural Pattern Failure: Prompt is missing or empty.");
             return ResponseEntity.badRequest().body(ApiResponse.error("Prompt is required."));
         }
 
@@ -55,8 +57,9 @@ public class GeminiController {
         String description = (String) request.get("description");
         List<Map<String, Object>> currentFields = (List<Map<String, Object>>) request.get("currentFields");
         
-        log.info("Blueprint Extraction: Synthesizing architecture for '{}'", description);
+        log.info("Blueprint Extraction: Synthesizing architecture for '{}' (Current count: {})", description, currentFields != null ? currentFields.size() : 0);
         if (description == null || description.trim().isEmpty()) {
+            log.warn("Blueprint Extraction Failure: Vision context is missing.");
             return ResponseEntity.badRequest().body(ApiResponse.error("Architecture vision required."));
         }
 
@@ -64,7 +67,7 @@ public class GeminiController {
             String aiJson = geminiService.generateFormBlueprint(description, currentFields).block();
             com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
             List<Map<String, Object>> fields = mapper.readValue(aiJson, new com.fasterxml.jackson.core.type.TypeReference<List<Map<String, Object>>>() {});
-            
+            log.info("Blueprint Successfully Extracted: {} architectural blocks generated.", fields.size());
             return ResponseEntity.ok(ApiResponse.success(fields, "Blueprint synthesized successfully."));
         } catch (Exception e) {
             throw new AiProtocolException(e.getMessage() != null ? e.getMessage() : "Blueprint synthesis failure");
@@ -75,8 +78,10 @@ public class GeminiController {
     @PostMapping("/recommend-theme")
     public ResponseEntity<ApiResponse<Map<String, String>>> recommendTheme(@RequestBody Map<String, String> request) {
         String title = request.get("title");
+        log.info("Styling Vision Request: Recommending theme for form '{}'", title);
         
         if (title == null || title.trim().isEmpty()) {
+            log.warn("Styling Vision Failure: Title is missing.");
             return ResponseEntity.badRequest().body(ApiResponse.error("Form title is required for styling vision."));
         }
 

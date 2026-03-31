@@ -13,12 +13,16 @@ import {
   ClipboardList,
   Ghost,
   ShieldAlert,
-  History
+  History,
+  Layout,
+  Sparkles,
+  Zap
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { toast } from 'react-toastify';
 import { motion } from 'framer-motion';
+import { useAuth } from '../context/AuthContext';
 import { 
   AreaChart, 
   Area, 
@@ -31,11 +35,12 @@ import {
   Bar
 } from 'recharts';
 
-const StatChip = ({ icon: Icon, label, value, trend, colorClass }) => (
+const StatChip = ({ icon: Icon, label, value, trend, colorClass, onClick }) => (
   <motion.div 
     initial={{ opacity: 0, scale: 0.95 }}
     animate={{ opacity: 1, scale: 1 }}
-    className="bg-white border border-slate-100 p-4 rounded-enterprise shadow-[0_2px_10px_-3px_rgba(0,0,0,0.04)] flex items-center gap-4 group hover:border-brand-default/30 transition-all hover:shadow-md h-24"
+    onClick={onClick}
+    className={`bg-white border border-slate-100 p-4 rounded-enterprise shadow-[0_2px_10px_-3px_rgba(0,0,0,0.04)] flex items-center gap-4 group transition-all h-24 ${onClick ? 'cursor-pointer hover:border-brand-default/30 hover:shadow-md' : ''}`}
   >
     <div className={`w-12 h-12 rounded-xl ${colorClass} bg-opacity-10 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform`}>
       <Icon size={16} className={colorClass.replace('bg-', 'text-').replace('-10', '')} />
@@ -52,6 +57,8 @@ const StatChip = ({ icon: Icon, label, value, trend, colorClass }) => (
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isSuperAdmin = user?.roles?.includes('ROLE_SUPER_ADMIN');
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('7d'); // 7d, 30d, 90d
@@ -119,10 +126,34 @@ const Dashboard = () => {
 
       {/* 📊 ANALYTIC GRID */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatChip label="All My Forms" value={stats?.totalForms || 0} icon={FileText} colorClass="bg-blue-500" />
-        <StatChip label="Unsaved Drafts" value={stats?.totalDrafts || 0} icon={History} colorClass="bg-amber-500" />
-        <StatChip label="Currently Live" value={stats?.activeForms || 0} icon={Activity} colorClass="bg-emerald-500" />
-        <StatChip label="Ending Soon" value={stats?.expiringSoon || 0} icon={ShieldAlert} colorClass="bg-rose-500" />
+        <StatChip 
+          label="Total Forms" 
+          value={stats?.totalForms || 0} 
+          icon={FileText} 
+          colorClass="bg-blue-500" 
+          onClick={() => navigate('/forms')}
+        />
+        <StatChip 
+          label={isSuperAdmin ? "Total Templates" : "Total Drafts"} 
+          value={isSuperAdmin ? stats?.totalTemplates : stats?.totalDrafts || 0} 
+          icon={isSuperAdmin ? Layout : History} 
+          colorClass="bg-amber-500" 
+          onClick={() => isSuperAdmin ? navigate('/templates') : navigate('/builder', { state: { showDrafts: true } })}
+        />
+        <StatChip 
+          label="Currently Live" 
+          value={stats?.activeForms || 0} 
+          icon={Activity} 
+          colorClass="bg-emerald-500" 
+          onClick={() => navigate('/forms', { state: { filter: 'active' } })}
+        />
+        <StatChip 
+          label={isSuperAdmin ? "Pending Promotions" : "Expiry Soon (24h)"} 
+          value={isSuperAdmin ? stats?.pendingPromotions : stats?.expiringSoon || 0} 
+          icon={isSuperAdmin ? Sparkles : ShieldAlert} 
+          colorClass="bg-rose-500" 
+          onClick={() => navigate(isSuperAdmin ? '/templates' : '/forms', { state: { filter: isSuperAdmin ? 'requested' : 'expiring' } })}
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
@@ -221,82 +252,145 @@ const Dashboard = () => {
           </div>
         </motion.div>
 
-        {/* 🕹️ COMMAND FEED */}
+        {/* 🕹️ TACTICAL ACTION LIST */}
         <motion.div 
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.3 }}
           className="lg:col-span-4 bg-slate-900 border border-slate-800 rounded-enterprise shadow-2xl p-8 flex flex-col h-full"
         >
-          <div className="flex items-center justify-between mb-10">
-            <div>
-              <h3 className="text-sm font-semibold text-white uppercase tracking-widest leading-none">
-                Recent <span className="text-brand-default">Activity</span>
-              </h3>
-              <p className="text-[9px] text-slate-400 font-semibold uppercase mt-1.5 tracking-widest opacity-60">
-                Latest system events registry
-              </p>
-            </div>
-            <div className="w-9 h-9 bg-brand-default/10 rounded-xl flex items-center justify-center text-brand-default border border-brand-default/20">
-              <Activity size={16} />
-            </div>
-          </div>
-
-          <div className="flex-1 space-y-6 overflow-y-auto custom-scrollbar pr-2">
-            {(stats?.recentActivity || []).length > 0 ? (
-              stats.recentActivity.map((activity, idx) => (
-                <div key={idx} className="flex gap-5 group relative">
-                  {/* Connector Line */}
-                  {idx !== (stats.recentActivity.length - 1) && (
-                    <div className="absolute left-[17px] top-10 bottom-[-24px] w-[1px] bg-slate-800 transition-colors group-hover:bg-brand-default/20" />
-                  )}
-                  
-                  {/* Icon Node */}
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border border-slate-800 transition-all z-10 relative overflow-hidden ${
-                    activity.type === 'FORM_CREATED' 
-                      ? 'bg-blue-500/5 text-blue-400 group-hover:border-blue-500/30' 
-                      : 'bg-emerald-500/5 text-emerald-400 group-hover:border-emerald-500/30'
-                  }`}>
-                    <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    {activity.type === 'FORM_CREATED' ? <Plus size={14} /> : <CheckCircle2 size={14} />}
-                  </div>
-
-                  {/* Content Payload */}
-                  <div className="min-w-0 flex-1 pt-1">
-                    <div className="flex items-start justify-between gap-4">
-                      <p className="text-[11px] font-semibold text-slate-200 leading-tight group-hover:text-brand-default transition-colors uppercase tracking-tight">{activity.title}</p>
-                      <span className="shrink-0 text-[8px] font-semibold text-slate-600 uppercase tracking-widest bg-slate-800/50 px-2 py-0.5 rounded-md border border-slate-800/50">
-                        {activity.type === 'FORM_CREATED' ? 'System' : 'Signal'}
-                      </span>
-                    </div>
-                    <p className="text-[10px] text-slate-500 font-semibold mt-1.5 line-clamp-1 opacity-80 group-hover:opacity-100 transition-opacity">{activity.description}</p>
-                    <div className="flex items-center gap-3 mt-2.5">
-                      <div className="flex items-center gap-1.5 text-slate-600">
-                        <Clock size={8} />
-                        <span className="text-[8px] font-semibold uppercase tracking-widest">{activity.timeAgo}</span>
-                      </div>
-                      <div className="w-1 h-1 bg-slate-800 rounded-full" />
-                      <span className="text-[8px] font-semibold text-slate-600 uppercase tracking-widest">
-                        Node: {Math.random().toString(16).slice(2, 6).toUpperCase()}
-                      </span>
-                    </div>
-                  </div>
+          {isSuperAdmin ? (
+            // SUPER ADMIN: PROMOTION REQUESTS
+            <>
+              <div className="flex items-center justify-between mb-10">
+                <div>
+                  <h3 className="text-sm font-semibold text-white uppercase tracking-widest leading-none">
+                    Promotion <span className="text-brand-default">Requests</span>
+                  </h3>
+                  <p className="text-[9px] text-slate-400 font-semibold uppercase mt-1.5 tracking-widest opacity-60">
+                    Awaiting Business Certification
+                  </p>
                 </div>
-              ))
-            ) : (
-              <div className="h-full flex flex-col items-center justify-center opacity-10 text-center grayscale">
-                <Ghost size={40} className="mb-4" />
-                <p className="text-[10px] font-semibold text-white uppercase tracking-[0.3em]">Sector Clear</p>
+                <div className="w-9 h-9 bg-brand-default/10 rounded-xl flex items-center justify-center text-brand-default border border-brand-default/20">
+                  <Sparkles size={16} />
+                </div>
               </div>
-            )}
-          </div>
-          
-          <button 
-            onClick={() => navigate('/forms')}
-            className="mt-8 w-full py-4 border border-slate-800 rounded-md text-[10px] font-semibold text-slate-400 uppercase tracking-widest hover:border-slate-700 hover:text-white transition-all"
-          >
-            Access Full Logs
-          </button>
+
+              <div className="flex-1 space-y-6 overflow-y-auto custom-scrollbar pr-2">
+                {(stats?.promotionRequests || []).length > 0 ? (
+                  stats.promotionRequests.map((req, idx) => (
+                    <div key={idx} className="flex gap-5 group relative">
+                      {idx !== (stats.promotionRequests.length - 1) && (
+                        <div className="absolute left-[17px] top-10 bottom-[-24px] w-[1px] bg-slate-800 transition-colors group-hover:bg-brand-default/20" />
+                      )}
+                      
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border border-slate-800 bg-brand-default/5 text-brand-default group-hover:border-brand-default/30 transition-all z-10 relative overflow-hidden">
+                        <Layout size={14} />
+                      </div>
+
+                      <div className="min-w-0 flex-1 pt-1">
+                        <div className="flex items-start justify-between gap-4">
+                          <p className="text-[11px] font-semibold text-slate-200 leading-tight group-hover:text-brand-default transition-colors uppercase tracking-tight">{req.name}</p>
+                          <span className="shrink-0 text-[8px] font-bold text-slate-500 uppercase tracking-widest bg-slate-800/50 px-2 py-0.5 rounded-md border border-slate-800">
+                            {req.timeAgo}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-slate-500 font-semibold mt-1.5 line-clamp-1 opacity-80 group-hover:opacity-100 transition-opacity">Request from: {req.requester}</p>
+                        <div className="flex items-center gap-3 mt-2.5">
+                          <button 
+                            onClick={() => navigate('/templates')}
+                            className="flex items-center gap-1.5 text-[9px] font-bold text-brand-default uppercase tracking-widest hover:underline transition-all"
+                          >
+                            <Zap size={10} />
+                            Approve Now
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="h-full flex flex-col items-center justify-center opacity-10 text-center grayscale">
+                    <CheckCircle2 size={40} className="mb-4" />
+                    <p className="text-[10px] font-semibold text-white uppercase tracking-[0.3em]">Governance Clear</p>
+                    <p className="text-[8px] text-white mt-2">No pending certifications</p>
+                  </div>
+                )}
+              </div>
+              
+              <button 
+                onClick={() => navigate('/templates')}
+                className="mt-8 w-full py-4 border border-slate-800 rounded-md text-[10px] font-semibold text-slate-400 uppercase tracking-widest hover:border-slate-700 hover:text-white transition-all font-bold"
+              >
+                Go to Template Hub
+              </button>
+            </>
+          ) : (
+            // REGULAR USER: URGENT EXPIRY
+            <>
+              <div className="flex items-center justify-between mb-10">
+                <div>
+                  <h3 className="text-sm font-semibold text-white uppercase tracking-widest leading-none">
+                    Urgent <span className="text-rose-500">Expiry</span>
+                  </h3>
+                  <p className="text-[9px] text-slate-400 font-semibold uppercase mt-1.5 tracking-widest opacity-60">
+                    Action Required // Next 24h
+                  </p>
+                </div>
+                <div className="w-9 h-9 bg-rose-500/10 rounded-xl flex items-center justify-center text-rose-500 border border-rose-500/20">
+                  <ShieldAlert size={16} />
+                </div>
+              </div>
+
+              <div className="flex-1 space-y-6 overflow-y-auto custom-scrollbar pr-2">
+                {(stats?.expiringForms || []).length > 0 ? (
+                  stats.expiringForms.map((form, idx) => (
+                    <div key={idx} className="flex gap-5 group relative">
+                      {idx !== (stats.expiringForms.length - 1) && (
+                        <div className="absolute left-[17px] top-10 bottom-[-24px] w-[1px] bg-slate-800 transition-colors group-hover:bg-rose-500/20" />
+                      )}
+                      
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border border-slate-800 bg-rose-500/5 text-rose-400 group-hover:border-rose-500/30 transition-all z-10 relative overflow-hidden">
+                        <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <Clock size={14} />
+                      </div>
+
+                      <div className="min-w-0 flex-1 pt-1">
+                        <div className="flex items-start justify-between gap-4">
+                          <p className="text-[11px] font-semibold text-slate-200 leading-tight group-hover:text-rose-400 transition-colors uppercase tracking-tight">{form.name}</p>
+                          <span className="shrink-0 text-[8px] font-bold text-rose-500 uppercase tracking-widest bg-rose-500/10 px-2 py-0.5 rounded-md border border-rose-500/20">
+                            {form.timeLeft}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-slate-500 font-semibold mt-1.5 line-clamp-1 opacity-80 group-hover:opacity-100 transition-opacity">This form will deactivate automatically.</p>
+                        <div className="flex items-center gap-3 mt-2.5">
+                          <button 
+                            onClick={() => navigate(`/forms`)}
+                            className="flex items-center gap-1.5 text-[9px] font-bold text-slate-400 uppercase tracking-widest hover:text-brand-default transition-colors"
+                          >
+                            <ExternalLink size={10} />
+                            Extend Life
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="h-full flex flex-col items-center justify-center opacity-10 text-center grayscale">
+                    <Ghost size={40} className="mb-4" />
+                    <p className="text-[10px] font-semibold text-white uppercase tracking-[0.3em]">All Sector Secure</p>
+                    <p className="text-[8px] text-white mt-2">No upcoming expirations</p>
+                  </div>
+                )}
+              </div>
+              
+              <button 
+                onClick={() => navigate('/forms')}
+                className="mt-8 w-full py-4 border border-slate-800 rounded-md text-[10px] font-semibold text-slate-400 uppercase tracking-widest hover:border-slate-700 hover:text-white transition-all"
+              >
+                Review All Assets
+              </button>
+            </>
+          )}
         </motion.div>
       </div>
     </div>

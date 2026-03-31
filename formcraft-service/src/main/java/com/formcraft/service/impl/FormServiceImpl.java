@@ -7,12 +7,14 @@ import com.formcraft.dto.response.FormDto;
 import com.formcraft.dto.response.ResponseDto;
 import com.formcraft.entity.Form;
 import com.formcraft.entity.FormResponse;
+import com.formcraft.entity.builder.FormDraft;
 import com.formcraft.exception.BusinessLogicException;
 import com.formcraft.exception.ResourceNotFoundException;
 import com.formcraft.mapper.FormMapper;
 import com.formcraft.mapper.ResponseMapper;
 import com.formcraft.repository.FormRepository;
 import com.formcraft.repository.FormResponseRepository;
+import com.formcraft.service.AuditService;
 import com.formcraft.service.FormService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +40,7 @@ public class FormServiceImpl implements FormService {
     private final FormRepository formRepository;
     private final FormResponseRepository formResponseRepository;
     private final FormMapper formMapper;
+    private final AuditService auditService;
     private final ResponseMapper responseMapper;
     private final com.formcraft.util.FormValidator formValidator;
 
@@ -61,6 +64,7 @@ public class FormServiceImpl implements FormService {
         }
         
         Form savedForm = formRepository.save(form);
+        auditService.log("CREATE_FORM", "FORM", savedForm.getId(), "Form created: " + savedForm.getName());
         return formMapper.toDto(savedForm);
     }
 
@@ -177,13 +181,11 @@ public class FormServiceImpl implements FormService {
         Form form = formRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Form not found with id: " + id));
         
-        if (form.getStatus() == FormStatus.ACTIVE) {
-            form.setStatus(FormStatus.INACTIVE);
-        } else {
-            form.setStatus(FormStatus.ACTIVE);
-        }
+        FormStatus newStatus = (form.getStatus() == FormStatus.ACTIVE) ? FormStatus.INACTIVE : FormStatus.ACTIVE;
+        form.setStatus(newStatus);
         
         Form savedForm = formRepository.save(form);
+        auditService.log("TOGGLE_FORM_STATUS", "FORM", id, "Form status updated to: " + newStatus);
         return formMapper.toDto(savedForm);
     }
 
@@ -195,6 +197,7 @@ public class FormServiceImpl implements FormService {
         
         form.setExpiresAt(LocalDateTime.now().plusDays(days));
         Form savedForm = formRepository.save(form);
+        auditService.log("SCHEDULE_DEACTIVATION", "FORM", id, "Form scheduled for deactivation in " + days + " days.");
         return formMapper.toDto(savedForm);
     }
     @Override
@@ -204,6 +207,7 @@ public class FormServiceImpl implements FormService {
             throw new ResourceNotFoundException("Response not found with id: " + responseId);
         }
         formResponseRepository.deleteById(responseId);
+        auditService.log("DELETE_RESPONSE", "RESPONSE", responseId, "Response deleted.");
     }
 
     @Override
@@ -217,6 +221,7 @@ public class FormServiceImpl implements FormService {
         
         response.setResponseData(responses);
         FormResponse updatedResponse = formResponseRepository.save(response);
+        auditService.log("UPDATE_RESPONSE", "RESPONSE", responseId, "Response updated.");
         return responseMapper.toDto(updatedResponse);
     }
 
@@ -226,7 +231,10 @@ public class FormServiceImpl implements FormService {
         if (!formRepository.existsById(id)) {
             throw new ResourceNotFoundException("Form not found with id: " + id);
         }
+        log.warn("Form Purge Protocol: Permanently decommissioning form ID '{}'", id);
         formRepository.deleteById(id);
+        auditService.log("DELETE_FORM", "FORM", id, "Form deleted permanently.");
+        log.info("Decommissioning Complete: Form ID '{}' erased from global index.", id);
     }
 
     @Override
@@ -254,6 +262,7 @@ public class FormServiceImpl implements FormService {
         }
         
         Form updatedForm = formRepository.save(form);
+        auditService.log("UPDATE_FORM", "FORM", id, "Form updated: " + updatedForm.getName());
         return formMapper.toDto(updatedForm);
     }
 
@@ -298,6 +307,7 @@ public class FormServiceImpl implements FormService {
                 throw new BusinessLogicException("Expiration date cannot be in the past.");
             }
             if (startsAt != null && expiresAt.isBefore(startsAt)) {
+                log.error("Validation Failure: Expiration date ({}) precedes Start date ({})", expiresAt, startsAt);
                 throw new BusinessLogicException("Expiration date must be after the start date.");
             }
         }
@@ -307,7 +317,7 @@ public class FormServiceImpl implements FormService {
     @Transactional
     public java.util.UUID saveDraft(UUID draftId, UUID formId, FormRequest request) {
         String username = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
-        com.formcraft.entity.builder.FormDraft draft = null;
+        FormDraft draft = null;
         
         // 1. Try to find by draftId first (Session Restoration)
         if (draftId != null) {
@@ -321,7 +331,7 @@ public class FormServiceImpl implements FormService {
 
         // 3. Last fallback: Create a new draft session (don't clobber others)
         if (draft == null) {
-            draft = com.formcraft.entity.builder.FormDraft.builder()
+            draft = FormDraft.builder()
                     .createdBy(username)
                     .formId(formId)
                     .build();
@@ -334,14 +344,16 @@ public class FormServiceImpl implements FormService {
         draft.setBannerUrl(request.getBannerUrl());
         draft.setThemeColor(request.getThemeColor());
         
-        return formDraftRepository.save(draft).getId();
+        FormDraft savedDraft = formDraftRepository.save(draft);
+        log.debug("Draft Lifecycle: Session saved with ID '{}' for form: {}", savedDraft.getId(), formId);
+        return savedDraft.getId();
     }
 
     @Override
     @Transactional(readOnly = true)
     public com.formcraft.dto.response.FormDraftDto getDraft(UUID formId) {
         String username = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
-        com.formcraft.entity.builder.FormDraft draft = null;
+        FormDraft draft = null;
         
         if (formId != null) {
             draft = formDraftRepository.findByCreatedByAndFormId(username, formId).orElse(null);
@@ -349,7 +361,7 @@ public class FormServiceImpl implements FormService {
             // Finding the LATEST draft for new forms
             draft = formDraftRepository.findAllByCreatedBy(username).stream()
                     .filter(d -> d.getFormId() == null)
-                    .max(java.util.Comparator.comparing(com.formcraft.entity.builder.FormDraft::getUpdatedAt))
+                    .max(java.util.Comparator.comparing(FormDraft::getUpdatedAt))
                     .orElse(null);
         }
 

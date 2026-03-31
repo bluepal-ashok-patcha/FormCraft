@@ -18,4 +18,8 @@ public interface TemplateRepository extends JpaRepository<Template, UUID> {
     List<Template> findByGlobal(boolean global);
     
     List<Template> findByRequestedForGlobalTrueAndGlobalFalse();
+
+    long countByGlobal(boolean global);
+    
+    long countByRequestedForGlobalTrueAndGlobalFalse();
 }

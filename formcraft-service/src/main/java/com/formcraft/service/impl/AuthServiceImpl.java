@@ -23,6 +23,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.formcraft.service.AuditService;
 
 import lombok.extern.slf4j.Slf4j;
 import java.util.Collections;
@@ -47,6 +48,7 @@ public class AuthServiceImpl implements AuthService {
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
+    private final AuditService auditService;
 
     @org.springframework.context.annotation.Lazy
     @org.springframework.beans.factory.annotation.Autowired
@@ -86,6 +88,7 @@ public class AuthServiceImpl implements AuthService {
             return handleSuccessfulLogin(user, authentication);
         } catch (BadCredentialsException e) {
             self.handleFailedLogin(user.getId());
+            auditService.log("USER_LOGIN_FAILED", user.getUsername(), "USER", user.getId(), "Failed login attempt");
             throw new BadCredentialsException("Error: Invalid username or password.");
         }
     }
@@ -109,6 +112,7 @@ public class AuthServiceImpl implements AuthService {
                 .map(role -> role.getName().name())
                 .collect(java.util.stream.Collectors.toList()));
         
+        auditService.log("USER_LOGIN", user.getUsername(), "USER", user.getId(), "User logged in successfully");
         log.info("User '{}' successfully authenticated.", user.getUsername());
         return jwtResponse;
     }
@@ -165,6 +169,7 @@ public class AuthServiceImpl implements AuthService {
         userRepository.save(user);
         emailService.sendVerificationEmail(user.getEmail(), otp);
         
+        auditService.log("USER_REGISTER", user.getUsername(), "USER", user.getId(), "New user account registered");
         log.info("Registration: New user '{}' awaiting email verification.", user.getUsername());
         return "Registration successful! Please check your email for the OTP.";
     }
@@ -208,6 +213,7 @@ public class AuthServiceImpl implements AuthService {
         user.setOtpCode(null);
         user.setOtpExpiry(null);
         userRepository.save(user);
+        auditService.log("USER_VERIFY", user.getUsername(), "USER", user.getId(), "User verified account");
         log.info("Verification: Account '{}' activated successfully.", user.getUsername());
 
         // Perform manual authentication to generate tokens
@@ -251,6 +257,7 @@ public class AuthServiceImpl implements AuthService {
         user.setLockoutTime(null);
         
         userRepository.save(user);
+        auditService.log("USER_PASSWORD_RESET", user.getUsername(), "USER", user.getId(), "User reset password");
         log.info("Password Reset: User '{}' successfully updated their password.", user.getUsername());
 
         // Log them in immediately

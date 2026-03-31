@@ -8,6 +8,7 @@ import com.formcraft.dto.response.ResponseDto;
 import com.formcraft.service.FormService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -24,6 +25,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.Parameter;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/forms")
 @RequiredArgsConstructor
@@ -36,7 +38,9 @@ public class FormController {
     @Operation(summary = "Upload submission attachment", description = "Allow respondents to upload files that will be included with their form submission.")
     @PostMapping("/upload-attachment")
     public ResponseEntity<ApiResponse<java.util.Map<String, String>>> uploadAttachment(@Parameter(description = "The file you want to upload") @RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+        log.info("Asset Synchronization Initiated: Uploading attachment '{}' ({})", file.getOriginalFilename(), file.getSize());
         String url = cloudinaryService.uploadFile(file);
+        log.info("Asset Successfully Synchronized: Attachment available at {}", url);
         return ResponseEntity.ok(ApiResponse.success(java.util.Map.of("url", url), "Submission attachment successfully synchronized."));
     }
 
@@ -44,7 +48,9 @@ public class FormController {
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public ResponseEntity<ApiResponse<FormDto>> createForm(@Valid @RequestBody FormRequest request) {
+        log.info("Architectural Protocol Engaged: Creating new form '{}'", request.getName());
         FormDto createdForm = formService.createForm(request);
+        log.info("Form Protocol Synchronized: New form deployed with ID '{}' and slug '{}'", createdForm.getId(), createdForm.getSlug());
         return new ResponseEntity<>(ApiResponse.success(createdForm, "Form created successfully"), HttpStatus.CREATED);
     }
 
@@ -52,6 +58,7 @@ public class FormController {
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<FormDto>> getFormById(@Parameter(description = "The unique ID of the form") @PathVariable("id") UUID id) {
+        log.info("Registry Query: Fetching operational details for form ID '{}'", id);
         FormDto form = formService.getFormById(id);
         return ResponseEntity.ok(ApiResponse.success(form, "Form fetched successfully"));
     }
@@ -78,7 +85,9 @@ public class FormController {
     @Operation(summary = "Submit form response", description = "Send in answers for a specific form.")
     @PostMapping("/submit")
     public ResponseEntity<ApiResponse<ResponseDto>> submitResponse(@Valid @RequestBody SubmissionRequest request) {
+        log.info("Transmission Received: Processing submission for form ID '{}'", request.getFormId());
         ResponseDto response = formService.submitResponse(request);
+        log.info("Transmission Successful: Response indexed with ID '{}'", response.getId());
         return new ResponseEntity<>(ApiResponse.success(response, "Response submitted successfully"), HttpStatus.CREATED);
     }
 
@@ -116,8 +125,10 @@ public class FormController {
     @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}/toggle-status")
     public ResponseEntity<ApiResponse<FormDto>> toggleStatus(@Parameter(description = "The ID of the form") @PathVariable("id") UUID id) {
+        log.info("Operational Status Shift: Toggling status for form ID '{}'", id);
         FormDto updatedForm = formService.toggleFormStatus(id);
         String statusLabel = updatedForm.getStatus() == com.formcraft.enums.FormStatus.ACTIVE ? "Activated" : "Deactivated";
+        log.info("Shift Complete: Form ID '{}' is now {}", id, statusLabel);
         return ResponseEntity.ok(ApiResponse.success(updatedForm, "Form " + statusLabel + " successfully"));
     }
 
@@ -133,7 +144,9 @@ public class FormController {
     @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteForm(@Parameter(description = "The ID of the form to delete") @PathVariable("id") UUID id) {
+        log.warn("Form Purge Protocol: Deleting form ID '{}' and all associated data.", id);
         formService.deleteForm(id);
+        log.info("Purge Complete: Form ID '{}' erased from registry.", id);
         return ResponseEntity.ok(ApiResponse.success(null, "Form and all its responses deleted successfully"));
     }
 
@@ -141,7 +154,9 @@ public class FormController {
     @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<FormDto>> updateForm(@Parameter(description = "The ID of the form to update") @PathVariable("id") UUID id, @Valid @RequestBody FormRequest request) {
+        log.info("Resource Update: Recalibrating architecture for form ID '{}'", id);
         FormDto updatedForm = formService.updateForm(id, request);
+        log.info("Update Complete: Form ID '{}' architecture synchronized.", id);
         return ResponseEntity.ok(ApiResponse.success(updatedForm, "Form updated successfully"));
     }
 
@@ -152,6 +167,7 @@ public class FormController {
             @Parameter(description = "Optional draft session ID") @RequestParam(value = "draftId", required = false) java.util.UUID draftId,
             @Parameter(description = "Optional form ID if editing") @RequestParam(value = "formId", required = false) java.util.UUID formId, 
             @RequestBody FormRequest request) {
+        log.debug("Draft Auto-Sync: Saving progress for form '{}' (Draft: {}, Form: {})", request.getName(), draftId, formId);
         java.util.UUID savedDraftId = formService.saveDraft(draftId, formId, request);
         return ResponseEntity.ok(ApiResponse.success(savedDraftId, "Draft saved"));
     }
@@ -177,6 +193,7 @@ public class FormController {
     public ResponseEntity<ApiResponse<Void>> deleteDraft(
             @Parameter(description = "Optional form ID if editing") @RequestParam(value = "formId", required = false) java.util.UUID formId,
             @Parameter(description = "Optional draft session ID") @RequestParam(value = "draftId", required = false) java.util.UUID draftId) {
+        log.info("Draft Purge: Removing session for Form: {}, Draft: {}", formId, draftId);
         formService.deleteDraft(formId, draftId);
         return ResponseEntity.ok(ApiResponse.success(null, "Draft purged"));
     }

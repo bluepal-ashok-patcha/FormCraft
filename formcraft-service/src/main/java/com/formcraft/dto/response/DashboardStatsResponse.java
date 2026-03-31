@@ -29,8 +29,38 @@ public class DashboardStatsResponse {
     private double avgResponsesPerForm;
     @io.swagger.v3.oas.annotations.media.Schema(description = "Data used to draw the activity charts.")
     private List<ChartData> chartData;
-    @io.swagger.v3.oas.annotations.media.Schema(description = "A list of the most recent things that happened.")
+    @io.swagger.v3.oas.annotations.media.Schema(description = "A record of a single recent activity.")
     private List<RecentActivity> recentActivity;
+
+    @io.swagger.v3.oas.annotations.media.Schema(description = "A list of forms expiring within the next 24 hours.")
+    private List<ExpiringForm> expiringForms;
+
+    @io.swagger.v3.oas.annotations.media.Schema(description = "Super Admin: Total number of global/certified templates.")
+    private long totalTemplates;
+
+    @io.swagger.v3.oas.annotations.media.Schema(description = "Super Admin: Number of templates pending for global promotion.")
+    private long pendingPromotions;
+
+    @io.swagger.v3.oas.annotations.media.Schema(description = "Super Admin: A list of templates awaiting global certification.")
+    private List<PromotionRequest> promotionRequests;
+
+    @Data
+    @Builder
+    public static class ExpiringForm {
+        private String id;
+        private String name;
+        private String timeLeft;
+        private java.time.LocalDateTime expiresAt;
+    }
+
+    @Data
+    @Builder
+    public static class PromotionRequest {
+        private String id;
+        private String name;
+        private String requester;
+        private String timeAgo;
+    }
 
     @Data
     @Builder

@@ -7,6 +7,7 @@ import com.formcraft.entity.Template;
 import com.formcraft.repository.CategoryRepository;
 import com.formcraft.repository.TemplateRepository;
 import com.formcraft.exception.ResourceNotFoundException;
+import com.formcraft.service.AuditService;
 import com.formcraft.service.TemplateService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
@@ -24,6 +25,7 @@ public class TemplateServiceImpl implements TemplateService {
 
     private final TemplateRepository templateRepository;
     private final CategoryRepository categoryRepository;
+    private final AuditService auditService;
 
     @Override
     @Transactional
@@ -49,6 +51,7 @@ public class TemplateServiceImpl implements TemplateService {
                 .build();
         
         Template saved = templateRepository.save(template);
+        auditService.log("CREATE_TEMPLATE", "TEMPLATE", saved.getId(), "Blueprint created: " + saved.getName());
         return mapToDTO(saved);
     }
 
@@ -132,7 +135,9 @@ public class TemplateServiceImpl implements TemplateService {
             template.setCategory(category);
         }
 
-        return mapToDTO(templateRepository.save(template));
+        Template updated = templateRepository.save(template);
+        auditService.log("UPDATE_TEMPLATE", "TEMPLATE", updated.getId(), "Blueprint updated: " + updated.getName());
+        return mapToDTO(updated);
     }
 
     @Override
@@ -156,6 +161,7 @@ public class TemplateServiceImpl implements TemplateService {
         }
 
         templateRepository.delete(template);
+        auditService.log("DELETE_TEMPLATE", "TEMPLATE", id, "Blueprint deleted permanently.");
     }
 
     @Override
@@ -164,7 +170,9 @@ public class TemplateServiceImpl implements TemplateService {
         Template template = templateRepository.findById(id)
                 .orElseThrow(() -> new com.formcraft.exception.ResourceNotFoundException("Governance Error: Target asset not found for global promotion."));
         template.setGlobal(true);
-        return mapToDTO(templateRepository.save(template));
+        Template updated = templateRepository.save(template);
+        auditService.log("PROMOTE_TEMPLATE", "TEMPLATE", updated.getId(), "Blueprint promoted to global.");
+        return mapToDTO(updated);
     }
 
     @Override
@@ -179,7 +187,9 @@ public class TemplateServiceImpl implements TemplateService {
         }
         
         template.setRequestedForGlobal(true);
-        return mapToDTO(templateRepository.save(template));
+        Template updated = templateRepository.save(template);
+        auditService.log("REQUEST_PROMOTION", "TEMPLATE", updated.getId(), "Promotion requested for blueprint.");
+        return mapToDTO(updated);
     }
 
     @Override
@@ -224,6 +234,7 @@ public class TemplateServiceImpl implements TemplateService {
         template.setGlobal(false);
         template.setRequestedForGlobal(false);
         Template updated = templateRepository.save(template);
+        auditService.log("DECERTIFY_TEMPLATE", "TEMPLATE", updated.getId(), "Blueprint decertified.");
         return mapToDTO(updated);
     }
 

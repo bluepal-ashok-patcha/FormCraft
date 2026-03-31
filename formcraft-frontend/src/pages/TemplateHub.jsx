@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
   Search, 
@@ -201,7 +201,7 @@ const TemplateCard = ({ template, user, onDeploy, onPromote, onRequestPromotion,
             </span>
           </div>
           <div className="flex items-center gap-1 text-brand-default">
-            <span className="text-[10px] font-semibold uppercase tracking-widest">Deploy</span>
+            <span className="text-[10px] font-semibold uppercase tracking-widest">Use Template</span>
             <ArrowRight size={12} />
           </div>
         </div>
@@ -215,16 +215,24 @@ const TemplateHub = () => {
   const { user } = useAuth();
   const { sidebarCollapsed } = useSidebar();
   const navigate = useNavigate();
+  const location = useLocation();
   const [templates, setTemplates] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState({ id: 'all', label: 'All' });
-  const [globalFilter, setGlobalFilter] = useState('all'); // 'all', 'true', 'false'
+  const [globalFilter, setGlobalFilter] = useState('all'); // 'all', 'true', 'false', 'requested'
   const [showCategoryManager, setShowCategoryManager] = useState(false);
   const [modalConfig, setModalConfig] = useState({ isOpen: false });
 
   const isSuperAdmin = user?.roles?.includes('ROLE_SUPER_ADMIN');
+
+  useEffect(() => {
+    // Check for incoming filter from dashboard
+    if (location.state?.filter) {
+      setGlobalFilter(location.state.filter);
+    }
+  }, [location.state]);
 
   useEffect(() => {
     fetchInitialData();
@@ -381,7 +389,7 @@ const TemplateHub = () => {
           <div className="flex items-center gap-6 flex-1">
             <div>
               <h1 className="text-xl md:text-2xl font-bold tracking-tighter mb-1 leading-none uppercase italic">
-                Asset Hub
+                Template Hub
               </h1>
               <p className="text-slate-500 text-[9px] font-semibold uppercase tracking-widest opacity-80 mt-1.5">
                 Global Blueprint Registry // Enterprise v4.0

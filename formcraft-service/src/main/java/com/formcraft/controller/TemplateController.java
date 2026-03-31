@@ -6,6 +6,7 @@ import com.formcraft.dto.response.ApiResponse;
 import com.formcraft.service.TemplateService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -17,6 +18,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.Parameter;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/templates")
 @RequiredArgsConstructor
@@ -30,7 +32,9 @@ public class TemplateController {
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
 public ResponseEntity<ApiResponse<TemplateDTO>> createTemplate(@RequestBody TemplateDTO templateDTO) {
+        log.info("Blueprint Registry: Registering new template '{}'", templateDTO.getName());
         TemplateDTO created = templateService.createTemplate(templateDTO);
+        log.info("Registry Success: Template ID '{}' is now available.", created.getId());
         return new ResponseEntity<>(ApiResponse.success(created, "Template created successfully"), HttpStatus.CREATED);
     }
 
@@ -38,7 +42,9 @@ public ResponseEntity<ApiResponse<TemplateDTO>> createTemplate(@RequestBody Temp
     @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<TemplateDTO>> updateTemplate(@Parameter(description = "The ID of the template") @PathVariable("id") UUID id, @RequestBody TemplateDTO templateDTO) {
+        log.info("Blueprint Evolution: Updating architectural specs for template ID '{}'", id);
         TemplateDTO updated = templateService.updateTemplate(id, templateDTO);
+        log.info("Evolution Synchronized: Template ID '{}' refined.", id);
         return ResponseEntity.ok(ApiResponse.success(updated, "Template refined successfully"));
     }
 
@@ -84,6 +90,7 @@ public ResponseEntity<ApiResponse<TemplateDTO>> createTemplate(@RequestBody Temp
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/{id}/request-promotion")
     public ResponseEntity<ApiResponse<TemplateDTO>> requestGlobalPromotion(@Parameter(description = "The ID of the template") @PathVariable("id") UUID id) {
+        log.info("Asset Elevation Protocol: Requesting global status for template ID '{}'", id);
         TemplateDTO requested = templateService.requestGlobalPromotion(id);
         return ResponseEntity.ok(ApiResponse.success(requested, "Promotion to Global Asset requested successfully"));
     }
@@ -124,7 +131,9 @@ public ResponseEntity<ApiResponse<TemplateDTO>> createTemplate(@RequestBody Temp
     @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteTemplate(@Parameter(description = "The ID of the template to delete") @PathVariable("id") UUID id) {
+        log.warn("Blueprint De-Registry: Permanently removing template ID '{}'", id);
         templateService.deleteTemplate(id);
+        log.info("De-Registry Complete: Template ID '{}' erased.", id);
         return ResponseEntity.ok(ApiResponse.success(null, "Template deleted successfully"));
     }
 }

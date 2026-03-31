@@ -26,4 +26,7 @@ public interface FormRepository extends JpaRepository<Form, UUID>, org.springfra
 
     long countByCreatedByAndExpiresAtBetween(String username, java.time.LocalDateTime start, java.time.LocalDateTime end);
     long countByExpiresAtBetween(java.time.LocalDateTime start, java.time.LocalDateTime end);
+    
+    java.util.List<Form> findAllByCreatedByAndExpiresAtBetweenOrderByExpiresAtAsc(String username, java.time.LocalDateTime start, java.time.LocalDateTime end);
+    java.util.List<Form> findAllByExpiresAtBetweenOrderByExpiresAtAsc(java.time.LocalDateTime start, java.time.LocalDateTime end);
 }
