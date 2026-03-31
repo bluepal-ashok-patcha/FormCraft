@@ -89,7 +89,7 @@ public class AuthServiceImpl implements AuthService {
         } catch (BadCredentialsException e) {
             self.handleFailedLogin(user.getId());
             auditService.log("USER_LOGIN_FAILED", user.getUsername(), "USER", user.getId(), "Failed login attempt");
-            throw new BadCredentialsException("Error: Invalid username or password.");
+            throw new BadCredentialsException("Error: Invalid password.");
         }
     }
 

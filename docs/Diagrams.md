@@ -11,39 +11,54 @@ This flowchart illustrates the end-to-end lifecycle of a form, from administrati
 ```mermaid
 flowchart TD
     subgraph "Administrative Phase"
-        A[Registration/Login] --> B[Dashboard Hub]
+        A[Registration/Login] --> B[Form Dashboard]
         B --> C{Creation Path}
         C -->|Manual| D[Form Builder Canvas]
         C -->|AI Prompt| E[Gemini AI Orchestration]
+        C -->|Deep-Link| G[Draft Gallery]
+        G --> D
         E --> D
-        D --> F[Draft Review]
-        F --> G[Strategic Configuration]
+        D --> F[Visual Prototype Review]
+        F --> H[Strategic Configuration]
     end
 
     subgraph "Deployment Phase"
-        G --> H[Publish to Registry]
-        H --> I[Unique Slug Generation]
-        I --> J[Public Dissemination]
+        H --> I[Publish to Registry]
+        I --> J[Unique Slug Generation]
+        J --> K[Public Share/Distribute]
     end
 
     subgraph "Respondent Phase"
-        J --> K[Public Access URL]
-        K --> L{Active Check}
-        L -- No --> M[Access Revoked Screen]
-        L -- Yes --> N[Dynamic UI Rendering]
-        N --> O[User Data Entry]
-        O --> P[Frontend Validation]
-        P -->|Fail| O
-        P -->|Pass| Q[Secure Uplink Transmission]
+        K --> L[Public Form URL]
+        L --> M{Form Found?}
+        M -- No --> N[Form Not Found Screen]
+        M -- Yes --> O[Render Professional UI]
+        O --> P[User Answer Entry]
+        P --> Q[Validation Protocol]
+        Q -->|Fail| P
+        Q -->|Pass| R[Secure Submission Uplink]
     end
 
-    subgraph "Harvesting Phase"
-        Q --> R[Backend Schema Validation]
-        R --> S[PostgreSQL Persistence]
-        S --> T[Admin Notification]
-        T --> U[Analytics Dashboard]
-        U --> V[CSV Tactical Export]
+    subgraph "Analytics Phase"
+        R --> S[Backend Schema Validation]
+        S --> T[PostgreSQL Persistence]
+        T --> U[Admin Stats Update]
+        U --> V[View Responses Analytics]
     end
+```
+
+---
+
+## 🏗️ Governance Flow (Super Admin)
+
+```mermaid
+flowchart LR
+    A[Super Admin Dashboard] --> B{Promotion Alert}
+    B --> C[View Template Request]
+    C --> D[Live Visual Prototype]
+    D --> E{Approve?}
+    E -- Yes --> F[Promote to Global Template Hub]
+    E -- No --> G[Dismiss Request]
 ```
 
 ---
@@ -95,15 +110,15 @@ erDiagram
         string status "ACTIVE, PLANNED, INACTIVE"
         string theme_color
         string banner_url
-        timestamp starts_at "Scheduled release"
-        timestamp expires_at "Automatic closing"
+        timestamp starts_at "Start Date"
+        timestamp expires_at "Expiry Date"
         uuid created_by FK
     }
 
     FORM_RESPONSE {
         uuid id PK
         uuid form_id FK "Mapping to parent form"
-        jsonb response_data "Key-Value pairs of answers"
+        jsonb response_data "Answers JSONB"
         timestamp createdAt
     }
 
@@ -117,8 +132,8 @@ erDiagram
         uuid id PK
         string name "Blueprint Title"
         string description
-        jsonb schema "Pre-built form structure"
-        boolean is_global "System-wide availability"
+        jsonb schema "Form structure"
+        boolean is_global "System-wide"
         uuid category_id FK
     }
 ```
@@ -140,13 +155,13 @@ sequenceDiagram
     F->>B: GET /api/forms/s/{slug}
     B->>D: Find Form by Slug
     D-->>B: Return JSON Schema
-    B-->>F: Response (Security Context Applied)
+    B-->>F: Response (Professional UI Built)
     F->>F: Build Dynamic Interface
-    U->>F: Submit Completed Form
+    U->>F: Submit Completed Answers
     F->>B: POST /api/forms/submit (JSON)
     B->>B: Run Schema Validator
     B->>D: INSERT INTO form_responses
     D-->>B: Transaction Success
     B-->>F: Return UUID Confirmation
-    F->>U: Show Success Protocol
+    F->>U: Show 'Thank You' Protocol
 ```

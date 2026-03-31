@@ -97,7 +97,7 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isUnprocessableEntity())
-                .andExpect(jsonPath("$.message").value("Error: Email already exists."));
+                .andExpect(jsonPath("$.message").value("Error: Email already exists. Please log in."));
     }
 
     @Test
@@ -128,5 +128,27 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.username").value("testuser"));
+    }
+
+    @Test
+    void login_WithInvalidPassword_ShouldReturnDifferentiatedError() throws Exception {
+        User user = User.builder()
+                .username("passuser")
+                .fullName("Pass User")
+                .email("pass@example.com")
+                .password(passwordEncoder.encode("correct_password"))
+                .isActive(true)
+                .build();
+        userRepository.saveAndFlush(user);
+
+        LoginRequest request = new LoginRequest();
+        request.setUsernameOrEmail("passuser");
+        request.setPassword("wrong_password");
+
+        mockMvc.perform(post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("Error: Invalid password."));
     }
 }

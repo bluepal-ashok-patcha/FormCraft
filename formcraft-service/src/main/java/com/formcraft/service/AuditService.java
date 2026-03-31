@@ -1,7 +1,5 @@
 package com.formcraft.service;
 
-import java.util.UUID;
-
 public interface AuditService {
     /**
      * Standard audit log recording. 

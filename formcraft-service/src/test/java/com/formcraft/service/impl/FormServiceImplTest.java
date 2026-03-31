@@ -65,6 +65,9 @@ class FormServiceImplTest {
     
     @Mock
     private Authentication authentication;
+    
+    @Mock
+    private com.formcraft.service.AuditService auditService;
  
     @InjectMocks
     private FormServiceImpl formService;
@@ -148,5 +151,46 @@ class FormServiceImplTest {
         
         assertEquals("Audit Form", result.getName());
         assertEquals(formId, result.getId());
+    }
+
+    @Test
+    void toggleFormStatus_Success() {
+        when(formRepository.findById(formId)).thenReturn(Optional.of(form));
+        when(formRepository.save(any(Form.class))).thenReturn(form);
+        when(formMapper.toDto(any(Form.class))).thenReturn(formDto);
+
+        FormDto result = formService.toggleFormStatus(formId);
+
+        assertNotNull(result);
+        verify(auditService, times(1)).log(eq("TOGGLE_FORM_STATUS"), eq("FORM"), eq(formId), anyString());
+    }
+
+    @Test
+    void scheduleFormDeactivation_Success() {
+        when(formRepository.findById(formId)).thenReturn(Optional.of(form));
+        when(formRepository.save(any(Form.class))).thenReturn(form);
+        when(formMapper.toDto(any(Form.class))).thenReturn(formDto);
+
+        FormDto result = formService.scheduleFormDeactivation(formId, 7);
+
+        assertNotNull(result);
+        verify(formRepository).save(argThat(f -> f.getExpiresAt() != null));
+    }
+
+    @Test
+    void deleteForm_Success() {
+        when(formRepository.existsById(formId)).thenReturn(true);
+        
+        formService.deleteForm(formId);
+
+        verify(formRepository, times(1)).deleteById(formId);
+        verify(auditService).log(eq("DELETE_FORM"), eq("FORM"), eq(formId), anyString());
+    }
+
+    @Test
+    void deleteForm_NotFound_ThrowsResourceNotFoundException() {
+        when(formRepository.existsById(formId)).thenReturn(false);
+
+        assertThrows(ResourceNotFoundException.class, () -> formService.deleteForm(formId));
     }
 }

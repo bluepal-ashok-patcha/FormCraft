@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Search, 
   Sparkles, 
@@ -12,7 +12,9 @@ import {
   Plus,
   Layout,
   Pencil,
-  Trash2
+  Trash2,
+  Eye,
+  X
 } from 'lucide-react';
 import api from '../services/api';
 import { toast } from 'react-toastify';
@@ -23,7 +25,7 @@ import FormPreview from '../components/FormPreview';
 import GovernanceModal from '../components/GovernanceModal';
 
 /* ── Per-card component with hover-reveal parallax ── */
-const TemplateCard = ({ template, user, onDeploy, onPromote, onRequestPromotion, onDecertify, onReject, onCancelRequest, onEdit, onDelete }) => {
+const TemplateCard = ({ template, user, onDeploy, onPromote, onRequestPromotion, onDecertify, onReject, onCancelRequest, onEdit, onDelete, onPreview }) => {
   const [hovered, setHovered] = useState(false);
 
   const isSuperAdmin = user?.roles?.includes('ROLE_SUPER_ADMIN');
@@ -172,6 +174,26 @@ const TemplateCard = ({ template, user, onDeploy, onPromote, onRequestPromotion,
             pointerEvents: 'none',
           }}
         />
+
+        {/* Hover Action: Quick Preview Overlay */}
+        <AnimatePresence>
+          {hovered && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none"
+            >
+              <button 
+                onClick={(e) => { e.stopPropagation(); onPreview(template); }}
+                className="pointer-events-auto flex items-center gap-2 px-6 py-2.5 bg-slate-900 border border-slate-700/50 text-white rounded-full text-[10px] font-bold uppercase tracking-widest shadow-2xl hover:scale-105 active:scale-95 transition-all"
+              >
+                <Eye size={14} className="text-brand-default" />
+                Live Preview
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* ── Info section — fades out as preview expands ── */}
@@ -224,6 +246,7 @@ const TemplateHub = () => {
   const [globalFilter, setGlobalFilter] = useState('all'); // 'all', 'true', 'false', 'requested'
   const [showCategoryManager, setShowCategoryManager] = useState(false);
   const [modalConfig, setModalConfig] = useState({ isOpen: false });
+  const [previewTemplate, setPreviewTemplate] = useState(null);
 
   const isSuperAdmin = user?.roles?.includes('ROLE_SUPER_ADMIN');
 
@@ -498,6 +521,7 @@ const TemplateHub = () => {
                 onCancelRequest={handleCancelRequest}
                 onEdit={handleEdit}
                 onDelete={handleDelete}
+                onPreview={(t) => setPreviewTemplate(t)}
               />
             ))}
           </div>
@@ -521,6 +545,85 @@ const TemplateHub = () => {
         confirmText={modalConfig.confirmText}
         type={modalConfig.type}
       />
+
+      {/* ── Visual Prototype Preview Portal ── */}
+      <AnimatePresence>
+        {previewTemplate && (
+          <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 md:p-8">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-xl"
+              onClick={() => setPreviewTemplate(null)}
+            />
+            
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 40 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 40 }}
+              className="relative w-full max-w-5xl h-full max-h-[85vh] bg-white rounded-[6px] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.3)] border border-slate-200 overflow-hidden flex flex-col"
+            >
+              {/* Preview Header */}
+              <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+                <div className="flex items-center gap-4">
+                  <div className="p-2 bg-brand-default/10 rounded-[6px] text-brand-default">
+                    <Sparkles size={18} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900 uppercase tracking-tight">{previewTemplate.name}</h3>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-0.5">Template Preview // {previewTemplate.global ? 'Certified Asset' : 'Private Draft'}</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setPreviewTemplate(null)}
+                  className="w-10 h-10 rounded-[6px] hover:bg-slate-50 flex items-center justify-center text-slate-400 hover:text-red-500 transition-all border border-transparent hover:border-slate-100"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Preview Body with simulated form container */}
+              <div className="flex-1 overflow-y-auto bg-slate-50 p-6 md:p-10 custom-scrollbar">
+                <div className="max-w-2xl mx-auto space-y-6">
+                  {/* Banner Simulation */}
+                  {previewTemplate.bannerUrl && (
+                    <div className="w-full h-40 rounded-[6px] overflow-hidden border border-slate-200 shadow-sm relative group">
+                      <img src={previewTemplate.bannerUrl} className="w-full h-full object-cover" alt="Blueprint Banner" />
+                    </div>
+                  )}
+
+                  <div className="bg-transparent space-y-6">
+                    <FormPreview 
+                      fields={previewTemplate.schema?.fields || []}
+                      name={previewTemplate.name}
+                      description={previewTemplate.description}
+                      hideHeader={true} 
+                      isFullView={true} 
+                    />
+
+                    <div className="pt-6 border-t border-slate-200 flex justify-end">
+                      <button 
+                        onClick={() => handleDeploy(previewTemplate)}
+                        className="px-8 py-3.5 bg-slate-900 text-white rounded-[6px] font-bold uppercase tracking-widest text-[10px] flex items-center gap-3 hover:bg-brand-default transition-all shadow-xl shadow-slate-900/10"
+                      >
+                        Use Template
+                        <ArrowRight size={16} />
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-center pb-6">
+                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.3em] opacity-40">
+                      Standard Preview Mode
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

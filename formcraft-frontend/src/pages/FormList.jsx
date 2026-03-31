@@ -147,10 +147,10 @@ const FormCard = ({ form, idx, isLive, isOffline, onNavigateResponses, activeMen
           <div className={`transition-all duration-500 ${hovered ? 'opacity-0 -translate-y-4 h-0 overflow-hidden' : 'opacity-100'}`}>
             <div className="grid grid-cols-2 gap-x-6 gap-y-4">
               <div className="space-y-1">
-                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Captured Yield</p>
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Total Responses</p>
                 <div className="flex items-center gap-2">
                   <h4 className="text-2xl font-black text-slate-900 leading-none">{form.responseCount || 0}</h4>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase">Reports</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase">Received</span>
                 </div>
               </div>
 
@@ -158,7 +158,7 @@ const FormCard = ({ form, idx, isLive, isOffline, onNavigateResponses, activeMen
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 text-brand-default">
                     <Clock size={12} />
-                    <p className="text-[9px] font-bold uppercase tracking-widest">Initialization</p>
+                    <p className="text-[9px] font-bold uppercase tracking-widest">Start Date</p>
                   </div>
                   <p className="text-[11px] font-bold text-slate-700 truncate">
                     {form.startsAt ? new Date(form.startsAt).toLocaleString('en-US', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Immediate Start'}
@@ -167,19 +167,19 @@ const FormCard = ({ form, idx, isLive, isOffline, onNavigateResponses, activeMen
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 text-slate-400">
                     <Calendar size={12} />
-                    <p className="text-[9px] font-bold uppercase tracking-widest">Termination</p>
+                    <p className="text-[9px] font-bold uppercase tracking-widest">Expiry Date</p>
                   </div>
                   <p className="text-[11px] font-bold text-slate-700 truncate">
-                    {form.expiresAt ? new Date(form.expiresAt).toLocaleString('en-US', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Infinite Lifecycle'}
+                    {form.expiresAt ? new Date(form.expiresAt).toLocaleString('en-US', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Always Active'}
                   </p>
                 </div>
               </div>
 
               <div className="space-y-1">
-                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Logic Blocks</p>
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Total Questions</p>
                 <div className="flex items-center gap-2">
                   <h4 className="text-xl font-bold text-slate-800 leading-none">{form.schema?.fields?.length || 0}</h4>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase">Elements</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase">Fields</span>
                 </div>
               </div>
             </div>
@@ -193,7 +193,7 @@ const FormCard = ({ form, idx, isLive, isOffline, onNavigateResponses, activeMen
               onClick={() => onNavigateResponses(form.id)}
               className="flex items-center gap-2 text-brand-default hover:text-brand-700 transition-all group/btn"
             >
-              <span className="text-[10px] font-extrabold uppercase tracking-widest">Open Analytics</span>
+              <span className="text-[10px] font-extrabold uppercase tracking-widest">View Responses</span>
               <ArrowRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
             </button>
           </div>
@@ -242,9 +242,9 @@ const FormList = () => {
         setStatusFilter('inactive');
       } else if (filter === 'expiring') {
         const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-        setDateRange({ 
-          start: now.toISOString().split('T')[0], 
-          end: tomorrow.toISOString().split('T')[0] 
+        setDateRange({
+          start: now.toISOString().split('T')[0],
+          end: tomorrow.toISOString().split('T')[0]
         });
       } else if (filter === 'drafts') {
         // Technically drafts are handled by FormDraftRepository 
@@ -423,10 +423,10 @@ const FormList = () => {
           <div className="flex items-center gap-6 flex-1">
             <div>
               <h1 className="text-xl md:text-2xl font-bold tracking-tighter mb-1 leading-none uppercase italic">
-                Form Intelligence // <span className="text-brand-500">CONTROL</span>
+                Form <span className="text-brand-500">Control</span>
               </h1>
               <p className="text-slate-500 text-[9px] font-semibold uppercase tracking-widest opacity-80 mt-1.5">
-                Deployment Registry & Lifecycle Monitor
+                Manage and monitor your active form architectures.
               </p>
             </div>
           </div>
@@ -437,7 +437,7 @@ const FormList = () => {
               className="px-6 bg-brand-default text-white h-11 rounded-lg font-semibold uppercase tracking-widest text-[11px] flex items-center justify-center gap-2 hover:bg-brand-600 transition-all shadow-lg shadow-brand-500/10 active:scale-95"
             >
               <Plus size={14} />
-              Register New Form
+              Create New Form
             </button>
           </div>
         </div>
@@ -550,11 +550,10 @@ const FormList = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className={`grid grid-cols-1 md:grid-cols-2 gap-4 ${
-                !sidebarCollapsed 
-                  ? 'lg:grid-cols-3' 
-                  : 'lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5'
-              }`}
+              className={`grid grid-cols-1 md:grid-cols-2 gap-4 ${!sidebarCollapsed
+                ? 'lg:grid-cols-3'
+                : 'lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5'
+                }`}
             >
               {forms.map((form, idx) => (
                 <FormCard
@@ -919,13 +918,13 @@ const FormList = () => {
                         </button>
                       ))}
                       <div className="relative group">
-                        <input 
-                          type="color" 
-                          value={editForm.themeColor} 
+                        <input
+                          type="color"
+                          value={editForm.themeColor}
                           onChange={(e) => setEditForm(prev => ({ ...prev, themeColor: e.target.value }))}
                           className="w-full h-full aspect-square rounded-full cursor-pointer bg-slate-50 border border-slate-200 transition-all hover:scale-105 p-0 opacity-0 absolute inset-0 z-10"
                         />
-                        <div 
+                        <div
                           className="w-full h-full aspect-square rounded-full border-2 border-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-slate-50 transition-all overflow-hidden p-0.5"
                         >
                           <div className="w-full h-full rounded-full" style={{ backgroundColor: editForm.themeColor }} />
@@ -966,7 +965,7 @@ const FormList = () => {
         document.body
       )}
 
-      <GovernanceModal 
+      <GovernanceModal
         isOpen={modal.isOpen && modal.type === 'delete'}
         onClose={() => setModal({ ...modal, isOpen: false })}
         onConfirm={executeDelete}

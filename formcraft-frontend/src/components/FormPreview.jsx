@@ -1,30 +1,28 @@
 import React from 'react';
 import { Star, Upload } from 'lucide-react';
 
-const FormPreview = ({ fields = [], name, bannerUrl, thumbnailUrl }) => {
+const FormPreview = ({ fields = [], name, description, bannerUrl, thumbnailUrl, hideHeader = false, isFullView = false }) => {
   const displayUrl = bannerUrl || thumbnailUrl;
-  const previewFields = fields.slice(0, 5);
+  const previewFields = isFullView ? fields : fields.slice(0, 5);
 
   return (
-    <div className="w-full h-full overflow-hidden relative bg-slate-50 select-none pointer-events-none">
-      {/* Scale the real form down to fit the card thumbnail — like Google Forms/Sheets */}
+    <div className={`w-full h-full relative bg-slate-50 select-none pointer-events-none ${!isFullView ? 'overflow-hidden' : ''}`}>
+      {/* Scale only for Card/Thumbnail view */}
       <div
-        style={{
+        className={!isFullView ? "absolute top-0 left-0" : ""}
+        style={!isFullView ? {
           transform: 'scale(0.45)',
           transformOrigin: 'top left',
           width: '222%',
-          position: 'absolute',
-          top: 0,
-          left: 0,
-        }}
+        } : {}}
       >
-        {/* Google Forms style top brand accent bar */}
-        <div className="h-3 w-full bg-brand-default" />
+        {/* Top brand accent bar */}
+        {!hideHeader && <div className="h-3 w-full bg-brand-default" />}
 
         <div className="bg-slate-50 min-h-full">
-          {/* Banner image (like Google Forms cover photo) */}
+          {/* Banner image */}
           {displayUrl && (
-            <div className="w-full h-40 overflow-hidden">
+            <div className={`w-full ${isFullView ? 'h-64' : 'h-40'} overflow-hidden`}>
               <img
                 src={displayUrl}
                 alt={name}
@@ -33,26 +31,30 @@ const FormPreview = ({ fields = [], name, bannerUrl, thumbnailUrl }) => {
             </div>
           )}
 
-          <div className="p-4">
+          <div className={`${isFullView ? 'p-8 max-w-3xl mx-auto' : 'p-4'}`}>
             {/* Title card */}
-            <div
-              className={`bg-white rounded-xl border border-slate-200 px-5 py-4 mb-3 shadow-sm ${
-                displayUrl ? 'border-t-4 border-t-brand-default' : 'border-l-4 border-l-brand-default'
-              }`}
-            >
-              <h2 className="text-lg font-bold text-slate-800 leading-tight">{name || 'Form Preview'}</h2>
-              <p className="text-xs text-slate-400 mt-1">Fill out this form</p>
-            </div>
+            {!hideHeader && (
+              <div
+                className={`bg-white rounded-[6px] border border-slate-200 px-5 py-4 mb-3 shadow-sm ${
+                  displayUrl ? 'border-t-4 border-t-brand-default' : 'border-l-4 border-l-brand-default'
+                }`}
+              >
+                <h2 className={`${isFullView ? 'text-2xl' : 'text-lg'} font-bold text-slate-900 leading-tight`}>{name || 'Form Preview'}</h2>
+                <p className="text-[11px] text-slate-500 mt-2 leading-relaxed font-medium">
+                  {description || 'This template provides a pre-configured architecture for immediate deployment.'}
+                </p>
+              </div>
+            )}
 
             {/* Real form fields */}
             <div className="space-y-3">
               {previewFields.map((field, idx) => (
                 <div
                   key={idx}
-                  className="bg-white rounded-xl border border-slate-100 px-5 py-4 shadow-sm"
+                  className="bg-white rounded-[6px] border border-slate-100 px-5 py-4 shadow-sm"
                 >
                   {/* Label */}
-                  <label className="block text-sm font-medium text-slate-700 mb-4">
+                  <label className="block text-sm font-semibold text-slate-700 mb-4">
                     {field.label || `Field ${idx + 1}`}
                     {field.required && <span className="text-red-500 ml-1">*</span>}
                   </label>
@@ -60,20 +62,17 @@ const FormPreview = ({ fields = [], name, bannerUrl, thumbnailUrl }) => {
                   {/* Actual Input element per type */}
                   {field.type?.toUpperCase() === 'TEXTAREA' ? (
                     <textarea
-                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-400 bg-slate-50 resize-none"
+                      className="w-full border border-slate-200 rounded-[6px] px-3 py-2 text-sm text-slate-400 bg-slate-50 resize-none"
                       rows={2}
                       placeholder={field.placeholder || 'Your answer'}
                       readOnly
                     />
                   ) : field.type?.toUpperCase() === 'SELECT' || field.type?.toUpperCase() === 'DROPDOWN' ? (
                     <select
-                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-400 bg-slate-50"
+                      className="w-full border border-slate-200 rounded-[6px] px-3 py-2 text-sm text-slate-400 bg-slate-50"
                       disabled
                     >
                       <option>{field.placeholder || 'Choose an option'}</option>
-                      {(field.options || []).map((opt, i) => (
-                        <option key={i}>{opt}</option>
-                      ))}
                     </select>
                   ) : field.type?.toUpperCase() === 'RADIO' ? (
                     <div className="space-y-1.5">
@@ -88,7 +87,7 @@ const FormPreview = ({ fields = [], name, bannerUrl, thumbnailUrl }) => {
                     <div className="space-y-1.5">
                       {(field.options || ['Option 1', 'Option 2']).slice(0, 3).map((opt, i) => (
                         <label key={i} className="flex items-center gap-2 text-sm text-slate-500">
-                          <input type="checkbox" className="accent-brand-default rounded" readOnly />
+                          <input type="checkbox" className="accent-brand-default rounded-[4px]" readOnly />
                           {opt}
                         </label>
                       ))}
@@ -96,13 +95,13 @@ const FormPreview = ({ fields = [], name, bannerUrl, thumbnailUrl }) => {
                   ) : field.type?.toUpperCase() === 'DATE' ? (
                     <input
                       type="date"
-                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-400 bg-slate-50"
+                      className="w-full border border-slate-200 rounded-[6px] px-3 py-2 text-sm text-slate-400 bg-slate-50"
                       readOnly
                     />
                   ) : field.type?.toUpperCase() === 'NUMBER' ? (
                     <input
                       type="number"
-                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-400 bg-slate-50"
+                      className="w-full border border-slate-200 rounded-[6px] px-3 py-2 text-sm text-slate-400 bg-slate-50"
                       placeholder={field.placeholder || '0'}
                       readOnly
                     />
@@ -113,13 +112,13 @@ const FormPreview = ({ fields = [], name, bannerUrl, thumbnailUrl }) => {
                       ))}
                     </div>
                   ) : field.type?.toUpperCase() === 'FILE' ? (
-                    <div className="flex items-center gap-3 bg-slate-50 border border-dashed border-slate-200 rounded-lg p-4">
+                    <div className="flex items-center gap-3 bg-slate-50 border border-dashed border-slate-200 rounded-[6px] p-4">
                       <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
                         <Upload size={14} />
                       </div>
                       <div className="flex-1">
-                        <div className="h-2 w-20 bg-slate-200 rounded mb-1" />
-                        <div className="h-1.5 w-32 bg-slate-100 rounded" />
+                        <div className="h-2 w-20 bg-slate-200 rounded-[4px] mb-1" />
+                        <div className="h-1.5 w-32 bg-slate-100 rounded-[4px]" />
                       </div>
                     </div>
                   ) : field.type?.toUpperCase() === 'LINEAR-SCALE' ? (
@@ -138,7 +137,7 @@ const FormPreview = ({ fields = [], name, bannerUrl, thumbnailUrl }) => {
                   ) : (
                     <input
                       type={field.type?.toUpperCase() === 'EMAIL' ? 'email' : 'text'}
-                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-400 bg-slate-50"
+                      className="w-full border border-slate-200 rounded-[6px] px-3 py-2 text-sm text-slate-400 bg-slate-50"
                       placeholder={field.placeholder || 'Your answer'}
                       readOnly
                     />

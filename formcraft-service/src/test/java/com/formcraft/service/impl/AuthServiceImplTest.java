@@ -7,6 +7,7 @@ import com.formcraft.entity.RefreshToken;
 import com.formcraft.entity.Role;
 import com.formcraft.entity.User;
 import com.formcraft.exception.BusinessLogicException;
+import com.formcraft.exception.ResourceNotFoundException;
 import com.formcraft.repository.RoleRepository;
 import com.formcraft.repository.UserRepository;
 import com.formcraft.security.jwt.JwtTokenProvider;
@@ -22,6 +23,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Collections;
@@ -50,6 +53,9 @@ class AuthServiceImplTest {
     private PasswordEncoder passwordEncoder;
     @Mock
     private EmailService emailService;
+
+    @Mock
+    private com.formcraft.service.AuditService auditService;
 
     @InjectMocks
     private AuthServiceImpl authService;
@@ -83,7 +89,6 @@ class AuthServiceImplTest {
     @Test
     void register_Success() {
         when(userRepository.existsByUsername(anyString())).thenReturn(false);
-        when(userRepository.existsByEmail(anyString())).thenReturn(false);
         when(passwordEncoder.encode(anyString())).thenReturn("hashed_password");
         when(roleRepository.findByName(RoleName.ROLE_ADMIN)).thenReturn(Optional.of(new Role()));
 
@@ -106,8 +111,7 @@ class AuthServiceImplTest {
 
     @Test
     void register_EmailAlreadyExists_ThrowsBusinessLogicException() {
-        when(userRepository.existsByUsername(anyString())).thenReturn(false);
-        when(userRepository.existsByEmail(anyString())).thenReturn(true);
+        when(userRepository.findByEmail(anyString())).thenReturn(Optional.of(testUser));
 
         BusinessLogicException exception = assertThrows(BusinessLogicException.class, 
                 () -> authService.register(registerRequest));
@@ -142,5 +146,82 @@ class AuthServiceImplTest {
                 () -> authService.login(loginRequest));
 
         assertTrue(exception.getMessage().contains("Your account is not active."));
+    }
+
+    @Test
+    void resendVerificationOtp_Success() {
+        when(userRepository.findByEmail(anyString())).thenReturn(Optional.of(testUser));
+        testUser.setActive(false);
+
+        authService.resendVerificationOtp("test@example.com");
+
+        verify(userRepository, times(1)).save(testUser);
+        verify(emailService, times(1)).sendVerificationEmail(anyString(), anyString());
+    }
+
+    @Test
+    void resendVerificationOtp_UserNotFound_ThrowsResourceNotFoundException() {
+        when(userRepository.findByEmail(anyString())).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, 
+                () -> authService.resendVerificationOtp("nonexistent@example.com"));
+    }
+
+    @Test
+    void verifyRegistrationOtp_Success() {
+        testUser.setActive(false);
+        testUser.setOtpCode("123456");
+        testUser.setOtpExpiry(java.time.LocalDateTime.now().plusMinutes(10));
+        
+        when(userRepository.findByEmail(anyString())).thenReturn(Optional.of(testUser));
+        when(jwtTokenProvider.generateToken(any())).thenReturn("token");
+        RefreshToken refreshToken = new RefreshToken();
+        refreshToken.setToken("refresh");
+        when(refreshTokenService.createRefreshToken(anyString())).thenReturn(refreshToken);
+
+        JwtResponse response = authService.verifyRegistrationOtp("test@example.com", "123456");
+
+        assertNotNull(response);
+        assertTrue(testUser.isActive());
+        verify(auditService, times(1)).log(eq("USER_VERIFY"), anyString(), anyString(), any(), anyString());
+    }
+
+    @Test
+    void verifyRegistrationOtp_InvalidOtp_ThrowsBusinessLogicException() {
+        testUser.setActive(false);
+        testUser.setOtpCode("123456");
+        testUser.setOtpExpiry(java.time.LocalDateTime.now().plusMinutes(10));
+        
+        when(userRepository.findByEmail(anyString())).thenReturn(Optional.of(testUser));
+
+        assertThrows(BusinessLogicException.class, 
+                () -> authService.verifyRegistrationOtp("test@example.com", "wrong"));
+    }
+
+    @Test
+    void forgotPasswordRequest_Success() {
+        when(userRepository.findByUsernameOrEmail(anyString(), anyString())).thenReturn(Optional.of(testUser));
+        
+        authService.forgotPasswordRequest("testuser");
+
+        verify(emailService, times(1)).sendForgotPasswordEmail(anyString(), anyString());
+    }
+
+    @Test
+    void logout_Success() {
+        Authentication auth = mock(Authentication.class);
+        when(auth.isAuthenticated()).thenReturn(true);
+        when(auth.getName()).thenReturn("testuser");
+        
+        SecurityContext context = SecurityContextHolder.createEmptyContext();
+        context.setAuthentication(auth);
+        SecurityContextHolder.setContext(context);
+        
+        when(userRepository.findByUsernameOrEmail(anyString(), anyString())).thenReturn(Optional.of(testUser));
+
+        authService.logout();
+
+        verify(refreshTokenService, times(1)).deleteByUserId(testUser.getId());
+        assertNull(SecurityContextHolder.getContext().getAuthentication());
     }
 }

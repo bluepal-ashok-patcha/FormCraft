@@ -39,6 +39,9 @@ class TemplateServiceImplTest {
     @Mock
     private Authentication authentication;
  
+    @Mock
+    private com.formcraft.service.AuditService auditService;
+ 
     @InjectMocks
     private TemplateServiceImpl templateService;
  

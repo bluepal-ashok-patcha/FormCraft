@@ -105,10 +105,10 @@ const Dashboard = () => {
         <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex-1">
             <h1 className="text-xl md:text-2xl font-bold tracking-tighter mb-1 leading-none uppercase italic">
-              Form Intelligence // <span className="text-brand-500">CONTROL</span>
+              Form <span className="text-brand-500">Dashboard</span>
             </h1>
             <p className="text-slate-500 text-[9px] font-semibold uppercase tracking-widest opacity-80">
-              Form Management & Activity Monitor
+              Operational Overview & Activity Monitor
             </p>
           </div>
           
@@ -118,7 +118,7 @@ const Dashboard = () => {
               className="px-6 bg-brand-default text-white h-10 rounded-md font-semibold uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 hover:bg-brand-600 transition-all shadow-lg shadow-brand-500/10"
             >
               <Plus size={12} />
-              Initialize
+              Create New Form
             </button>
           </div>
         </div>
@@ -298,7 +298,7 @@ const Dashboard = () => {
                         <p className="text-[10px] text-slate-500 font-semibold mt-1.5 line-clamp-1 opacity-80 group-hover:opacity-100 transition-opacity">Request from: {req.requester}</p>
                         <div className="flex items-center gap-3 mt-2.5">
                           <button 
-                            onClick={() => navigate('/templates')}
+                            onClick={() => navigate('/templates', { state: { filter: 'requested' } })}
                             className="flex items-center gap-1.5 text-[9px] font-bold text-brand-default uppercase tracking-widest hover:underline transition-all"
                           >
                             <Zap size={10} />
@@ -318,7 +318,7 @@ const Dashboard = () => {
               </div>
               
               <button 
-                onClick={() => navigate('/templates')}
+                onClick={() => navigate('/templates', { state: { filter: 'requested' } })}
                 className="mt-8 w-full py-4 border border-slate-800 rounded-md text-[10px] font-semibold text-slate-400 uppercase tracking-widest hover:border-slate-700 hover:text-white transition-all font-bold"
               >
                 Go to Template Hub

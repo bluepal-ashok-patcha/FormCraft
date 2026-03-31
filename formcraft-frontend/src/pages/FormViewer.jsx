@@ -46,7 +46,7 @@ const FormViewer = () => {
         setForm(response.data);
       } catch (err) {
         console.error("[Viewer] Connection failed:", err);
-        setError(err?.message || "Critical link failure: Node unreachable.");
+        setError(err?.response?.data?.message || err?.message || "This form is currently unavailable. Please check the link or contact the owner.");
       } finally {
         setLoading(false);
       }
@@ -78,7 +78,7 @@ const FormViewer = () => {
 
     // 1. Required Check
     if (isRequired && (!value || (Array.isArray(value) && value.length === 0) || (typeof value === 'string' && value.trim() === ''))) {
-        return `Field Authentication Failed: ${label} is required.`;
+        return `${label} is required.`;
     }
 
     // 2. Type/Advanced Rules (only if value exists)
@@ -87,27 +87,27 @@ const FormViewer = () => {
         
         // Email Pattern
         if (field.type === 'email' && !/^[A-Za-z0-9+_.-]+@(.+)$/.test(valStr)) {
-            return validation.errorMessage || `Protocol Error: ${label} must be a valid email.`;
+            return validation.errorMessage || `Please enter a valid email address.`;
         }
 
         // Numeric Range
         if (field.type === 'number') {
             const num = parseFloat(valStr);
             if (validation.min !== undefined && num < validation.min) {
-                return validation.errorMessage || `Threshold Error: ${label} must be at least ${validation.min}.`;
+                return validation.errorMessage || `This value must be at least ${validation.min}.`;
             }
             if (validation.max !== undefined && num > validation.max) {
-                return validation.errorMessage || `Threshold Error: ${label} cannot exceed ${validation.max}.`;
+                return validation.errorMessage || `This value cannot exceed ${validation.max}.`;
             }
         }
 
         // String Length
         if (['text', 'textarea', 'email'].includes(field.type)) {
             if (validation.minLength !== undefined && valStr.length < validation.minLength) {
-                return validation.errorMessage || `Complexity Error: ${label} must be at least ${validation.minLength} characters.`;
+                return validation.errorMessage || `Please enter at least ${validation.minLength} characters.`;
             }
             if (validation.maxLength !== undefined && valStr.length > validation.maxLength) {
-                return validation.errorMessage || `Complexity Error: ${label} exceeds maximum allowed characters.`;
+                return validation.errorMessage || `Please enter no more than ${validation.maxLength} characters.`;
             }
         }
 
@@ -116,7 +116,7 @@ const FormViewer = () => {
             try {
                 const re = new RegExp(validation.regex);
                 if (!re.test(valStr)) {
-                    return validation.errorMessage || `Format Incompatibility: ${label} does not match required pattern.`;
+                    return validation.errorMessage || `The format entered is not valid.`;
                 }
             } catch (e) {
                 console.error("Advanced Regex Logic Failure:", e);
@@ -146,7 +146,7 @@ const FormViewer = () => {
 
     if (Object.keys(newErrors).length > 0) {
         setFormErrors(newErrors);
-        toast.error('Validation Protocol Interrupted: Please verify marked fields.');
+        toast.error('Please complete all required fields correctly.');
         setSubmitting(false);
         // Scroll to first error for convenience
         const element = document.getElementById(`field-${firstErrorField}`);
@@ -159,11 +159,11 @@ const FormViewer = () => {
         formId: form.id,
         responses: responses
       });
-      toast.success('Transmission Successful: Your response has been indexed.');
+      toast.success('Submitted successfully. Thank you!');
       setSubmitted(true);
     } catch (err) {
-      toast.error('Protocol Error: Data transmission failed.');
-      setError(err?.message || "Data transmission failed via protocol error.");
+      toast.error('Unable to send your response. Please try again.');
+      setError(err?.message || "There was a problem sending your data. Please check your connection.");
     } finally {
       setSubmitting(false);
     }
@@ -217,11 +217,11 @@ const FormViewer = () => {
       const url = response.url || response.data?.url;
       if (url) {
         handleChange(field, url);
-        toast.success(`Success: ${file.name} is now synchronized.`);
+        toast.success(`File uploaded successfully.`);
       }
     } catch (err) {
       console.error('Upload failed:', err);
-      toast.error(`Protocol Error: Asset synchronization for ${file.name} failed.`);
+      toast.error(`The file upload failed. Please try again.`);
     } finally {
       setUploadingFields(prev => ({ ...prev, [field.id]: false }));
     }
@@ -237,7 +237,7 @@ const FormViewer = () => {
   if (loading) return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-10">
       <Loader2 className="animate-spin text-blue-500 mb-4" size={48} />
-      <p className="text-slate-400 font-semibold uppercase tracking-widest text-xs">Initializing Secure Link...</p>
+      <p className="text-slate-400 font-semibold uppercase tracking-widest text-xs">Loading Form...</p>
     </div>
   );
 
@@ -247,9 +247,9 @@ const FormViewer = () => {
       <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center p-6 text-center">
         <div className="max-w-md w-full bg-white p-10 rounded-3xl shadow-sm border border-slate-100">
            <AlertCircle size={48} className="text-red-500 mx-auto mb-4" />
-           <h2 className="text-xl font-bold text-slate-900 mb-2">Node Isolation Failure</h2>
-           <p className="text-slate-500 text-sm mb-6">{error || "The form you are looking for does not exist or has been disconnected."}</p>
-           <Link to="/" className="text-xs font-bold text-slate-400 uppercase tracking-widest hover:text-slate-900">Return to Portal</Link>
+           <h2 className="text-xl font-bold text-slate-900 mb-2">Form Not Found</h2>
+           <p className="text-slate-500 text-sm mb-6">{error || "The form you are looking for does not exist or is no longer available."}</p>
+           <Link to="/" className="text-xs font-bold text-slate-400 uppercase tracking-widest hover:text-slate-900">Return Home</Link>
         </div>
       </div>
     );
@@ -506,7 +506,7 @@ const FormViewer = () => {
                                   <Paperclip size={18} />
                                </div>
                                <div className="flex-1 min-w-0">
-                                  <p className="text-[10px] font-bold text-emerald-800 uppercase tracking-widest truncate">Asset Synchronized</p>
+                                  <p className="text-[10px] font-bold text-emerald-800 uppercase tracking-widest truncate">File Ready</p>
                                   <a href={responses[field.id]} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-emerald-600 hover:underline truncate block">View Attachment</a>
                                </div>
                                <button 
@@ -529,7 +529,7 @@ const FormViewer = () => {
                                 )}
                               </div>
                               <div className="text-center">
-                                <p className="text-xs font-bold text-slate-700 uppercase tracking-widest">{uploadingFields[field.id] ? 'Uploading...' : 'Transmit Asset'}</p>
+                                <p className="text-xs font-bold text-slate-700 uppercase tracking-widest">{uploadingFields[field.id] ? 'Uploading...' : 'Upload File'}</p>
                                 <p className="text-[10px] font-medium text-slate-400 uppercase tracking-widest mt-1">Select or drag & drop</p>
                               </div>
                               <input 
@@ -551,7 +551,7 @@ const FormViewer = () => {
                                   className="h-full bg-brand-default"
                                 />
                              </div>
-                             <span className="text-[9px] font-bold text-brand-default uppercase tracking-widest">Active Link...</span>
+                             <span className="text-[9px] font-bold text-brand-default uppercase tracking-widest">Uploading...</span>
                            </div>
                         )}
                       </div>

@@ -46,7 +46,7 @@ public class SecurityConfig {
                                 .requestMatchers(HttpMethod.POST, "/api/forms/upload-attachment").permitAll()
                                 .requestMatchers(HttpMethod.POST, "/api/forms/submit").permitAll()
                                 .requestMatchers(HttpMethod.GET, "/api/forms/**").permitAll()
-                                .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                                .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html","/actuator/**").permitAll()
                                 .anyRequest().authenticated()
                 ).exceptionHandling(exception -> exception
                         .authenticationEntryPoint(authenticationEntryPoint)

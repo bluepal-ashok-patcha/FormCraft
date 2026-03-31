@@ -11,6 +11,8 @@ FormCraft adheres to the **Layered Architecture Style** on the backend and uses 
 ### System Components
 
 1.  **Frontend (React + Vite)**: A modern, high-performance web interface using Tailwind CSS for styling and React Context + Axios for state and data management.
+    - **Visual Prototype Engine**: Hover-activated, high-fidelity template previews using `framer-motion` and `AnimatePresence`.
+    - **Professional Design Protocol**: Consistent 6px border radius and Google Forms-inspired clean precision.
 2.  **API Gateway / Backend (Spring Boot)**: A stateless microservice handling authentication, business logic, AI orchestration, and database access.
 3.  **Database (PostgreSQL 15)**: A relational storage layer with optimized support for unstructured JSONB data for dynamic form modeling.
 4.  **External Services**:
@@ -46,6 +48,9 @@ graph TD
 One of FormCraft's most powerful features is its hybrid data model:
 - **Relational Integrity**: Core entities like `Users`, `Roles`, and `Forms` use traditional SQL relations.
 - **JSONB Flexibility**: Form structure (`schema`) and Form submissions (`response_data`) are stored as JSONB to allow for arbitrary field depth.
+- **Dynamic Terminology**:
+    - **Total Responses**: Tracks community engagement (formerly 'Captured Yield').
+    - **Total Questions**: Measures form architecture density (formerly 'Logic Blocks').
 - **Advanced Validation Rules**: Our JSONB schemas support extensive rules including `required`, `type`, `min`, `max`, `minLength`, `maxLength`, and `regex` with custom error messages.
 - **Form Lifecycle Management**: Forms include `active` status with optional `startDate` and `expiryDate` for automatic scheduling.
 
@@ -145,6 +150,14 @@ sequenceDiagram
 
 ---
 
+## 🛡️ Governance & Role-Aware Dashboard
+
+FormCraft provides localized control centers based on user roles, enabling streamlined administrative workflows.
+
+### Deep-Link Governance
+- **Super Admins**: See a "Promotion Alerts" feed for pending template requests. Clicking "Approve Now" deep-links to the Template Hub with the `requested` filter pre-applied.
+- **Standard Users**: See operational metrics (Drafts, Expiry). Clicking "Total Drafts" deep-links to the Form Builder and automatically triggers the **Draft Gallery**.
+
 ---
 
 ## 🔄 User Workflow Flowcharts
@@ -153,8 +166,8 @@ sequenceDiagram
 ```mermaid
 flowchart TD
     Start([Start]) --> Login[Login as ADMIN]
-    Login --> Dash[Dashboard]
-    Dash -->|Manual| Build[Build Form Schema]
+    Login --> Dash[Form Dashboard]
+    Dash -->|Create New Form| Build[Build Form Schema]
     Dash -->|AI Prompt| Gemini[Gemini Generation]
     Gemini --> Build
     Build --> Save[Save & Publish Form]
@@ -162,47 +175,30 @@ flowchart TD
     Slug --> Active{Active?}
     Active -- No --> Toggle[Toggle Status]
     Active -- Yes --> Share[Share with Users]
-    Share --> Resp[Monitor Responses]
+    Share --> Resp[Monitor Total Responses]
     Resp --> Export[Export to CSV]
 ```
 
 ### Public: Form Submission Workflow
 ```mermaid
 flowchart TD
-    Visit([Visit Form URL]) --> Check{Form Active?}
-    Check -- No --> 404[Show 'Form Closed' Message]
+    Visit([Visit Form URL]) --> Check{Form Found?}
+    Check -- No --> 404[Show 'Form Not Found' Message]
     Check -- Yes --> Load[Fetch JSON Schema]
-    Load --> Render[Render Dynamic UI]
+    Load --> Render[Render Professional UI]
     Render --> Fill[User Fills Data]
     Fill --> FVal[Frontend Validation]
-    FVal -->|Fail| Fix[Correct Errors]
+    FVal -->|Fail| Fix[Correct Answers]
     FVal -->|Pass| Submit[POST Response]
     Submit --> BVal{Backend Validation}
-    BVal -- Invalid --> Error[Return Validation Error]
+    BVal -- Invalid --> Error[Return Error Message]
     BVal -- Valid --> Store[Store as JSONB]
-    Store --> Success[Show Success Page]
+    Store --> Success[Show 'Thank You' Page]
 ```
-
-## 📈 Request Lifecycle
-
-1.  **The client** sends an authenticated request via an Axios interceptor.
-2.  **The Backend** validates the JWT signature and extracts user metadata.
-3.  **MDC (Mapped Diagnostic Context)** attaches a unique `RequestID` for log tracing.
-4.  **Service Layer** performs complex validation (e.g., checking if submitted form data matches the JSONB schema).
-5.  **Repository** persists data using JPA/Hibernate.
-6.  **Response** is returned with standard HTTP status codes and a consistent JSON wrapper (`id`, `data`, `message`, `status`).
-
----
-
-## 🚀 Future Scalability
-
-- **Caching**: Integration of Redis for caching frequently accessed form schemas.
-- **Event-Driven**: Integration of Kafka/RabbitMQ for processing large-scale form submission analytics.
-
----
 
 ## 🏗 Technology Stack Decisions
 
 - **Why JSONB?** To avoid `ALTER TABLE` operations every time a user adds a new field to a form.
 - **Why Spring Security?** For industry-leading, battle-tested authentication and high-integrity session management.
 - **Why Tailwind CSS?** To maintain a cohesive design system without bloat components.
+- **Why 6px Radius?** To project an established, enterprise-class professional identity throughout the application UI.
