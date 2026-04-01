@@ -69,6 +69,12 @@ class FormServiceImplTest {
     @Mock
     private com.formcraft.service.AuditService auditService;
  
+    @Mock
+    private com.formcraft.repository.builder.FormDraftRepository formDraftRepository;
+
+    @Mock
+    private com.formcraft.util.FormValidator formValidator;
+
     @InjectMocks
     private FormServiceImpl formService;
  
@@ -85,11 +91,15 @@ class FormServiceImplTest {
         formRequest.setName("Audit Form");
         formRequest.setSchema(new HashMap<>());
         
+        java.util.Map<String, Object> schema = new HashMap<>();
+        schema.put("fields", new java.util.ArrayList<java.util.Map<String, Object>>());
+
         form = Form.builder()
                 .id(formId)
                 .name("Audit Form")
                 .status(FormStatus.ACTIVE)
                 .slug("audit-form")
+                .schema(schema)
                 .build();
         
         // Identity Registry Protocol: Manual injection of audit telemetry
@@ -219,5 +229,34 @@ class FormServiceImplTest {
 
         verify(formResponseRepository, times(1)).findAll(any(org.springframework.data.jpa.domain.Specification.class), eq(pageable));
         verify(formResponseRepository, never()).searchByFormId(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void exportResponsesToCsv_ShouldFetchData() {
+        when(formRepository.findById(formId)).thenReturn(Optional.of(form));
+        doReturn(Collections.emptyList()).when(formResponseRepository).findAll(any(org.springframework.data.jpa.domain.Specification.class));
+        
+        // This exercises everything but the final CSV helper call bit
+        byte[] result = formService.exportResponsesToCsv(formId, null, null);
+        
+        assertNotNull(result);
+        verify(formResponseRepository).findAll(any(org.springframework.data.jpa.domain.Specification.class));
+    }
+
+    @Test
+    void saveDraft_NewSession_ShouldSucceed() {
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        when(authentication.getName()).thenReturn("testuser");
+        
+        com.formcraft.entity.builder.FormDraft draft = new com.formcraft.entity.builder.FormDraft();
+        UUID draftId = UUID.randomUUID();
+        draft.setId(draftId);
+        
+        when(formDraftRepository.save(any(com.formcraft.entity.builder.FormDraft.class))).thenReturn(draft);
+        
+        UUID result = formService.saveDraft(null, formId, formRequest);
+        
+        assertEquals(draftId, result);
+        verify(formDraftRepository).save(any(com.formcraft.entity.builder.FormDraft.class));
     }
 }

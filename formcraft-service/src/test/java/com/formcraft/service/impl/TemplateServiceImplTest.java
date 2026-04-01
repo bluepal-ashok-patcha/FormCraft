@@ -19,6 +19,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.HashMap;
+import java.util.List;
  
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -126,5 +127,58 @@ class TemplateServiceImplTest {
         assertThrows(ResourceNotFoundException.class, () -> {
             templateService.getTemplateById(templateId);
         });
+    }
+ 
+    @Test
+    void updateTemplate_AsSuperAdmin_ShouldBypassOwnershipCheck() {
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        doReturn(List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_SUPER_ADMIN")))
+                .when(authentication).getAuthorities();
+        when(templateRepository.findById(templateId)).thenReturn(Optional.of(template));
+        when(templateRepository.save(any(Template.class))).thenReturn(template);
+ 
+        TemplateDTO result = templateService.updateTemplate(templateId, templateDTO);
+ 
+        assertNotNull(result);
+        verify(templateRepository).save(any(Template.class));
+    }
+ 
+    @Test
+    void updateTemplate_AsStandardUser_OnGlobalTemplate_ThrowsBusinessLogicException() {
+        template.setGlobal(true);
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        when(authentication.getName()).thenReturn("standard_user");
+        doReturn(List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_USER")))
+                .when(authentication).getAuthorities();
+        when(templateRepository.findById(templateId)).thenReturn(Optional.of(template));
+ 
+        assertThrows(BusinessLogicException.class, () -> {
+            templateService.updateTemplate(templateId, templateDTO);
+        });
+    }
+ 
+    @Test
+    void deleteTemplate_AsSuperAdmin_Success() {
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        doReturn(List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_SUPER_ADMIN")))
+                .when(authentication).getAuthorities();
+        when(templateRepository.findById(templateId)).thenReturn(Optional.of(template));
+ 
+        templateService.deleteTemplate(templateId);
+ 
+        verify(templateRepository).delete(template);
+    }
+ 
+    @Test
+    void getAllVisibleTemplates_AsSuperAdmin_ShouldReturnRequestedTemplates() {
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        doReturn(List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_SUPER_ADMIN")))
+                .when(authentication).getAuthorities();
+        when(templateRepository.findByRequestedForGlobalTrueAndGlobalFalse()).thenReturn(List.of(template));
+ 
+        List<TemplateDTO> result = templateService.getAllVisibleTemplates("requested");
+ 
+        assertFalse(result.isEmpty());
+        verify(templateRepository).findByRequestedForGlobalTrueAndGlobalFalse();
     }
 }
