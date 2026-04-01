@@ -124,4 +124,48 @@ class FormControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.name", is("Lookup Form")));
     }
+ 
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    void getResponses_WithSearchAndDates_ShouldFilterCorrectTelemetry() throws Exception {
+        // Signal Registry: Seed a form and let JPA generate the UUID automatically
+        com.formcraft.entity.Form form = com.formcraft.entity.Form.builder()
+                .name("Searchable Form")
+                .status(com.formcraft.enums.FormStatus.ACTIVE)
+                .slug("searchable-form-" + UUID.randomUUID())
+                .schema(java.util.Map.of("fields", java.util.Collections.emptyList()))
+                .build();
+        form = formRepository.saveAndFlush(form);
+        UUID formId = form.getId();
+
+        // Signal Submission: Post 3 responses linked to the generated form ID
+        Map<String, Object> data1 = Map.of("key", "SearchMeFirst");
+        Map<String, Object> data2 = Map.of("key", "FindMeSecond");
+        Map<String, Object> data3 = Map.of("key", "Ignored");
+
+        com.formcraft.entity.FormResponse r1 = com.formcraft.entity.FormResponse.builder()
+                .form(form).responseData(data1).build();
+        com.formcraft.entity.FormResponse r2 = com.formcraft.entity.FormResponse.builder()
+                .form(form).responseData(data2).build();
+        com.formcraft.entity.FormResponse r3 = com.formcraft.entity.FormResponse.builder()
+                .form(form).responseData(data3).build();
+
+        formResponseRepository.saveAllAndFlush(java.util.List.of(r1, r2, r3));
+ 
+        // Registry Scan: Search for "SearchMe" (Case-Insensitive Pulse)
+        mockMvc.perform(get("/api/forms/" + formId + "/responses")
+                .param("search", "searchme")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content", hasSize(1)))
+                .andExpect(jsonPath("$.data.content[0].responseData.key", containsString("SearchMeFirst")));
+ 
+        // Registry Scan: Search for "Second"
+        mockMvc.perform(get("/api/forms/" + formId + "/responses")
+                .param("search", "Second")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content", hasSize(1)))
+                .andExpect(jsonPath("$.data.content[0].responseData.key", containsString("FindMeSecond")));
+    }
 }

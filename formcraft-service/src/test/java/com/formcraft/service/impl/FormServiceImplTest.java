@@ -193,4 +193,31 @@ class FormServiceImplTest {
 
         assertThrows(ResourceNotFoundException.class, () -> formService.deleteForm(formId));
     }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void getResponsesByFormId_WithSearch_CallsSearchRepo() {
+        String search = "test-keyword";
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 10);
+        when(formResponseRepository.searchByFormId(eq(formId), eq(search), any(), any(), eq(pageable)))
+                .thenReturn(org.springframework.data.domain.Page.empty());
+
+        formService.getResponsesByFormId(formId, search, null, null, pageable);
+
+        verify(formResponseRepository, times(1)).searchByFormId(eq(formId), eq(search), any(), any(), eq(pageable));
+        verify(formResponseRepository, never()).findAll(any(org.springframework.data.jpa.domain.Specification.class), any(org.springframework.data.domain.Pageable.class));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void getResponsesByFormId_WithoutSearch_CallsFindAllWithSpec() {
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 10);
+        when(formResponseRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), eq(pageable)))
+                .thenReturn(org.springframework.data.domain.Page.empty());
+
+        formService.getResponsesByFormId(formId, null, null, null, pageable);
+
+        verify(formResponseRepository, times(1)).findAll(any(org.springframework.data.jpa.domain.Specification.class), eq(pageable));
+        verify(formResponseRepository, never()).searchByFormId(any(), any(), any(), any(), any());
+    }
 }

@@ -51,9 +51,38 @@ class JwtTokenProviderTest {
     void validateToken_ValidToken_ReturnsTrue() {
         when(authentication.getName()).thenReturn("testuser");
         String token = jwtTokenProvider.generateToken(authentication);
- 
+
         boolean isValid = jwtTokenProvider.validateToken(token);
- 
+
         assertTrue(isValid);
+    }
+
+    @Test
+    void validateToken_InvalidSignature_ReturnsFalse() {
+        when(authentication.getName()).thenReturn("testuser");
+        String token = jwtTokenProvider.generateToken(authentication);
+        String tamperedToken = token + "xyz"; // Tampering with the signature
+
+        boolean isValid = jwtTokenProvider.validateToken(tamperedToken);
+
+        assertFalse(isValid);
+    }
+
+    @Test
+    void validateToken_MalformedToken_ReturnsFalse() {
+        boolean isValid = jwtTokenProvider.validateToken("not-a-jwt-token");
+        assertFalse(isValid);
+    }
+
+    @Test
+    void validateToken_ExpiredToken_ReturnsFalse() {
+        // High-Fidelity Expiration Test: Recalibrating time frame to negative space
+        ReflectionTestUtils.setField(jwtTokenProvider, "jwtExpirationDate", -1000L);
+        when(authentication.getName()).thenReturn("testuser");
+        String token = jwtTokenProvider.generateToken(authentication);
+
+        boolean isValid = jwtTokenProvider.validateToken(token);
+
+        assertFalse(isValid);
     }
 }

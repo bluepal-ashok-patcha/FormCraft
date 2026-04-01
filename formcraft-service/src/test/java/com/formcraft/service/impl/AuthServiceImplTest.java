@@ -6,6 +6,7 @@ import com.formcraft.dto.response.JwtResponse;
 import com.formcraft.entity.RefreshToken;
 import com.formcraft.entity.Role;
 import com.formcraft.entity.User;
+import com.formcraft.exception.AccountLockedException;
 import com.formcraft.exception.BusinessLogicException;
 import com.formcraft.exception.ResourceNotFoundException;
 import com.formcraft.repository.RoleRepository;
@@ -205,6 +206,44 @@ class AuthServiceImplTest {
         authService.forgotPasswordRequest("testuser");
 
         verify(emailService, times(1)).sendForgotPasswordEmail(anyString(), anyString());
+    }
+
+    @Test
+    void login_AccountLocked_ThrowsBusinessLogicException() {
+        testUser.setLockoutTime(java.time.LocalDateTime.now().plusMinutes(15));
+        when(userRepository.findByUsernameOrEmail(anyString(), anyString())).thenReturn(Optional.of(testUser));
+
+        AccountLockedException exception = assertThrows(AccountLockedException.class, 
+                () -> authService.login(loginRequest));
+
+        assertTrue(exception.getMessage().contains("account is locked"));
+    }
+
+    @Test
+    void handleFailedLogin_IncrementsAttempts_AndLocksAccount() {
+        // High-Fidelity Security Simulation: Testing the penalty increment protocol
+        org.springframework.test.util.ReflectionTestUtils.setField(authService, "maxFailedAttempts", 5);
+        org.springframework.test.util.ReflectionTestUtils.setField(authService, "lockoutDurationMinutes", 15);
+        
+        testUser.setFailedLoginAttempts(4);
+        when(userRepository.findById(testUser.getId())).thenReturn(Optional.of(testUser));
+
+        authService.handleFailedLogin(testUser.getId());
+
+        assertEquals(5, testUser.getFailedLoginAttempts());
+        assertNotNull(testUser.getLockoutTime());
+        verify(userRepository).save(testUser);
+    }
+
+    @Test
+    void register_UnverifiedAccountExists_ThrowsUnverifiedException() {
+        testUser.setActive(false);
+        when(userRepository.findByEmail(anyString())).thenReturn(Optional.of(testUser));
+
+        BusinessLogicException exception = assertThrows(BusinessLogicException.class, 
+                () -> authService.register(registerRequest));
+
+        assertTrue(exception.getMessage().contains("UNVERIFIED_ACCOUNT"));
     }
 
     @Test

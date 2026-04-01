@@ -28,7 +28,7 @@ public class EmailService {
             helper.setSubject(subject);
             helper.setText(body, true);
             mailSender.send(message);
-        } catch (MessagingException e) {
+        } catch (MessagingException | org.springframework.mail.MailException e) {
             log.error("SMTP Communication Failure: {}", e.getMessage(), e);
             throw new CommunicationException("Communication Failure: Could not deliver identity payload pulse.");
         }
