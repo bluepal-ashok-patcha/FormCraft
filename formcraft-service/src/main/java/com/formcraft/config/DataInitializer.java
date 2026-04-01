@@ -9,6 +9,7 @@ import com.formcraft.repository.UserRepository;
 import com.formcraft.util.RoleName;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -29,6 +30,9 @@ public class DataInitializer implements CommandLineRunner {
     private final TemplateRepository templateRepository;
     private final CategoryRepository categoryRepository;
     private final PasswordEncoder passwordEncoder;
+
+    @Value("${app.admin.password:Password@123}")
+    private String adminPassword;
 
     @Override
     @Transactional
@@ -62,7 +66,7 @@ public class DataInitializer implements CommandLineRunner {
             admin.setUsername(adminUsername);
             admin.setFullName("System Administrator");
             admin.setEmail(adminEmail);
-            admin.setPassword(passwordEncoder.encode("Password@123"));
+            admin.setPassword(passwordEncoder.encode(adminPassword));
             admin.setCreatedAt(LocalDateTime.now());
             admin.setUpdatedAt(LocalDateTime.now());
             admin.setCreatedBy("SYSTEM");
@@ -166,8 +170,10 @@ public class DataInitializer implements CommandLineRunner {
                 
                 templateRepository.save(template);
                 log.info("Certified Blueprint Deployed to Registry: {} [{}]", name, categoryName);
+            } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+                log.error("Registry Sync Failure: Schema corruption in template {}: {}", name, e.getMessage());
             } catch (Exception e) {
-                log.error("Registry Sync Failure for template {}: {}", name, e.getMessage());
+                log.error("Registry Sync Failure for template {}: {}", name, e.getMessage(), e);
             }
         });
     }

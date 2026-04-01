@@ -96,10 +96,11 @@ public class FormController {
     @GetMapping("/{id}/responses")
     public ResponseEntity<ApiResponse<Page<ResponseDto>>> getResponses(
             @Parameter(description = "The ID of the form") @PathVariable("id") UUID id,
+            @Parameter(description = "Keywords to search across all response fields") @RequestParam(name = "search", required = false) String search,
             @Parameter(description = "Start date filter") @RequestParam(name = "startDate", required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime startDate,
             @Parameter(description = "End date filter") @RequestParam(name = "endDate", required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime endDate,
             @org.springdoc.core.annotations.ParameterObject Pageable pageable) {
-        Page<ResponseDto> responses = formService.getResponsesByFormId(id, startDate, endDate, pageable);
+        Page<ResponseDto> responses = formService.getResponsesByFormId(id, search, startDate, endDate, pageable);
         return ResponseEntity.ok(ApiResponse.success(responses, "Responses fetched successfully"));
     }
 

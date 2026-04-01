@@ -9,6 +9,7 @@ import com.formcraft.entity.RefreshToken;
 import com.formcraft.security.jwt.JwtTokenProvider;
 import com.formcraft.service.AuthService;
 import com.formcraft.service.RefreshTokenService;
+import com.formcraft.exception.BadRequestException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -73,7 +74,7 @@ public class AuthController {
                 })
                 .orElseThrow(() -> {
                     log.warn("Security Alert: Invalid refresh token detected.");
-                    return new RuntimeException("Error: Invalid session token.");
+                    return new BadRequestException("Error: Invalid session token.");
                 });
     }
 

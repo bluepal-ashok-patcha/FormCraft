@@ -12,6 +12,18 @@ import java.util.UUID;
 @Repository
 public interface FormResponseRepository extends JpaRepository<FormResponse, UUID>, org.springframework.data.jpa.repository.JpaSpecificationExecutor<FormResponse> {
     Page<FormResponse> findByFormId(UUID formId, Pageable pageable);
+
+    @org.springframework.data.jpa.repository.Query(value = "SELECT * FROM form_responses fr " +
+            "WHERE fr.form_id = :formId " +
+            "AND (CAST(fr.response_data AS text) ILIKE %:search% OR CAST(fr.id AS text) ILIKE %:search%) " +
+            "AND (CAST(:startDate AS timestamp) IS NULL OR fr.created_at >= :startDate) " +
+            "AND (CAST(:endDate AS timestamp) IS NULL OR fr.created_at <= :endDate)",
+            nativeQuery = true)
+    Page<FormResponse> searchByFormId(@Param("formId") UUID formId, @Param("search") String search, 
+                                      @Param("startDate") java.time.LocalDateTime startDate, 
+                                      @Param("endDate") java.time.LocalDateTime endDate, 
+                                      Pageable pageable);
+
     java.util.List<FormResponse> findAllByFormIdOrderByCreatedAtDesc(UUID formId);
     long countByFormId(UUID formId);
     long countByFormCreatedBy(String username);

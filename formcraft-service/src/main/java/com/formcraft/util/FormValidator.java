@@ -4,11 +4,14 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.formcraft.exception.BadRequestException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
 import java.util.regex.Pattern;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class FormValidator {
@@ -26,11 +29,12 @@ public class FormValidator {
             }
 
             for (JsonNode field : fields) {
+                String id = field.has("id") ? field.get("id").asText() : field.get("label").asText();
                 String label = field.get("label").asText();
                 String type = field.get("type").asText();
                 boolean required = field.has("required") && field.get("required").asBoolean();
 
-                Object responseValue = responses.get(label);
+                Object responseValue = responses.get(id);
 
                 // 1. Check Required
                 if (required && (responseValue == null || responseValue.toString().trim().isEmpty())) {
@@ -91,9 +95,12 @@ public class FormValidator {
                     }
                 }
             }
+        } catch (BadRequestException e) {
+            // Rethrow client errors directly
+            throw e;
         } catch (Exception e) {
-            if (e instanceof BadRequestException) throw (BadRequestException) e;
-            throw new RuntimeException("Error during form validation: " + e.getMessage());
+            log.error("Internal Audit [Critical]: Critical malfunction in the form validation engine.", e);
+            throw new com.formcraft.exception.FormCraftException(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred during form validation. Contact Support If issue persists.");
         }
     }
 }

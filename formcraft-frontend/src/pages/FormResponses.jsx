@@ -61,6 +61,7 @@ const FormResponses = () => {
       let url = `/forms/${id}/responses?page=${page}&size=10`;
       if (dateRange.start) url += `&startDate=${new Date(dateRange.start).toISOString()}`;
       if (dateRange.end) url += `&endDate=${new Date(dateRange.end).toISOString()}`;
+      if (searchTerm) url += `&search=${encodeURIComponent(searchTerm)}`;
       
       const respRes = await api.get(url);
       setResponses(respRes.data.content || []);
@@ -87,6 +88,7 @@ const FormResponses = () => {
         let url = `/forms/${id}/responses?page=${page}&size=10`;
         if (dateRange.start) url += `&startDate=${new Date(dateRange.start).toISOString()}`;
         if (dateRange.end) url += `&endDate=${new Date(dateRange.end).toISOString()}`;
+        if (searchTerm) url += `&search=${encodeURIComponent(searchTerm)}`;
 
         const [formRes, respRes] = await Promise.all([
           api.get(`/forms/${id}`),
@@ -106,7 +108,7 @@ const FormResponses = () => {
       }
     };
     fetchData();
-  }, [id, page, dateRange]);
+  }, [id, page, dateRange, searchTerm]);
   
   const handleExportCsv = async () => {
     try {
@@ -135,17 +137,8 @@ const FormResponses = () => {
     }
   };
 
-  // Client-side search for the current page entries
-  const filteredResponses = responses.filter(resp => {
-    if (!searchTerm) return true;
-    const searchLower = searchTerm.toLowerCase();
-    // Search in ID
-    if (resp.id.toLowerCase().includes(searchLower)) return true;
-    // Search in payload data
-    return Object.values(resp.responseData).some(val => 
-      String(val).toLowerCase().includes(searchLower)
-    );
-  });
+  // Server-side search results
+  const filteredResponses = responses;
 
   // Extract mapping from schema fields
   const fieldMapping = form?.schema?.fields || [];

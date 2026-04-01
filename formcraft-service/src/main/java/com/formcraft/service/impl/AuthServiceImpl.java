@@ -14,7 +14,6 @@ import com.formcraft.security.jwt.JwtTokenProvider;
 import com.formcraft.service.AuthService;
 import com.formcraft.service.RefreshTokenService;
 import com.formcraft.util.RoleName;
-import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -34,11 +33,9 @@ import com.formcraft.exception.AccountLockedException;
 import org.springframework.security.authentication.BadCredentialsException;
 
 import java.time.LocalDateTime;
-import java.util.Random;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
 
     private final AuthenticationManager authenticationManager;
@@ -49,10 +46,28 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
     private final AuditService auditService;
+    private final AuthServiceImpl self;
 
-    @org.springframework.context.annotation.Lazy
-    @org.springframework.beans.factory.annotation.Autowired
-    private AuthServiceImpl self;
+    public AuthServiceImpl(
+            AuthenticationManager authenticationManager,
+            JwtTokenProvider jwtTokenProvider,
+            RefreshTokenService refreshTokenService,
+            UserRepository userRepository,
+            RoleRepository roleRepository,
+            PasswordEncoder passwordEncoder,
+            EmailService emailService,
+            AuditService auditService,
+            @org.springframework.context.annotation.Lazy AuthServiceImpl self) {
+        this.authenticationManager = authenticationManager;
+        this.jwtTokenProvider = jwtTokenProvider;
+        this.refreshTokenService = refreshTokenService;
+        this.userRepository = userRepository;
+        this.roleRepository = roleRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.emailService = emailService;
+        this.auditService = auditService;
+        this.self = self;
+    }
 
     @Value("${app.otp-expiration-minutes:5}")
     private int otpExpirationMinutes;
@@ -193,8 +208,10 @@ public class AuthServiceImpl implements AuthService {
         log.info("Registration: Verification OTP resent to user '{}'.", user.getUsername());
     }
 
+    private final java.security.SecureRandom secureRandom = new java.security.SecureRandom();
+
     private String generateOtp() {
-        return String.format("%06d", new Random().nextInt(1000000));
+        return String.format("%06d", secureRandom.nextInt(1000000));
     }
 
     @Override

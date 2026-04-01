@@ -17,6 +17,7 @@ public class GeminiService {
 
     private final WebClient webClient;
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private static final String MARKDOWN_JSON_PATTERN = "(^```json)|(```$)";
 
     public GeminiService(WebClient geminiWebClient) {
         this.webClient = geminiWebClient;
@@ -25,61 +26,17 @@ public class GeminiService {
     public Mono<String> generateContent(String userPrompt) {
         log.info("Neural Request: Interrogating AI with prompt: {}", userPrompt);
 
-        // Define a strict system instruction to return JSON
         Map<String, Object> systemInstruction = Map.of(
                 "parts", List.of(
                         Map.of("text", "You are a specialized Regular Expression generator. Given a description, you MUST output a JSON object with exactly two fields: 'regex' and 'errorMessage'. RULES: 1. 'regex' must be the raw regex string. 2. 'errorMessage' must be a professional, concise error message for that rule. 3. NO markdown. 4. NO conversational text.")
                 )
         );
 
-        Map<String, Object> requestBody = Map.of(
-                "system_instruction", systemInstruction,
-                "contents", List.of(
-                        Map.of(
-                                "parts", List.of(
-                                        Map.of("text", userPrompt)
-                                )
-                        )
-                )
-        );
-
-        return webClient.post()
-                .bodyValue(requestBody)
-                .retrieve()
-                .onStatus(httpStatus -> httpStatus.isError(), 
-                        response -> response.bodyToMono(String.class)
-                                .defaultIfEmpty("Neural Pulse Interrupt: No error body provided.")
-                                .flatMap(errorBody -> Mono.error(new AiProtocolException("Neural Pulse Refusal: " + errorBody))))
-                .bodyToMono(String.class) // get raw JSON
-                .flatMap(json -> {
-                    try {
-                        log.debug("Neural Pulse: Payload successfully received from AI link.");
-                        JsonNode root = objectMapper.readTree(json);
-                        
-                        JsonNode candidates = root.path("candidates");
-                        if (candidates.isMissingNode() || candidates.isEmpty()) {
-                            return Mono.error(new AiProtocolException("Neural Safety Intercept: AI declined to generate content."));
-                        }
-
-                        String rawText = candidates.get(0).path("content").path("parts").get(0).path("text").asText().trim();
-                        // Strip backticks if AI adds them
-                        rawText = rawText.replaceAll("^```json|```$", "").trim();
-                        
-                        JsonNode aiResult = objectMapper.readTree(rawText);
-                        String regex = aiResult.path("regex").asText();
-                        String errorMsg = aiResult.path("errorMessage").asText();
-
-                        log.info("Synergy Extraction: Regex and messaging synthesized.");
-                        // Return as a JSON-like string for the controller to handle or map directly
-                        return Mono.just(rawText); 
-                    } catch (Exception e) {
-                        return Mono.error(new AiProtocolException("Neural Parsing Failure: " + e.getMessage()));
-                    }
-                });
+        return executeAiPulse(systemInstruction, userPrompt, "Neural Pulse");
     }
 
     public Mono<String> generateFormBlueprint(String description, List<Map<String, Object>> currentFields) {
-        System.out.println("✦ Neural Architecture Command: " + description);
+        log.info("✦ Neural Architecture Command: {}", description);
         if (currentFields == null) {
             currentFields = java.util.Collections.emptyList();
         }
@@ -99,41 +56,11 @@ public class GeminiService {
                 )
         );
 
-        Map<String, Object> requestBody = Map.of(
-                "system_instruction", systemInstruction,
-                "contents", List.of(
-                        Map.of(
-                                "parts", List.of(
-                                        Map.of("text", description)
-                                )
-                        )
-                )
-        );
-
-        return webClient.post()
-                .bodyValue(requestBody)
-                .retrieve()
-                .onStatus(httpStatus -> httpStatus.isError(), 
-                        response -> response.bodyToMono(String.class)
-                                .defaultIfEmpty("Architecture Link Interrupt: No error body provided.")
-                                .flatMap(errorBody -> Mono.error(new AiProtocolException("Architecture Request Refusal: " + errorBody))))
-                .bodyToMono(String.class)
-                .flatMap(json -> {
-                    try {
-                        JsonNode root = objectMapper.readTree(json);
-                        String rawJson = root.path("candidates").get(0).path("content").path("parts").get(0).path("text").asText().trim();
-                        // Strip backticks
-                        rawJson = rawJson.replaceAll("^```json|```$", "").trim();
-                        log.info("Architecture Transformation: Strategic blueprint synthesized.");
-                        return Mono.just(rawJson);
-                    } catch (Exception e) {
-                        return Mono.error(new AiProtocolException("Architecture Synthesis Failure: " + e.getMessage()));
-                    }
-                });
+        return executeAiPulse(systemInstruction, description, "Architecture Transformation");
     }
 
     public Mono<String> generateThemeBlueprint(String formTitle) {
-        System.out.println("✦ AI Styling Request for: " + formTitle);
+        log.info("✦ AI Styling Request for: {}", formTitle);
 
         Map<String, Object> systemInstruction = Map.of(
                 "parts", List.of(
@@ -143,12 +70,20 @@ public class GeminiService {
                 )
         );
 
+        return executeAiPulse(systemInstruction, "Synthesize a premium design vibe.", "Styling Pulse");
+    }
+
+    /**
+     * Consolidates the repetitive AI communication and payload cleaning logic.
+     * This minimizes duplication and ensures a consistent security/parsing protocol.
+     */
+    private Mono<String> executeAiPulse(Map<String, Object> systemInstruction, String userText, String protocolLabel) {
         Map<String, Object> requestBody = Map.of(
                 "system_instruction", systemInstruction,
                 "contents", List.of(
                         Map.of(
                                 "parts", List.of(
-                                        Map.of("text", "Synthesize a premium design vibe.")
+                                        Map.of("text", userText)
                                 )
                         )
                 )
@@ -159,19 +94,27 @@ public class GeminiService {
                 .retrieve()
                 .onStatus(httpStatus -> httpStatus.isError(), 
                         response -> response.bodyToMono(String.class)
-                                .defaultIfEmpty("Styling Link Interrupt: No error body provided.")
-                                .flatMap(errorBody -> Mono.error(new AiProtocolException("Styling Request Refusal: " + errorBody))))
+                                .defaultIfEmpty(protocolLabel + " Interrupt: No error body provided.")
+                                .flatMap(errorBody -> Mono.error(new AiProtocolException(protocolLabel + " Refusal: " + errorBody))))
                 .bodyToMono(String.class)
                 .flatMap(json -> {
                     try {
                         JsonNode root = objectMapper.readTree(json);
-                        String rawJson = root.path("candidates").get(0).path("content").path("parts").get(0).path("text").asText().trim();
-                        // Strip backticks
-                        rawJson = rawJson.replaceAll("^```json|```$", "").trim();
-                        log.info("Styling Pulse: Professional aesthetic synthesized.");
-                        return Mono.just(rawJson);
+                        JsonNode candidates = root.path("candidates");
+                        
+                        if (candidates.isMissingNode() || candidates.isEmpty()) {
+                            return Mono.error(new AiProtocolException(protocolLabel + " Safety Intercept: AI declined to generate content."));
+                        }
+
+                        String rawText = candidates.get(0).path("content").path("parts").get(0).path("text").asText().trim();
+                        // Strip markdown backticks
+                        String cleanedText = rawText.replaceAll(MARKDOWN_JSON_PATTERN, "").trim();
+                        
+                        log.info("{}: Strategy synthesized successfully.", protocolLabel);
+                        return Mono.just(cleanedText);
                     } catch (Exception e) {
-                        return Mono.error(new AiProtocolException("Styling Synthesis Failure: " + e.getMessage()));
+                        log.error("{}: Data Transformation Failure: {}", protocolLabel, e.getMessage(), e);
+                        return Mono.error(new AiProtocolException(protocolLabel + ": Transformation Failure: " + e.getMessage()));
                     }
                 });
     }

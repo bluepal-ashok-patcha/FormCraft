@@ -154,16 +154,19 @@ public class FormServiceImpl implements FormService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<ResponseDto> getResponsesByFormId(UUID formId, LocalDateTime startDate, LocalDateTime endDate, Pageable pageable) {
+    public Page<ResponseDto> getResponsesByFormId(UUID formId, String search, LocalDateTime startDate, LocalDateTime endDate, Pageable pageable) {
+        if (search != null && !search.isEmpty()) {
+            return formResponseRepository.searchByFormId(formId, search, startDate, endDate, pageable)
+                    .map(responseMapper::toDto);
+        }
+        
         Specification<FormResponse> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
-            
             predicates.add(cb.equal(root.get("form").get("id"), formId));
             
             if (startDate != null) {
                 predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), startDate));
             }
-            
             if (endDate != null) {
                 predicates.add(cb.lessThanOrEqualTo(root.get("createdAt"), endDate));
             }

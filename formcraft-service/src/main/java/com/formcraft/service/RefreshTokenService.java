@@ -26,7 +26,8 @@ public class RefreshTokenService {
     public RefreshToken createRefreshToken(String username) {
         RefreshToken refreshToken = new RefreshToken();
 
-        refreshToken.setUser(userRepository.findByUsernameOrEmail(username, username).get());
+        refreshToken.setUser(userRepository.findByUsernameOrEmail(username, username)
+                .orElseThrow(() -> new BadRequestException("User not found: " + username)));
         refreshToken.setExpiryDate(Instant.now().plusMillis(refreshTokenDurationMs));
         refreshToken.setToken(UUID.randomUUID().toString());
 
@@ -44,7 +45,8 @@ public class RefreshTokenService {
 
     @Transactional
     public int deleteByUserId(UUID userId) {
-        return refreshTokenRepository.deleteByUser(userRepository.findById(userId).get());
+        return refreshTokenRepository.deleteByUser(userRepository.findById(userId)
+                .orElseThrow(() -> new BadRequestException("User not found with ID: " + userId)));
     }
 
     public Optional<RefreshToken> findByToken(String token) {

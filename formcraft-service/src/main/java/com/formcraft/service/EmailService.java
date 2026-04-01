@@ -7,6 +7,10 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
+import com.formcraft.exception.CommunicationException;
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class EmailService {
@@ -15,7 +19,6 @@ public class EmailService {
 
     @org.springframework.beans.factory.annotation.Value("${app.frontend-url}")
     private String frontendUrl;
-
     public void sendEmail(String to, String subject, String body) {
         try {
             MimeMessage message = mailSender.createMimeMessage();
@@ -26,7 +29,8 @@ public class EmailService {
             helper.setText(body, true);
             mailSender.send(message);
         } catch (MessagingException e) {
-            throw new RuntimeException("Communication Failure: Could not deliver identity payload pulse.", e);
+            log.error("SMTP Communication Failure: {}", e.getMessage(), e);
+            throw new CommunicationException("Communication Failure: Could not deliver identity payload pulse.");
         }
     }
 

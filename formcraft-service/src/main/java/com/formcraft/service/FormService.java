@@ -17,7 +17,7 @@ public interface FormService {
     Page<FormDto> getAllForms(String search, com.formcraft.enums.FormStatus status, java.time.LocalDateTime startDate, java.time.LocalDateTime endDate, Pageable pageable);
     
     ResponseDto submitResponse(SubmissionRequest request);
-    Page<ResponseDto> getResponsesByFormId(UUID formId, java.time.LocalDateTime startDate, java.time.LocalDateTime endDate, Pageable pageable);
+    Page<ResponseDto> getResponsesByFormId(UUID formId, String search, java.time.LocalDateTime startDate, java.time.LocalDateTime endDate, Pageable pageable);
     byte[] exportResponsesToCsv(UUID formId, java.time.LocalDateTime startDate, java.time.LocalDateTime endDate);
     
     FormDto toggleFormStatus(UUID id);
