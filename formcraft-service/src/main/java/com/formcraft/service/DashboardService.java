@@ -13,7 +13,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -48,9 +47,70 @@ public class DashboardService {
         
         double avgResponses = totalForms > 0 ? (double) (isSuperAdmin ? formResponseRepository.count() : formResponseRepository.countByFormCreatedBy(username)) / totalForms : 0;
         
-        // Recently created forms
+        // Strategy: Delegate complex processing pipelines to private logic silos
+        List<DashboardStatsResponse.RecentActivity> activities = fetchActivities(isSuperAdmin, username);
+        
+        int days = getRangeDays(range);
+        LocalDateTime rangeStart = LocalDateTime.now().minusDays(days);
+        List<Object[]> stats = isSuperAdmin ? formResponseRepository.findGlobalResponseStats(rangeStart) : formResponseRepository.findResponseStatsByCreatedBy(username, rangeStart);
+        
+        List<DashboardStatsResponse.ChartData> chartData = stats.stream()
+                .map(s -> DashboardStatsResponse.ChartData.builder()
+                        .date(s[0].toString())
+                        .count(((Number) s[1]).longValue())
+                        .build())
+                .collect(Collectors.toList());
+                
+        List<Form> expiringSoonForms = isSuperAdmin ? formRepository.findAllByExpiresAtBetweenOrderByExpiresAtAsc(now, tomorrow) : formRepository.findAllByCreatedByAndExpiresAtBetweenOrderByExpiresAtAsc(username, now, tomorrow);
+        
+        List<DashboardStatsResponse.ExpiringForm> expiringForms = expiringSoonForms.stream()
+                .map(f -> DashboardStatsResponse.ExpiringForm.builder()
+                        .id(f.getId().toString())
+                        .name(f.getName())
+                        .timeLeft(calculateTimeLeft(f.getExpiresAt()))
+                        .expiresAt(f.getExpiresAt())
+                        .build())
+                .collect(Collectors.toList());
+
+        return DashboardStatsResponse.builder()
+                .totalForms(totalForms)
+                .totalDrafts(totalDrafts)
+                .activeForms(activeForms)
+                .responsesLast24h(responsesLast24h)
+                .expiringSoon(expiringSoon)
+                .totalTemplates(totalTemplates)
+                .pendingPromotions(pendingPromotions)
+                .avgResponsesPerForm(avgResponses)
+                .recentActivity(activities.stream().limit(5).collect(Collectors.toList()))
+                .expiringForms(expiringForms)
+                .promotionRequests(fetchPromotionRequests(isSuperAdmin))
+                .chartData(chartData)
+                .build();
+    }
+
+    private int getRangeDays(String range) {
+        return switch (range != null ? range.toLowerCase() : "") {
+            case "30d" -> 30;
+            case "90d" -> 90;
+            default -> 7;
+        };
+    }
+
+    private List<DashboardStatsResponse.PromotionRequest> fetchPromotionRequests(boolean isSuperAdmin) {
+        if (!isSuperAdmin) return new ArrayList<>();
+        
+        return templateRepository.findByRequestedForGlobalTrueAndGlobalFalse().stream()
+                .map(t -> DashboardStatsResponse.PromotionRequest.builder()
+                        .id(t.getId().toString())
+                        .name(t.getName())
+                        .requester(t.getCreatedBy())
+                        .timeAgo(getTimeAgo(t.getCreatedAt()))
+                        .build())
+                .collect(Collectors.toList());
+    }
+
+    private List<DashboardStatsResponse.RecentActivity> fetchActivities(boolean isSuperAdmin, String username) {
         List<Form> recentForms = isSuperAdmin ? formRepository.findTop5ByOrderByCreatedAtDesc() : formRepository.findTop5ByCreatedByOrderByCreatedAtDesc(username);
-        // Recent responses
         List<FormResponse> recentResponses = isSuperAdmin ? formResponseRepository.findTop5ByOrderByCreatedAtDesc() : formResponseRepository.findTop5ByFormCreatedByOrderByCreatedAtDesc(username);
         
         List<DashboardStatsResponse.RecentActivity> activities = new ArrayList<>();
@@ -74,63 +134,7 @@ public class DashboardService {
                 .build()));
                 
         activities.sort((a, b) -> b.getTimestamp().compareTo(a.getTimestamp()));
-        
-        // Chart Data based on range
-        int days = switch (range != null ? range.toLowerCase() : "") {
-            case "30d" -> 30;
-            case "90d" -> 90;
-            default -> 7;
-        };
-        
-        LocalDateTime rangeStart = LocalDateTime.now().minusDays(days);
-        List<Object[]> stats = isSuperAdmin ? formResponseRepository.findGlobalResponseStats(rangeStart) : formResponseRepository.findResponseStatsByCreatedBy(username, rangeStart);
-        
-        List<DashboardStatsResponse.ChartData> chartData = stats.stream()
-                .map(s -> DashboardStatsResponse.ChartData.builder()
-                        .date(s[0].toString())
-                        .count(((Number) s[1]).longValue())
-                        .build())
-                .collect(Collectors.toList());
-                
-        // Expiring forms list
-        List<Form> expiringSoonForms = isSuperAdmin ? formRepository.findAllByExpiresAtBetweenOrderByExpiresAtAsc(now, tomorrow) : formRepository.findAllByCreatedByAndExpiresAtBetweenOrderByExpiresAtAsc(username, now, tomorrow);
-        
-        List<DashboardStatsResponse.ExpiringForm> expiringForms = expiringSoonForms.stream()
-                .map(f -> DashboardStatsResponse.ExpiringForm.builder()
-                        .id(f.getId().toString())
-                        .name(f.getName())
-                        .timeLeft(calculateTimeLeft(f.getExpiresAt()))
-                        .expiresAt(f.getExpiresAt())
-                        .build())
-                .collect(Collectors.toList());
-
-        // Promotion requests for super admin
-        List<DashboardStatsResponse.PromotionRequest> promotionRequests = new java.util.ArrayList<>();
-        if (isSuperAdmin) {
-            promotionRequests = templateRepository.findByRequestedForGlobalTrueAndGlobalFalse().stream()
-                .map(t -> DashboardStatsResponse.PromotionRequest.builder()
-                        .id(t.getId().toString())
-                        .name(t.getName())
-                        .requester(t.getCreatedBy())
-                        .timeAgo(getTimeAgo(t.getCreatedAt()))
-                        .build())
-                .collect(Collectors.toList());
-        }
-
-        return DashboardStatsResponse.builder()
-                .totalForms(totalForms)
-                .totalDrafts(totalDrafts)
-                .activeForms(activeForms)
-                .responsesLast24h(responsesLast24h)
-                .expiringSoon(expiringSoon)
-                .totalTemplates(totalTemplates)
-                .pendingPromotions(pendingPromotions)
-                .avgResponsesPerForm(avgResponses)
-                .recentActivity(activities.stream().limit(5).collect(Collectors.toList()))
-                .expiringForms(expiringForms)
-                .promotionRequests(promotionRequests)
-                .chartData(chartData)
-                .build();
+        return activities;
     }
 
     private String getTimeAgo(LocalDateTime dateTime) {

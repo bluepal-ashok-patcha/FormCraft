@@ -7,7 +7,6 @@ import com.formcraft.repository.RoleRepository;
 import com.formcraft.repository.TemplateRepository;
 import com.formcraft.repository.UserRepository;
 import com.formcraft.util.RoleName;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
@@ -21,7 +20,6 @@ import java.util.Set;
 import java.util.UUID;
 
 @Component
-@RequiredArgsConstructor
 @Slf4j
 public class DataInitializer implements CommandLineRunner {
 
@@ -30,6 +28,22 @@ public class DataInitializer implements CommandLineRunner {
     private final TemplateRepository templateRepository;
     private final CategoryRepository categoryRepository;
     private final PasswordEncoder passwordEncoder;
+    private final DataInitializer self;
+
+    public DataInitializer(
+            UserRepository userRepository,
+            RoleRepository roleRepository,
+            TemplateRepository templateRepository,
+            CategoryRepository categoryRepository,
+            PasswordEncoder passwordEncoder,
+            @org.springframework.context.annotation.Lazy DataInitializer self) {
+        this.userRepository = userRepository;
+        this.roleRepository = roleRepository;
+        this.templateRepository = templateRepository;
+        this.categoryRepository = categoryRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.self = self;
+    }
 
     @Value("${app.admin.password:Password@123}")
     private String adminPassword;
@@ -40,7 +54,7 @@ public class DataInitializer implements CommandLineRunner {
         log.info("Initializing tactical data seeding...");
         seedRoles();
         seedSuperAdmin();
-        seedTemplates();
+        seedTemplates(); // Internal call to private collector
         log.info("Data initialization sequence completed.");
     }
 
@@ -91,10 +105,10 @@ public class DataInitializer implements CommandLineRunner {
         }
     }
 
-    private void seedTemplates() {
+    void seedTemplates() {
         log.info("Initializing Strategic Asset Seeding (Global Templates)...");
         
-        seedTemplate("Standard Enrollment Protocol", 
+        self.seedTemplate("Standard Enrollment Protocol", 
             "Professional user registration architecture for secure member acquisition.", 
             "USER_REGISTRATION", 
             "{\"fields\": [" +
@@ -105,7 +119,7 @@ public class DataInitializer implements CommandLineRunner {
                 "{\"id\": \"onb_5\", \"type\": \"checkbox\", \"label\": \"Agrees to Protocol Terms\", \"options\": [\"I accept the terms and conditions\"], \"required\": true}" +
             "]}");
 
-        seedTemplate("Corporate Inquiry Portal", 
+        self.seedTemplate("Corporate Inquiry Portal", 
             "Standardized contact protocol for professional inbound inquiries.", 
             "CONTACT_PROTOCOL", 
             "{\"fields\": [" +
@@ -116,7 +130,7 @@ public class DataInitializer implements CommandLineRunner {
                 "{\"id\": \"con_5\", \"type\": \"radio\", \"label\": \"Urgency Level\", \"options\": [\"Routine\", \"High\", \"Critical\"], \"required\": true}" +
             "]}");
 
-        seedTemplate("Strategic Feedback Survey", 
+        self.seedTemplate("Strategic Feedback Survey", 
             "Data harvesting blueprint for product satisfaction and growth metrics.", 
             "FEEDBACK_SURVEY", 
             "{\"fields\": [" +
@@ -126,7 +140,7 @@ public class DataInitializer implements CommandLineRunner {
                 "{\"id\": \"fed_4\", \"type\": \"radio\", \"label\": \"Net Promoter Score\", \"options\": [\"Detractor\", \"Passive\", \"Promoter\"], \"required\": true}" +
             "]}");
 
-        seedTemplate("Operational Service Ticket", 
+        self.seedTemplate("Operational Service Ticket", 
             "Tactical request architecture for internal support and task tracking.", 
             "SERVICE_REQUEST", 
             "{\"fields\": [" +
@@ -136,7 +150,7 @@ public class DataInitializer implements CommandLineRunner {
                 "{\"id\": \"srv_4\", \"type\": \"dropdown\", \"label\": \"Impact Zone\", \"options\": [\"Software\", \"Hardware\", \"Network\"], \"required\": true}" +
             "]}");
 
-        seedTemplate("Executive Event RSVP", 
+        self.seedTemplate("Executive Event RSVP", 
             "Premium attendance registry for high-level corporate events.", 
             "EVENT_RSVP", 
             "{\"fields\": [" +
