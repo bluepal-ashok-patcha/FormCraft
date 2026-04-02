@@ -65,4 +65,24 @@ class CsvHelperTest {
 
         assertTrue(csvContent.contains(",\"\"")); // Empty field check
     }
+
+    @Test
+    void responsesToCsv_ShouldSupportIdToLabelMapping() {
+        // High-Fidelity Sync: Schema uses 'id', Response uses 'id', CSV Header uses 'label'
+        List<Map<String, Object>> fields = List.of(
+            Map.of("id", "f1", "label", "Full Name")
+        );
+        
+        FormResponse response = FormResponse.builder()
+                .id(UUID.randomUUID())
+                .responseData(Map.of("f1", "John Doe"))
+                .build();
+        response.setCreatedAt(LocalDateTime.now());
+
+        byte[] csvBytes = CsvHelper.responsesToCsv(List.of(response), fields);
+        String csvContent = new String(csvBytes);
+
+        assertTrue(csvContent.contains("\"Full Name\"")); // Header check
+        assertTrue(csvContent.contains("\"John Doe\"")); // Data check
+    }
 }

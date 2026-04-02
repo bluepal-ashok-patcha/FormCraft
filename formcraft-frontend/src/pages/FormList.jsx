@@ -366,7 +366,7 @@ const FormList = () => {
       fetchForms();
     } catch (err) {
       console.error('Update failure:', err);
-      toast.error('Could not save form changes.');
+      toast.error('Update Failed: ' + (err.response?.data?.message || err.message));
     }
   };
 
@@ -500,13 +500,19 @@ const FormList = () => {
               <input
                 type="date"
                 value={dateRange.start}
-                onChange={(e) => { setDateRange({ ...dateRange, start: e.target.value }); setPage(0); }}
+                onChange={(e) => {
+                  const newStart = e.target.value;
+                  const newEnd = (dateRange.end && newStart > dateRange.end) ? '' : dateRange.end;
+                  setDateRange({ ...dateRange, start: newStart, end: newEnd });
+                  setPage(0);
+                }}
                 className="bg-transparent border-none py-2 text-[10px] font-semibold text-slate-700 focus:outline-none"
               />
               <span className="text-slate-300 mx-1">-</span>
               <input
                 type="date"
                 value={dateRange.end}
+                min={dateRange.start}
                 onChange={(e) => { setDateRange({ ...dateRange, end: e.target.value }); setPage(0); }}
                 className="bg-transparent border-none py-2 text-[10px] font-semibold text-slate-700 focus:outline-none"
               />
@@ -876,7 +882,6 @@ const FormList = () => {
                         onKeyDown={(e) => e.preventDefault()}
                         onChange={(e) => {
                           const val = e.target.value;
-                          if (val && new Date(val) < new Date(minDateTime)) return;
                           setEditForm({ ...editForm, startsAt: val });
                           if (editForm.expiresAt && val && new Date(editForm.expiresAt) < new Date(val)) {
                             setEditForm(prev => ({ ...prev, startsAt: val, expiresAt: '' }));

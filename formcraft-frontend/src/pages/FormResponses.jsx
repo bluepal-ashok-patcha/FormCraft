@@ -113,8 +113,9 @@ const FormResponses = () => {
   const handleExportCsv = async () => {
     try {
       const params = {};
-      if (dateRange.startDate) params.startDate = new Date(dateRange.startDate).toISOString();
-      if (dateRange.endDate) params.endDate = new Date(dateRange.endDate).toISOString();
+      if (dateRange.start) params.startDate = new Date(dateRange.start).toISOString();
+      if (dateRange.end) params.endDate = new Date(dateRange.end).toISOString();
+      if (searchTerm) params.search = searchTerm;
 
       const data = await api.get(`/forms/${id}/responses/export`, {
         params,
@@ -222,13 +223,19 @@ const FormResponses = () => {
             <input 
               type="date" 
               value={dateRange.start}
-              onChange={(e) => { setDateRange({...dateRange, start: e.target.value}); setPage(0); }}
+              onChange={(e) => {
+                const newStart = e.target.value;
+                const newEnd = (dateRange.end && newStart > dateRange.end) ? '' : dateRange.end;
+                setDateRange({...dateRange, start: newStart, end: newEnd});
+                setPage(0);
+              }}
               className="bg-transparent border-none py-2 text-[10px] font-semibold text-slate-700 focus:outline-none"
             />
             <span className="text-slate-300 mx-1">-</span>
             <input 
               type="date" 
               value={dateRange.end}
+              min={dateRange.start}
               onChange={(e) => { setDateRange({...dateRange, end: e.target.value}); setPage(0); }}
               className="bg-transparent border-none py-2 text-[10px] font-semibold text-slate-700 focus:outline-none"
             />

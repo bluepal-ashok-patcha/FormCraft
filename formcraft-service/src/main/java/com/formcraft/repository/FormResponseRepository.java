@@ -15,7 +15,7 @@ public interface FormResponseRepository extends JpaRepository<FormResponse, UUID
 
     @org.springframework.data.jpa.repository.Query(value = "SELECT * FROM form_responses fr " +
             "WHERE fr.form_id = :formId " +
-            "AND (CAST(fr.response_data AS text) ILIKE %:search% OR CAST(fr.id AS text) ILIKE %:search%) " +
+            "AND (:search IS NULL OR :search = '' OR CAST(fr.response_data AS text) ILIKE %:search% OR CAST(fr.id AS text) ILIKE %:search%) " +
             "AND (CAST(:startDate AS timestamp) IS NULL OR fr.created_at >= :startDate) " +
             "AND (CAST(:endDate AS timestamp) IS NULL OR fr.created_at <= :endDate)",
             nativeQuery = true)
@@ -23,6 +23,17 @@ public interface FormResponseRepository extends JpaRepository<FormResponse, UUID
                                       @Param("startDate") java.time.LocalDateTime startDate, 
                                       @Param("endDate") java.time.LocalDateTime endDate, 
                                       Pageable pageable);
+    
+    @org.springframework.data.jpa.repository.Query(value = "SELECT * FROM form_responses fr " +
+            "WHERE fr.form_id = :formId " +
+            "AND (:search IS NULL OR :search = '' OR CAST(fr.response_data AS text) ILIKE %:search% OR CAST(fr.id AS text) ILIKE %:search%) " +
+            "AND (CAST(:startDate AS timestamp) IS NULL OR fr.created_at >= :startDate) " +
+            "AND (CAST(:endDate AS timestamp) IS NULL OR fr.created_at <= :endDate) " +
+            "ORDER BY fr.created_at DESC", 
+            nativeQuery = true)
+    java.util.List<FormResponse> searchByFormIdBulk(@Param("formId") UUID formId, @Param("search") String search, 
+                                                   @Param("startDate") java.time.LocalDateTime startDate, 
+                                                   @Param("endDate") java.time.LocalDateTime endDate);
 
     java.util.List<FormResponse> findAllByFormIdOrderByCreatedAtDesc(UUID formId);
     long countByFormId(UUID formId);
