@@ -361,4 +361,121 @@ class FormServiceImplTest {
         assertEquals(draftId, result);
         verify(formDraftRepository).save(any(com.formcraft.entity.builder.FormDraft.class));
     }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void getFormAnalytics_ShouldCalculateDistribution() {
+        // Setup schema with a categorical field
+        java.util.Map<String, Object> schema = new java.util.HashMap<>();
+        java.util.List<java.util.Map<String, Object>> fields = new java.util.ArrayList<>();
+        java.util.Map<String, Object> radioField = new java.util.HashMap<>();
+        radioField.put("id", "q1");
+        radioField.put("type", "radio");
+        radioField.put("label", "Department");
+        fields.add(radioField);
+        schema.put("fields", fields);
+        form.setSchema(schema);
+
+        // Setup responses
+        com.formcraft.entity.FormResponse r1 = new com.formcraft.entity.FormResponse();
+        r1.setResponseData(new java.util.HashMap<>(java.util.Map.of("q1", "Engineering")));
+        r1.setCreatedAt(java.time.LocalDateTime.now());
+        
+        com.formcraft.entity.FormResponse r2 = new com.formcraft.entity.FormResponse();
+        r2.setResponseData(new java.util.HashMap<>(java.util.Map.of("q1", "Engineering")));
+        r2.setCreatedAt(java.time.LocalDateTime.now());
+
+        com.formcraft.entity.FormResponse r3 = new com.formcraft.entity.FormResponse();
+        r3.setResponseData(new java.util.HashMap<>(java.util.Map.of("q1", "Sales")));
+        r3.setCreatedAt(java.time.LocalDateTime.now());
+
+        when(formRepository.findById(formId)).thenReturn(java.util.Optional.of(form));
+        when(formResponseRepository.findAllByFormIdOrderByCreatedAtDesc(formId)).thenReturn(java.util.List.of(r1, r2, r3));
+
+        java.util.Map<String, Object> result = formService.getFormAnalytics(formId);
+
+        assertNotNull(result);
+        assertTrue(result.containsKey("q1"));
+        java.util.Map<String, Object> q1Stats = (java.util.Map<String, Object>) result.get("q1");
+        assertEquals("Engineering", q1Stats.get("topAnswer"));
+        assertEquals(2, q1Stats.get("topCount"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void getFormAnalytics_WithAllCategoricalTypes_ShouldSucceed() {
+        // Setup schema with multiple categorical field types
+        java.util.Map<String, Object> schema = new java.util.HashMap<>();
+        java.util.List<java.util.Map<String, Object>> fields = new java.util.ArrayList<>();
+        
+        fields.add(java.util.Map.of("id", "q1", "type", "dropdown", "label", "City"));
+        fields.add(java.util.Map.of("id", "q2", "type", "rating", "label", "Feedback"));
+        fields.add(java.util.Map.of("id", "q3", "type", "linear-scale", "label", "NPS"));
+        
+        schema.put("fields", fields);
+        form.setSchema(schema);
+
+        // Setup common response data
+        com.formcraft.entity.FormResponse r = new com.formcraft.entity.FormResponse();
+        r.setResponseData(new java.util.HashMap<>(java.util.Map.of(
+            "q1", "Mumbai",
+            "q2", 5,
+            "q3", 10
+        )));
+        r.setCreatedAt(java.time.LocalDateTime.now());
+
+        when(formRepository.findById(formId)).thenReturn(java.util.Optional.of(form));
+        when(formResponseRepository.findAllByFormIdOrderByCreatedAtDesc(formId)).thenReturn(java.util.List.of(r));
+
+        java.util.Map<String, Object> result = formService.getFormAnalytics(formId);
+
+        assertNotNull(result);
+        assertTrue(result.containsKey("q1"), "Should analyze dropdown");
+        assertTrue(result.containsKey("q2"), "Should analyze rating");
+        assertTrue(result.containsKey("q3"), "Should analyze linear-scale");
+        
+        assertEquals("Mumbai", ((java.util.Map<String, Object>) result.get("q1")).get("topAnswer"));
+        assertEquals("5", ((java.util.Map<String, Object>) result.get("q2")).get("topAnswer"));
+        assertEquals("10", ((java.util.Map<String, Object>) result.get("q3")).get("topAnswer"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void getFormAnalytics_ShouldReturnEmpty_WhenNoFields() {
+        // Arrange
+        java.util.Map<String, Object> schema = new java.util.HashMap<>();
+        schema.put("fields", null); // Set fields to null
+        form.setSchema(schema);
+
+        when(formRepository.findById(formId)).thenReturn(java.util.Optional.of(form));
+        when(formResponseRepository.findAllByFormIdOrderByCreatedAtDesc(formId)).thenReturn(java.util.List.of());
+
+        // Act
+        java.util.Map<String, Object> result = formService.getFormAnalytics(formId);
+
+        // Assert
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void getFormAnalytics_ShouldHandleNullValues_InResponse() {
+        // Arrange
+        java.util.Map<String, Object> schema = new java.util.HashMap<>();
+        schema.put("fields", java.util.List.of(java.util.Map.of("id", "q1", "type", "radio", "label", "City")));
+        form.setSchema(schema);
+
+        com.formcraft.entity.FormResponse r = new com.formcraft.entity.FormResponse();
+        r.setResponseData(new java.util.HashMap<>()); // Empty map simulates null/skipped answers
+        r.setCreatedAt(java.time.LocalDateTime.now());
+
+        when(formRepository.findById(formId)).thenReturn(java.util.Optional.of(form));
+        when(formResponseRepository.findAllByFormIdOrderByCreatedAtDesc(formId)).thenReturn(java.util.List.of(r));
+
+        // Act
+        java.util.Map<String, Object> result = formService.getFormAnalytics(formId);
+
+        // Assert
+        assertTrue(result.isEmpty(), "Should skip fields where no data was provided");
+    }
 }

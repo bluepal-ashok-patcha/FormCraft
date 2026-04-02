@@ -434,4 +434,78 @@ public class FormServiceImpl implements FormService {
             formDraftRepository.findByCreatedByAndFormId(username, formId).ifPresent(formDraftRepository::delete);
         }
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    @SuppressWarnings("unchecked")
+    public java.util.Map<String, Object> getFormAnalytics(UUID formId) {
+        Form form = formRepository.findById(formId)
+                .orElseThrow(() -> new ResourceNotFoundException(FORM_NOT_FOUND_MSG + formId));
+
+        java.util.List<com.formcraft.entity.FormResponse> responses = formResponseRepository.findAllByFormIdOrderByCreatedAtDesc(formId);
+        java.util.Map<String, Object> analytics = new java.util.HashMap<>();
+        
+        java.util.List<java.util.Map<String, Object>> fields = (java.util.List<java.util.Map<String, Object>>) form.getSchema().get("fields");
+        if (fields == null) return analytics;
+
+        for (java.util.Map<String, Object> field : fields) {
+            String type = (String) field.get("type");
+            String fId = (String) field.get("id");
+            String label = (String) field.get("label");
+
+            if (isCategoricalType(type)) {
+                java.util.Map<String, Integer> distribution = calculateFieldDistribution(responses, fId, label);
+                
+                if (!distribution.isEmpty()) {
+                    analytics.put(fId, buildFieldStats(label, distribution, responses.size()));
+                }
+            }
+        }
+        
+        return analytics;
+    }
+
+    private boolean isCategoricalType(String type) {
+        return "dropdown".equalsIgnoreCase(type) || "radio".equalsIgnoreCase(type) || 
+               "checkbox".equalsIgnoreCase(type) || "rating".equalsIgnoreCase(type) || 
+               "linear-scale".equalsIgnoreCase(type);
+    }
+
+    private java.util.Map<String, Integer> calculateFieldDistribution(java.util.List<com.formcraft.entity.FormResponse> responses, String fId, String label) {
+        java.util.Map<String, Integer> distribution = new java.util.HashMap<>();
+        for (com.formcraft.entity.FormResponse response : responses) {
+            Object value = response.getResponseData().get(fId);
+            if (value == null) value = response.getResponseData().get(label);
+            updateDistribution(distribution, value);
+        }
+        return distribution;
+    }
+
+    private void updateDistribution(java.util.Map<String, Integer> distribution, Object value) {
+        if (value instanceof java.util.List) {
+            for (Object v : (java.util.List<?>) value) {
+                String s = String.valueOf(v);
+                distribution.put(s, distribution.getOrDefault(s, 0) + 1);
+            }
+        } else if (value != null) {
+            String s = String.valueOf(value);
+            distribution.put(s, distribution.getOrDefault(s, 0) + 1);
+        }
+    }
+
+    private java.util.Map<String, Object> buildFieldStats(String label, java.util.Map<String, Integer> distribution, int totalSize) {
+        java.util.Map<String, Object> fieldStats = new java.util.HashMap<>();
+        fieldStats.put("label", label);
+        fieldStats.put("distribution", distribution);
+        
+        distribution.entrySet().stream()
+                .max(java.util.Map.Entry.comparingByValue())
+                .ifPresent(top -> {
+                    fieldStats.put("topAnswer", top.getKey());
+                    fieldStats.put("topCount", top.getValue());
+                });
+        
+        fieldStats.put("totalResponses", totalSize);
+        return fieldStats;
+    }
 }

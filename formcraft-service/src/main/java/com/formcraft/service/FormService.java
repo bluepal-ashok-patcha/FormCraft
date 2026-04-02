@@ -33,4 +33,5 @@ public interface FormService {
     com.formcraft.dto.response.FormDraftDto getDraft(UUID formId);
     java.util.List<com.formcraft.dto.response.FormDraftDto> getAllDrafts();
     void deleteDraft(UUID formId, UUID draftId);
+    java.util.Map<String, Object> getFormAnalytics(UUID formId);
 }

@@ -83,6 +83,12 @@ public class FormController {
         return ResponseEntity.ok(ApiResponse.success(forms, "All forms fetched successfully"));
     }
 
+    @Operation(summary = "Get form analytics", description = "Get analytics for a specific form.")
+    @GetMapping("/{id}/analytics")
+    public ResponseEntity<com.formcraft.dto.response.ApiResponse<java.util.Map<String, Object>>> getFormAnalytics(@PathVariable("id") UUID id) {
+        return ResponseEntity.ok(com.formcraft.dto.response.ApiResponse.success(formService.getFormAnalytics(id), "Form analytics fetched successfully"));
+    }
+
     @Operation(summary = "Submit form response", description = "Send in answers for a specific form.")
     @PostMapping("/submit")
     public ResponseEntity<ApiResponse<ResponseDto>> submitResponse(@Valid @RequestBody SubmissionRequest request) {

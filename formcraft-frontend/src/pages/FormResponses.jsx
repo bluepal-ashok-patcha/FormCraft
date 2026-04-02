@@ -22,7 +22,8 @@ import {
   MoreVertical,
   History,
   Paperclip,
-  Eye
+  Eye,
+  PieChart
 } from 'lucide-react';
 import api from '../services/api';
 import { toast } from 'react-toastify';
@@ -48,6 +49,8 @@ const FormResponses = () => {
   const [editData, setEditData] = useState({});
   const [activeMenuId, setActiveMenuId] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, id: null });
+  const [analytics, setAnalytics] = useState({});
+  const [selectedAnalytic, setSelectedAnalytic] = useState(null);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -64,10 +67,14 @@ const FormResponses = () => {
       if (dateRange.end) url += `&endDate=${new Date(dateRange.end).toISOString()}`;
       if (searchTerm) url += `&search=${encodeURIComponent(searchTerm)}`;
       
-      const respRes = await api.get(url);
+      const [respRes, analyticsRes] = await Promise.all([
+        api.get(url),
+        api.get(`/forms/${id}/analytics`)
+      ]);
       setResponses(respRes.data.content || []);
       setTotalPages(respRes.data.totalPages || 0);
       setTotalElements(respRes.data.totalElements || 0);
+      setAnalytics(analyticsRes.data || {});
     } catch (err) {
       console.error('Error refreshing data:', err);
     } finally {
@@ -91,15 +98,17 @@ const FormResponses = () => {
         if (dateRange.end) url += `&endDate=${new Date(dateRange.end).toISOString()}`;
         if (searchTerm) url += `&search=${encodeURIComponent(searchTerm)}`;
 
-        const [formRes, respRes] = await Promise.all([
+        const [formRes, respRes, analyticsRes] = await Promise.all([
           api.get(`/forms/${id}`),
-          api.get(url)
+          api.get(url),
+          api.get(`/forms/${id}/analytics`)
         ]);
         // Form controllers return ApiResponse, intercepted to return response.data
         setForm(formRes.data);
         setResponses(respRes.data.content || []);
         setTotalPages(respRes.data.totalPages || 0);
         setTotalElements(respRes.data.totalElements || 0);
+        setAnalytics(analyticsRes.data || {});
       } catch (err) {
         console.error('Error fetching responses:', err);
         toast.error('Sync Error: Could not retrieve latest payload history.');
@@ -314,6 +323,68 @@ const FormResponses = () => {
             </div>
           </motion.div>
         </div>
+        
+        {/* 🧠 CATEGORICAL INSIGHTS GRID */}
+        {Object.keys(analytics || {}).length > 0 && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="h-[1px] flex-1 bg-slate-100" />
+              <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] px-2 flex items-center gap-2">
+                <Activity size={12} className="text-brand-default" />
+                Response Breakdown
+              </h3>
+              <div className="h-[1px] flex-1 bg-slate-100" />
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {Object.entries(analytics).map(([fieldId, data], idx) => (
+                <motion.div 
+                  key={fieldId}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.05 }}
+                  onClick={() => setSelectedAnalytic(data)}
+                  className="bg-white border border-slate-100 p-4 rounded-enterprise shadow-sm hover:border-brand-default/30 transition-all flex flex-col justify-between cursor-pointer active:scale-[0.98] group"
+                >
+                  <div className="flex flex-col h-full">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="bg-slate-50 text-slate-600 px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider border border-slate-100 group-hover:border-brand-100 transition-colors">
+                        {data.label.substring(0, 15)}{data.label.length > 15 ? '...' : ''}
+                      </div>
+                      <div className="text-[9px] font-bold text-brand-default bg-brand-50 px-2 py-0.5 rounded-full">
+                        {Math.round((data.topCount / (data.totalResponses || 1)) * 100)}% Picked
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <h5 className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-1">Most Common</h5>
+                      <p className="text-sm font-semibold text-slate-800 tracking-tight leading-snug mb-3">
+                        {data.topAnswer || 'N/A'}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="pt-2 border-t border-slate-50">
+                    <div className="flex justify-between items-center mb-1.5">
+                       <span className="text-[9px] text-slate-400 font-semibold uppercase tracking-widest">Strength</span>
+                       <span className="text-[9px] text-slate-700 font-bold">{data.topCount} / {data.totalResponses}</span>
+                    </div>
+                    <div className="w-full bg-slate-50 h-1 rounded-full overflow-hidden">
+                      <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: `${(data.topCount / (data.totalResponses || 1)) * 100}%` }}
+                        transition={{ delay: 0.5, duration: 1 }}
+                        className="bg-brand-default h-full"
+                      />
+                    </div>
+                    <div className="mt-2 flex items-center justify-center">
+                       <span className="text-[8px] font-bold text-brand-default uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">View Details</span>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* 🕹️ RESPONSE LOGS TABLE */}
         <motion.div 
@@ -723,6 +794,98 @@ const FormResponses = () => {
         )}
       </AnimatePresence>
       </div>
+      {/* 📊 ANALYTIC DETAIL MODAL */}
+      <AnimatePresence>
+        {selectedAnalytic && (
+          <div className="fixed inset-0 z-[100000] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedAnalytic(null)}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-lg bg-white rounded-enterprise shadow-2xl overflow-hidden border border-slate-100"
+            >
+              <div className="px-6 py-5 bg-slate-900 text-white flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-brand-default/20 rounded-xl flex items-center justify-center text-brand-default border border-brand-default/30">
+                    <PieChart size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold uppercase tracking-widest leading-none mb-1">Response Summary</h3>
+                    <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-widest">{selectedAnalytic.label}</p>
+                  </div>
+                </div>
+                <button onClick={() => setSelectedAnalytic(null)} className="text-slate-400 hover:text-white transition-colors">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="p-6 max-h-[70vh] overflow-y-auto custom-scrollbar space-y-6">
+                 <div>
+                    <div className="flex justify-between items-end mb-4">
+                       <div>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Most Popular</p>
+                          <h4 className="text-lg font-bold text-slate-900 tracking-tight leading-none">{selectedAnalytic.topAnswer}</h4>
+                       </div>
+                       <div className="text-right">
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Response Rate</p>
+                          <h4 className="text-lg font-bold text-brand-default tracking-tight leading-none">
+                            {Math.round((selectedAnalytic.topCount / (selectedAnalytic.totalResponses || 1)) * 100)}%
+                          </h4>
+                       </div>
+                    </div>
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex items-center justify-center">
+                       <p className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.25em]">
+                          Based on <span className="text-slate-900 font-extrabold">{selectedAnalytic.totalResponses}</span> total responses
+                       </p>
+                    </div>
+                 </div>
+
+                 <div className="space-y-4 pt-2">
+                    <h5 className="text-[10px] font-bold text-slate-900 uppercase tracking-[0.3em] mb-4 flex items-center gap-2">
+                       <div className="w-1.5 h-1.5 bg-brand-default rounded-full" />
+                       Response Breakdown
+                    </h5>
+                    
+                    <div className="space-y-3">
+                      {Object.entries(selectedAnalytic.distribution)
+                        .sort((a,b) => b[1] - a[1])
+                        .map(([option, count], i) => {
+                          const percentage = Math.round((count / (selectedAnalytic.totalResponses || 1)) * 100);
+                          return (
+                            <div key={option} className="space-y-1.5">
+                               <div className="flex justify-between items-center px-1">
+                                  <span className="text-xs font-bold text-slate-700">{option}</span>
+                                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{count} records ({percentage}%)</span>
+                               </div>
+                               <div className="w-full bg-slate-50 h-2 rounded-full overflow-hidden border border-slate-100">
+                                  <motion.div 
+                                    initial={{ width: 0 }}
+                                    animate={{ width: `${percentage}%` }}
+                                    transition={{ delay: 0.2 + (i * 0.1), duration: 0.8 }}
+                                    className={`h-full ${i === 0 ? 'bg-brand-default' : 'bg-slate-300'}`}
+                                  />
+                               </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                 </div>
+              </div>
+
+              <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-center">
+                 <p className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.4em]">Analytics Engine // Real-Time Data</p>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

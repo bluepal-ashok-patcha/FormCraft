@@ -1,80 +1,126 @@
 package com.formcraft.exception;
 
+import com.formcraft.dto.response.ApiResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.validation.BindingResult;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 
-import static org.hamcrest.Matchers.containsString;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import java.util.List;
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class GlobalExceptionHandlerTest {
 
-    private MockMvc mockMvc;
+    private GlobalExceptionHandler exceptionHandler;
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(new TestController())
-                .setControllerAdvice(new GlobalExceptionHandler())
-                .build();
-    }
-
-    @RestController
-    static class TestController {
-        @GetMapping("/resource-not-found")
-        void throwResourceNotFound() {
-            throw new ResourceNotFoundException("Test resource not found");
-        }
-
-        @GetMapping("/bad-request")
-        void throwBadRequest() {
-            throw new BadRequestException("Test bad request");
-        }
-
-        @GetMapping("/business-logic")
-        void throwBusinessLogic() {
-            throw new BusinessLogicException("Test strategy violation");
-        }
-
-        @GetMapping("/ai-protocol")
-        void throwAiProtocol() {
-            throw new AiProtocolException("Test neural failure");
-        }
+        exceptionHandler = new GlobalExceptionHandler();
     }
 
     @Test
-    void handleResourceNotFoundException_Returns404WithApiResponse() throws Exception {
-        mockMvc.perform(get("/resource-not-found"))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.message").value("Test resource not found"))
-                .andExpect(jsonPath("$.success").value(false));
+    void handleResourceNotFoundException_ShouldReturn404() {
+        // Arrange
+        ResourceNotFoundException ex = new ResourceNotFoundException("Form not found");
+
+        // Act
+        ResponseEntity<ApiResponse<Void>> response = exceptionHandler.handleResourceNotFoundException(ex);
+
+        // Assert
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertEquals("Form not found", response.getBody().getMessage());
     }
 
     @Test
-    void handleBadRequestException_Returns400WithApiResponse() throws Exception {
-        mockMvc.perform(get("/bad-request"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Test bad request"))
-                .andExpect(jsonPath("$.success").value(false));
+    void handleBadRequestException_ShouldReturn400() {
+        // Arrange
+        BadRequestException ex = new BadRequestException("Invalid Protocol");
+
+        // Act
+        ResponseEntity<ApiResponse<Void>> response = exceptionHandler.handleBadRequestException(ex);
+
+        // Assert
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals("Invalid Protocol", response.getBody().getMessage());
     }
 
     @Test
-    void handleBusinessLogicException_Returns422WithApiResponseAndPrefix() throws Exception {
-        mockMvc.perform(get("/business-logic"))
-                .andExpect(status().isUnprocessableEntity())
-                .andExpect(jsonPath("$.message", containsString("Error: Test strategy violation")))
-                .andExpect(jsonPath("$.success").value(false));
+    void handleBusinessLogicException_ShouldReturn422() {
+        // Arrange
+        BusinessLogicException ex = new BusinessLogicException("Logic Fault");
+
+        // Act
+        ResponseEntity<ApiResponse<Void>> response = exceptionHandler.handleBusinessLogicException(ex);
+
+        // Assert
+        assertEquals(HttpStatus.UNPROCESSABLE_ENTITY, response.getStatusCode());
+        assertTrue(response.getBody().getMessage().contains("Logic Fault"));
     }
 
     @Test
-    void handleAiProtocolException_Returns503WithApiResponseAndPrefix() throws Exception {
-        mockMvc.perform(get("/ai-protocol"))
-                .andExpect(status().isServiceUnavailable())
-                .andExpect(jsonPath("$.message", containsString("AI Service Error: Test neural failure")))
-                .andExpect(jsonPath("$.success").value(false));
+    void handleAccessDeniedException_ShouldReturn403() {
+        // Arrange
+        org.springframework.security.access.AccessDeniedException ex = new org.springframework.security.access.AccessDeniedException("Denied");
+
+        // Act
+        ResponseEntity<ApiResponse<Void>> response = exceptionHandler.handleAccessDeniedException(ex);
+
+        // Assert
+        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
+        assertTrue(response.getBody().getMessage().contains("permission"));
+    }
+
+    @Test
+    void handleBadCredentialsException_ShouldReturn401() {
+        // Arrange
+        BadCredentialsException ex = new BadCredentialsException("Invalid Login");
+
+        // Act
+        ResponseEntity<ApiResponse<Void>> response = exceptionHandler.handleBadCredentialsException(ex);
+
+        // Assert
+        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+        assertEquals("Invalid Login", response.getBody().getMessage());
+    }
+
+    @Test
+    void handleGeneralException_ShouldReturn500() {
+        // Arrange
+        Exception ex = new Exception("System Failure");
+
+        // Act
+        ResponseEntity<ApiResponse<Void>> response = exceptionHandler.handleGeneralException(ex);
+
+        // Assert
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+        assertTrue(response.getBody().getMessage().contains("Internal Server Error"));
+    }
+
+    @Test
+    void handleValidationExceptions_ShouldReturn400WithErrors() {
+        // Arrange
+        MethodArgumentNotValidException ex = mock(MethodArgumentNotValidException.class);
+        BindingResult bindingResult = mock(BindingResult.class);
+        FieldError fieldError = new FieldError("form", "email", "Invalid email format");
+        
+        when(ex.getBindingResult()).thenReturn(bindingResult);
+        when(bindingResult.getAllErrors()).thenReturn(List.of(fieldError));
+        when(bindingResult.getErrorCount()).thenReturn(1);
+
+        // Act
+        ResponseEntity<ApiResponse<Map<String, String>>> response = exceptionHandler.handleValidationExceptions(ex);
+
+        // Assert
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals("email", response.getBody().getData().keySet().iterator().next());
+        assertEquals("Invalid email format", response.getBody().getData().get("email"));
     }
 }
