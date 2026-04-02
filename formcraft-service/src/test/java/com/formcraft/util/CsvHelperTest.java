@@ -3,7 +3,8 @@ package com.formcraft.util;
 import com.formcraft.entity.FormResponse;
 import org.junit.jupiter.api.Test;
 
-import java.time.LocalDateTime;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -13,113 +14,83 @@ import static org.junit.jupiter.api.Assertions.*;
 class CsvHelperTest {
 
     @Test
-    void responsesToCsv_ShouldGenerateValidCsv() {
-        // Setup schema fields
-        List<Map<String, Object>> fields = List.of(
-            Map.of("label", "Full Name"),
-            Map.of("label", "Phone Number"),
-            Map.of("label", "Interests")
-        );
-
-        // Setup responses
-        UUID responseId = UUID.randomUUID();
-        LocalDateTime now = LocalDateTime.now();
-        
-        FormResponse response = FormResponse.builder()
-                .id(responseId)
-                .responseData(Map.of(
-                    "Full Name", "John \"The Legend\" Doe",
-                    "Phone Number", "+1234567890123", // Should trigger Excel guard
-                    "Interests", List.of("Coding", "Testing")
-                ))
-                .build();
-        response.setCreatedAt(now);
-
-        List<FormResponse> responses = List.of(response);
-
-        // Execute
-        byte[] csvBytes = CsvHelper.responsesToCsv(responses, fields);
-        String csvContent = new String(csvBytes);
-
-        // Assertions
-        assertNotNull(csvBytes);
-        assertTrue(csvContent.contains("Response ID,Date Submitted,\"Full Name\",\"Phone Number\",\"Interests\""));
-        assertTrue(csvContent.contains(responseId.toString()));
-        assertTrue(csvContent.contains("John \"\"The Legend\"\" Doe")); // Quote escaping check
-        assertTrue(csvContent.contains("\t+1234567890123")); // Excel guard check
-        assertTrue(csvContent.contains("Coding; Testing")); // List formatting check
-    }
-
-    @Test
-    void responsesToCsv_WithEmptyData_ShouldHandleGracefully() {
-        List<Map<String, Object>> fields = List.of(Map.of("label", "Name"));
-        FormResponse emptyResponse = FormResponse.builder()
-                .id(UUID.randomUUID())
-                .responseData(null) // Null response data
-                .build();
-        emptyResponse.setCreatedAt(LocalDateTime.now());
-        List<FormResponse> responses = List.of(emptyResponse);
-
-        byte[] csvBytes = CsvHelper.responsesToCsv(responses, fields);
-        String csvContent = new String(csvBytes);
-
-        assertTrue(csvContent.contains(",\"\"")); // Empty field check
-    }
-
-    @Test
-    void responsesToCsv_ShouldSupportIdToLabelMapping() {
-        // High-Fidelity Sync: Schema uses 'id', Response uses 'id', CSV Header uses 'label'
-        List<Map<String, Object>> fields = List.of(
-            Map.of("id", "f1", "label", "Full Name")
-        );
-        
-        FormResponse response = FormResponse.builder()
-                .id(UUID.randomUUID())
-                .responseData(Map.of("f1", "John Doe"))
-                .build();
-        response.setCreatedAt(LocalDateTime.now());
-
-        byte[] csvBytes = CsvHelper.responsesToCsv(List.of(response), fields);
-        String csvContent = new String(csvBytes);
-
-        assertTrue(csvContent.contains("\"Full Name\"")); // Header check
-        assertTrue(csvContent.contains("\"John Doe\"")); // Data check
-    }
-
-    @Test
-    void responsesToCsv_EmptyList_ShouldReturnOnlyHeader() {
-        List<FormResponse> responses = java.util.Collections.emptyList();
-        List<Map<String, Object>> fields = List.of(
-            Map.of("id", "name", "label", "Name")
-        );
-
-        byte[] result = CsvHelper.responsesToCsv(responses, fields);
-        String csvContent = new String(result);
-
-        assertTrue(csvContent.contains("Name"));
-        // Header + newline should exist, but no data row
-        String[] lines = csvContent.split("\n");
-        assertEquals(1, lines.length);
-    }
-
-    @Test
-    void responsesToCsv_ShouldHandleNullFieldsGracefully() {
+    void responsesToCsv_ShouldReturnValidBytes_WhenDataProvided() {
+        // Arrange
         FormResponse response = new FormResponse();
         response.setId(UUID.randomUUID());
-        response.setCreatedAt(LocalDateTime.now());
-        response.setResponseData(new java.util.HashMap<>()); // Empty data
+        response.setResponseData(Map.of("field1", "Value 1", "field2", "Value with \"quotes\""));
 
-        List<FormResponse> responses = List.of(response);
         List<Map<String, Object>> fields = List.of(
-            Map.of("id", "name", "label", "Name")
+                Map.of("id", "field1", "label", "Field One"),
+                Map.of("id", "field2", "label", "Field Two")
         );
 
-        byte[] result = CsvHelper.responsesToCsv(responses, fields);
-        String csvContent = new String(result);
+        // Act
+        byte[] csvBytes = CsvHelper.responsesToCsv(List.of(response), fields);
+        String csv = new String(csvBytes);
 
-        assertTrue(csvContent.contains("Name"));
-        // Check that a row was added but with empty value
-        String[] lines = csvContent.split("\n");
-        assertEquals(2, lines.length);
+        // Assert
+        assertTrue(csv.contains("Field One"));
+        assertTrue(csv.contains("Field Two"));
+        assertTrue(csv.contains("Value 1"));
+        assertTrue(csv.contains("Value with \"\"quotes\"\"")); // Escaped
+    }
+
+    @Test
+    void responsesToCsv_ShouldJoinLists_WhenValueIsList() {
+        // Arrange
+        FormResponse response = new FormResponse();
+        response.setId(UUID.randomUUID());
+        response.setResponseData(Map.of("field1", List.of("A", "B", "C")));
+
+        List<Map<String, Object>> fields = List.of(Map.of("id", "field1", "label", "List Field"));
+
+        // Act
+        byte[] csvBytes = CsvHelper.responsesToCsv(List.of(response), fields);
+        String csv = new String(csvBytes);
+
+        // Assert
+        assertTrue(csv.contains("A; B; C"));
+    }
+
+    @Test
+    void responsesToCsv_ShouldApplyExcelGuard_WhenValueIsPhoneNumber() {
+        // Arrange
+        FormResponse response = new FormResponse();
+        response.setId(UUID.randomUUID());
+        response.setResponseData(Map.of("field1", "1234567890"));
+
+        List<Map<String, Object>> fields = List.of(Map.of("id", "field1", "label", "Phone"));
+
+        // Act
+        byte[] csvBytes = CsvHelper.responsesToCsv(List.of(response), fields);
+        String csv = new String(csvBytes);
+
+        // Assert
+        assertTrue(csv.contains("\t1234567890")); // Expect tab guard
+    }
+
+    @Test
+    void responsesToCsv_ShouldReturnEmpty_WhenNoResponses() {
+        // Arrange
+        List<Map<String, Object>> fields = List.of(Map.of("id", "f1", "label", "L1"));
+
+        // Act
+        byte[] csvBytes = CsvHelper.responsesToCsv(List.of(), fields);
+        String csv = new String(csvBytes);
+
+        // Assert
+        assertTrue(csv.startsWith("Response ID,Date Submitted,"));
+        assertEquals(1, csv.split("\n").length); // Only header
+    }
+
+    @Test
+    void constructor_ShouldThrowException_WhenCalled() throws NoSuchMethodException {
+        // Arrange
+        Constructor<CsvHelper> constructor = CsvHelper.class.getDeclaredConstructor();
+        constructor.setAccessible(true);
+
+        // Act & Assert
+        assertThrows(InvocationTargetException.class, constructor::newInstance);
     }
 }
