@@ -21,7 +21,8 @@ import {
   ClipboardList,
   MoreVertical,
   History,
-  Paperclip
+  Paperclip,
+  Eye
 } from 'lucide-react';
 import api from '../services/api';
 import { toast } from 'react-toastify';
@@ -392,12 +393,24 @@ const FormResponses = () => {
                         </span>
                     </td>
                     <td className="px-8 py-5 text-center relative" onClick={(e) => e.stopPropagation()}>
-                       <button 
-                        onClick={() => setActiveMenuId(activeMenuId === resp.id ? null : resp.id)}
-                        className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition-all"
-                       >
-                         <MoreVertical size={16} />
-                       </button>
+                       <div className="flex items-center justify-center gap-1">
+                         <button 
+                          onClick={() => {
+                            setSelectedResponse(resp);
+                            setIsEditing(false);
+                          }}
+                          className="p-2 hover:bg-brand-50 rounded-lg text-brand-default transition-all"
+                          title="View Payload Data"
+                         >
+                           <Eye size={16} />
+                         </button>
+                         <button 
+                          onClick={() => setActiveMenuId(activeMenuId === resp.id ? null : resp.id)}
+                          className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition-all"
+                         >
+                           <MoreVertical size={16} />
+                         </button>
+                       </div>
                        
                        <AnimatePresence>
                          {activeMenuId === resp.id && (
@@ -407,6 +420,17 @@ const FormResponses = () => {
                             exit={{ opacity: 0, scale: 0.95, y: -10 }}
                             className="absolute right-full mr-2 top-1/2 -translate-y-1/2 w-36 bg-white border border-slate-100 shadow-xl rounded-[6px] py-1 z-20 overflow-hidden"
                            >
+                               <button 
+                                onClick={() => {
+                                  setSelectedResponse(resp);
+                                  setIsEditing(false);
+                                  setActiveMenuId(null);
+                                }}
+                                className="w-full px-4 py-2 text-left text-[11px] font-semibold text-slate-600 hover:bg-slate-50 flex items-center gap-2 uppercase tracking-widest"
+                              >
+                                <Eye size={12} className="text-brand-500" />
+                                View Data
+                              </button>
                               <button 
                                 onClick={() => {
                                   setSelectedResponse(resp);
@@ -499,7 +523,9 @@ const FormResponses = () => {
                     <TableIcon size={16} />
                   </div>
                   <div>
-                    <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-tight">Response Inspector</h3>
+                    <h3 className="text-sm font-semibold text-brand-default tracking-widest uppercase">
+                       {isEditing ? 'Data Correction' : 'Response Inspector'}
+                    </h3>
                     <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mt-0.5">ID: #{selectedResponse.id.split('-')[0].toUpperCase()}</p>
                   </div>
                 </div>

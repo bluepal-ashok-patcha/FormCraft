@@ -90,7 +90,7 @@ public class FormServiceImpl implements FormService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<FormDto> getAllForms(String search, FormStatus status, LocalDateTime startDate, LocalDateTime endDate, Pageable pageable) {
+    public Page<FormDto> getAllForms(String search, com.formcraft.enums.FormStatus status, LocalDateTime startDate, LocalDateTime endDate, String dateType, Pageable pageable) {
         String username = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
         
         Specification<Form> spec = (root, query, cb) -> {
@@ -112,13 +112,16 @@ public class FormServiceImpl implements FormService {
             if (status != null) {
                 predicates.add(cb.equal(root.get("status"), status));
             }
+
+            // High-Fidelity Timeline Filtering: Default to creation, but support expiration tracking
+            String filterField = "expiring".equalsIgnoreCase(dateType) ? "expiresAt" : CREATED_AT_FIELD;
             
             if (startDate != null) {
-                predicates.add(cb.greaterThanOrEqualTo(root.get(CREATED_AT_FIELD), startDate));
+                predicates.add(cb.greaterThanOrEqualTo(root.get(filterField), startDate));
             }
             
             if (endDate != null) {
-                predicates.add(cb.lessThanOrEqualTo(root.get(CREATED_AT_FIELD), endDate));
+                predicates.add(cb.lessThanOrEqualTo(root.get(filterField), endDate));
             }
             
             return cb.and(predicates.toArray(new Predicate[0]));

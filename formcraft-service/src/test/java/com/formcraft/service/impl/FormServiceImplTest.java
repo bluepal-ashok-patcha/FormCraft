@@ -20,6 +20,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -126,6 +127,40 @@ class FormServiceImplTest {
     }
  
     @Test
+    void getAllForms_ByExpirationDate_ShouldSucceed() {
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        when(authentication.getName()).thenReturn("testuser");
+
+        LocalDateTime now = LocalDateTime.now();
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 10);
+        
+        when(formRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), eq(pageable)))
+                .thenReturn(Page.empty());
+
+        Page<FormDto> result = formService.getAllForms(null, null, now, now.plusDays(1), "expiring", pageable);
+
+        assertNotNull(result);
+        verify(formRepository).findAll(any(org.springframework.data.jpa.domain.Specification.class), eq(pageable));
+    }
+
+    @Test
+    void getAllForms_ByDefaultCreationDate_ShouldSucceed() {
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        when(authentication.getName()).thenReturn("testuser");
+
+        LocalDateTime now = LocalDateTime.now();
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 10);
+        
+        when(formRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), eq(pageable)))
+                .thenReturn(Page.empty());
+
+        Page<FormDto> result = formService.getAllForms(null, null, now, now.plusDays(1), null, pageable);
+
+        assertNotNull(result);
+        verify(formRepository).findAll(any(org.springframework.data.jpa.domain.Specification.class), eq(pageable));
+    }
+
+    @Test
     void submitResponse_FormNotFound_ThrowsResourceNotFoundException() {
         SubmissionRequest request = new SubmissionRequest();
         request.setFormId(UUID.randomUUID());
@@ -208,7 +243,7 @@ class FormServiceImplTest {
         String search = "test-keyword";
         org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 10);
         when(formResponseRepository.searchByFormId(eq(formId), eq(search), any(), any(), eq(pageable)))
-                .thenReturn(org.springframework.data.domain.Page.empty());
+                .thenReturn(Page.empty());
 
         formService.getResponsesByFormId(formId, search, null, null, pageable);
 
@@ -221,7 +256,7 @@ class FormServiceImplTest {
     void getResponsesByFormId_WithoutSearch_CallsFindAllWithSpec() {
         org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 10);
         when(formResponseRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), eq(pageable)))
-                .thenReturn(org.springframework.data.domain.Page.empty());
+                .thenReturn(Page.empty());
 
         formService.getResponsesByFormId(formId, null, null, null, pageable);
 

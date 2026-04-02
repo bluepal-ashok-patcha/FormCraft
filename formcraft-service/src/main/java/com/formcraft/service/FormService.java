@@ -13,7 +13,7 @@ public interface FormService {
     FormDto createForm(FormRequest request);
     FormDto getFormById(UUID id);
     FormDto getFormBySlug(String slug);
-    Page<FormDto> getAllForms(String search, com.formcraft.enums.FormStatus status, java.time.LocalDateTime startDate, java.time.LocalDateTime endDate, Pageable pageable);
+    Page<FormDto> getAllForms(String search, com.formcraft.enums.FormStatus status, java.time.LocalDateTime startDate, java.time.LocalDateTime endDate, String dateType, Pageable pageable);
     
     ResponseDto submitResponse(SubmissionRequest request);
     Page<ResponseDto> getResponsesByFormId(UUID formId, String search, java.time.LocalDateTime startDate, java.time.LocalDateTime endDate, Pageable pageable);

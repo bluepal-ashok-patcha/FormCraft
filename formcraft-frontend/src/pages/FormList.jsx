@@ -218,6 +218,7 @@ const FormList = () => {
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
+  const [dateType, setDateType] = useState(null); // 'expiring' or null
   const pageSize = 6;
 
   const [modal, setModal] = useState({ isOpen: false, type: '', form: null });
@@ -238,19 +239,20 @@ const FormList = () => {
       const filter = location.state.filter;
       if (filter === 'active') {
         setStatusFilter('active');
+        setDateType(null);
       } else if (filter === 'inactive') {
         setStatusFilter('inactive');
+        setDateType(null);
       } else if (filter === 'expiring') {
         const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
         setDateRange({
           start: now.toISOString().split('T')[0],
           end: tomorrow.toISOString().split('T')[0]
         });
+        setDateType('expiring');
       } else if (filter === 'drafts') {
-        // Technically drafts are handled by FormDraftRepository 
-        // In FormList, we might show inactive forms or similar
-        // For now, let's just clear filters to show everything if 'drafts' is clicked
         setStatusFilter('inactive');
+        setDateType(null);
       }
     }
   }, [location.state]);
@@ -268,6 +270,7 @@ const FormList = () => {
       if (statusFilter === 'planned') params.append('status', 'PLANNED');
       if (dateRange.start) params.append('startDate', new Date(dateRange.start).toISOString());
       if (dateRange.end) params.append('endDate', new Date(dateRange.end).toISOString());
+      if (dateType) params.append('dateType', dateType);
       params.append('sort', `${sortField},${sortDir}`);
 
       const [formsRes, statsRes] = await Promise.all([
@@ -293,7 +296,7 @@ const FormList = () => {
     }, 300);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [page, searchTerm, statusFilter, dateRange, sortField, sortDir]);
+  }, [page, searchTerm, statusFilter, dateRange, dateType, sortField, sortDir]);
 
   const handleCopyLink = (slug, id) => {
     const link = `${window.location.origin}/f/${slug}`;
@@ -399,6 +402,7 @@ const FormList = () => {
     setSearchTerm('');
     setStatusFilter('');
     setDateRange({ start: '', end: '' });
+    setDateType(null);
     setPage(0);
   };
 
@@ -504,6 +508,7 @@ const FormList = () => {
                   const newStart = e.target.value;
                   const newEnd = (dateRange.end && newStart > dateRange.end) ? '' : dateRange.end;
                   setDateRange({ ...dateRange, start: newStart, end: newEnd });
+                  setDateType(null);
                   setPage(0);
                 }}
                 className="bg-transparent border-none py-2 text-[10px] font-semibold text-slate-700 focus:outline-none"
@@ -513,7 +518,11 @@ const FormList = () => {
                 type="date"
                 value={dateRange.end}
                 min={dateRange.start}
-                onChange={(e) => { setDateRange({ ...dateRange, end: e.target.value }); setPage(0); }}
+                onChange={(e) => { 
+                  setDateRange({ ...dateRange, end: e.target.value }); 
+                  setDateType(null);
+                  setPage(0); 
+                }}
                 className="bg-transparent border-none py-2 text-[10px] font-semibold text-slate-700 focus:outline-none"
               />
             </div>

@@ -77,8 +77,9 @@ public class FormController {
             @Parameter(description = "Filter by active or inactive status") @RequestParam(name = "status", required = false) com.formcraft.enums.FormStatus status,
             @Parameter(description = "Start date for filtering") @RequestParam(name = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
             @Parameter(description = "End date for filtering") @RequestParam(name = "endDate", required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime endDate,
+            @Parameter(description = "Which date field to filter on (creation or expiring)") @RequestParam(name = "dateType", required = false) String dateType,
             @org.springdoc.core.annotations.ParameterObject @org.springframework.data.web.PageableDefault(sort = "createdAt", direction = org.springframework.data.domain.Sort.Direction.DESC) Pageable pageable) {
-        Page<FormDto> forms = formService.getAllForms(search, status, startDate, endDate, pageable);
+        Page<FormDto> forms = formService.getAllForms(search, status, startDate, endDate, dateType, pageable);
         return ResponseEntity.ok(ApiResponse.success(forms, "All forms fetched successfully"));
     }
 
