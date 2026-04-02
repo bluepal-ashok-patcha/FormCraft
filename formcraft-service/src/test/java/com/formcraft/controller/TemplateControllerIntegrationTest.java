@@ -76,7 +76,7 @@ class TemplateControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(status().isCreated());
  
         assertEquals(1, templateRepository.count());
-        assertTrue(templateRepository.findAll().get(0).getName().equals("Basic Feedback"));
+        assertEquals("Basic Feedback", templateRepository.findAll().get(0).getName());
     }
  
     @Test

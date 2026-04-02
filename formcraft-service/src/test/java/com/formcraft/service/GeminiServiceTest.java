@@ -2,7 +2,6 @@ package com.formcraft.service;
  
 import com.formcraft.exception.AiProtocolException;
 // High-Fidelity Registry Sync: GeminiService is located in the com.formcraft.service package
-import com.formcraft.service.GeminiService;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import org.junit.jupiter.api.AfterEach;
@@ -13,11 +12,6 @@ import reactor.test.StepVerifier;
  
 import java.io.IOException;
 import java.util.Collections;
-import java.util.List;
-import java.util.Map;
- 
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
  
 class GeminiServiceTest {
  
