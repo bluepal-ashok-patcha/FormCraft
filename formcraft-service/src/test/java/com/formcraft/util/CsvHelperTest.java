@@ -85,4 +85,41 @@ class CsvHelperTest {
         assertTrue(csvContent.contains("\"Full Name\"")); // Header check
         assertTrue(csvContent.contains("\"John Doe\"")); // Data check
     }
+
+    @Test
+    void responsesToCsv_EmptyList_ShouldReturnOnlyHeader() {
+        List<FormResponse> responses = java.util.Collections.emptyList();
+        List<Map<String, Object>> fields = List.of(
+            Map.of("id", "name", "label", "Name")
+        );
+
+        byte[] result = CsvHelper.responsesToCsv(responses, fields);
+        String csvContent = new String(result);
+
+        assertTrue(csvContent.contains("Name"));
+        // Header + newline should exist, but no data row
+        String[] lines = csvContent.split("\n");
+        assertEquals(1, lines.length);
+    }
+
+    @Test
+    void responsesToCsv_ShouldHandleNullFieldsGracefully() {
+        FormResponse response = new FormResponse();
+        response.setId(UUID.randomUUID());
+        response.setCreatedAt(LocalDateTime.now());
+        response.setResponseData(new java.util.HashMap<>()); // Empty data
+
+        List<FormResponse> responses = List.of(response);
+        List<Map<String, Object>> fields = List.of(
+            Map.of("id", "name", "label", "Name")
+        );
+
+        byte[] result = CsvHelper.responsesToCsv(responses, fields);
+        String csvContent = new String(result);
+
+        assertTrue(csvContent.contains("Name"));
+        // Check that a row was added but with empty value
+        String[] lines = csvContent.split("\n");
+        assertEquals(2, lines.length);
+    }
 }

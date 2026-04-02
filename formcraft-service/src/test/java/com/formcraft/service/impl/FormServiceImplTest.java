@@ -230,15 +230,84 @@ class FormServiceImplTest {
     }
 
     @Test
-    void exportResponsesToCsv_ShouldFetchData() {
+    void exportResponsesToCsv_WithSearch_ShouldPassSearchToRepo() {
+        String search = "anuma";
         when(formRepository.findById(formId)).thenReturn(Optional.of(form));
-        doReturn(Collections.emptyList()).when(formResponseRepository).findAll(any(org.springframework.data.jpa.domain.Specification.class));
+        doReturn(Collections.emptyList()).when(formResponseRepository).searchByFormIdBulk(eq(formId), eq(search), any(), any());
         
-        // This exercises everything but the final CSV helper call bit
-        byte[] result = formService.exportResponsesToCsv(formId, null, null);
+        byte[] result = formService.exportResponsesToCsv(formId, search, null, null);
         
         assertNotNull(result);
-        verify(formResponseRepository).findAll(any(org.springframework.data.jpa.domain.Specification.class));
+        verify(formResponseRepository).searchByFormIdBulk(eq(formId), eq(search), any(), any());
+    }
+
+    @Test
+    void updateForm_WithUnchangedPastStartDate_ShouldSucceed() {
+        LocalDateTime pastDate = LocalDateTime.now().minusDays(10);
+        form.setStartsAt(pastDate);
+        formRequest.setStartsAt(pastDate); // Keep identical past date
+
+        when(formRepository.findById(formId)).thenReturn(Optional.of(form));
+        when(formRepository.save(any(Form.class))).thenReturn(form);
+        when(formMapper.toDto(any(Form.class))).thenReturn(formDto);
+
+        FormDto result = formService.updateForm(formId, formRequest);
+        
+        assertNotNull(result);
+        verify(formRepository).save(any(Form.class));
+    }
+
+    @Test
+    void updateForm_WithNewPastStartDate_ShouldFail() {
+        LocalDateTime oldDate = LocalDateTime.now().minusDays(10);
+        LocalDateTime newPastDate = LocalDateTime.now().minusDays(5);
+        form.setStartsAt(oldDate);
+        formRequest.setStartsAt(newPastDate); // CHANGED to a new past date
+
+        when(formRepository.findById(formId)).thenReturn(Optional.of(form));
+
+        assertThrows(BusinessLogicException.class, () -> {
+            formService.updateForm(formId, formRequest);
+        });
+    }
+
+    @Test
+    void updateForm_WithPastExpirationDate_ShouldFail() {
+        LocalDateTime pastExpiry = LocalDateTime.now().minusDays(1);
+        formRequest.setExpiresAt(pastExpiry);
+
+        when(formRepository.findById(formId)).thenReturn(Optional.of(form));
+
+        assertThrows(BusinessLogicException.class, () -> {
+            formService.updateForm(formId, formRequest);
+        });
+    }
+
+    @Test
+    void updateForm_WithExpirationBeforeStart_ShouldFail() {
+        LocalDateTime start = LocalDateTime.now().plusDays(10);
+        LocalDateTime end = LocalDateTime.now().plusDays(5);
+        formRequest.setStartsAt(start);
+        formRequest.setExpiresAt(end);
+
+        when(formRepository.findById(formId)).thenReturn(Optional.of(form));
+
+        assertThrows(BusinessLogicException.class, () -> {
+            formService.updateForm(formId, formRequest);
+        });
+    }
+
+    @Test
+    void exportResponsesToCsv_WithDateRange_ShouldPassToRepo() {
+        LocalDateTime start = LocalDateTime.now();
+        LocalDateTime end = start.plusDays(1);
+        when(formRepository.findById(formId)).thenReturn(Optional.of(form));
+        doReturn(Collections.emptyList()).when(formResponseRepository).searchByFormIdBulk(eq(formId), isNull(), eq(start), eq(end));
+        
+        byte[] result = formService.exportResponsesToCsv(formId, null, start, end);
+        
+        assertNotNull(result);
+        verify(formResponseRepository).searchByFormIdBulk(eq(formId), isNull(), eq(start), eq(end));
     }
 
     @Test
