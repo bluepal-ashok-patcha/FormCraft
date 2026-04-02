@@ -1,9 +1,9 @@
 package com.formcraft.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.formcraft.exception.AiProtocolException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
@@ -16,8 +16,8 @@ import java.util.Map;
 public class GeminiService {
 
     private final WebClient webClient;
-    private final ObjectMapper objectMapper = new ObjectMapper();
-    private static final String MARKDOWN_JSON_PATTERN = "(^```json)|(```$)";
+    private static final String MARKDOWN_JSON_PATTERN = "```json\\n?|\\n?```";
+    private static final String PARTS_KEY = "parts";
 
     public GeminiService(WebClient geminiWebClient) {
         this.webClient = geminiWebClient;
@@ -27,7 +27,7 @@ public class GeminiService {
         log.info("Neural Request: Interrogating AI with prompt: {}", userPrompt);
 
         Map<String, Object> systemInstruction = Map.of(
-                "parts", List.of(
+                PARTS_KEY, List.of(
                         Map.of("text", "You are a specialized Regular Expression generator. Given a description, you MUST output a JSON object with exactly two fields: 'regex' and 'errorMessage'. RULES: 1. 'regex' must be the raw regex string. 2. 'errorMessage' must be a professional, concise error message for that rule. 3. NO markdown. 4. NO conversational text.")
                 )
         );
@@ -51,7 +51,7 @@ public class GeminiService {
             : "\nACTION: Synthesize a completely new blueprint based on the description.";
 
         Map<String, Object> systemInstruction = Map.of(
-                "parts", List.of(
+                PARTS_KEY, List.of(
                         Map.of("text", "You are a professional UX Form Architect. " + contextInfo + "\nRULES: 1. Output ONLY a raw JSON array. 2. Use the following schema info: " + fieldSchemaInfo + " 3. Maintain consistent IDs for existing fields that were not modified. 4. NO conversational text.")
                 )
         );
@@ -63,7 +63,7 @@ public class GeminiService {
         log.info("✦ AI Styling Request for: {}", formTitle);
 
         Map<String, Object> systemInstruction = Map.of(
-                "parts", List.of(
+                PARTS_KEY, List.of(
                         Map.of("text", "You are a professional Creative Director. Recommend a cohesive theme for a form titled: " + formTitle + 
                                        "\nOutput ONLY a raw JSON object with: { \"themeColor\": \"#HEX\", \"backgroundColor\": \"#HEX\" }. " + 
                                        "\nRULES: 1. themeColor should be professional. 2. backgroundColor should be a very light, matching tint of the themeColor for accessibility. 3. NO conversational text.")
@@ -82,7 +82,7 @@ public class GeminiService {
                 "system_instruction", systemInstruction,
                 "contents", List.of(
                         Map.of(
-                                "parts", List.of(
+                                PARTS_KEY, List.of(
                                         Map.of("text", userText)
                                 )
                         )
@@ -92,29 +92,35 @@ public class GeminiService {
         return webClient.post()
                 .bodyValue(requestBody)
                 .retrieve()
-                .onStatus(httpStatus -> httpStatus.isError(), 
-                        response -> response.bodyToMono(String.class)
-                                .defaultIfEmpty(protocolLabel + " Interrupt: No error body provided.")
-                                .flatMap(errorBody -> Mono.error(new AiProtocolException(protocolLabel + " Refusal: " + errorBody))))
-                .bodyToMono(String.class)
+                .onStatus(HttpStatusCode::isError, response -> 
+                    response.bodyToMono(String.class)
+                            .flatMap(errorBody -> {
+                                log.error("{}: AI Communication failure: {} - {}", protocolLabel, response.statusCode(), errorBody);
+                                return Mono.<Throwable>error(new AiProtocolException(protocolLabel + ": Protocol Intermission. Connection with the Neural Center was severed."));
+                            })
+                            .switchIfEmpty(Mono.defer(() -> {
+                                log.error("{}: AI Communication failure: {} (Empty Body)", protocolLabel, response.statusCode());
+                                return Mono.<Throwable>error(new AiProtocolException(protocolLabel + ": Protocol Refusal. The AI reached a decision threshold."));
+                            }))
+                )
+                .bodyToMono(JsonNode.class)
                 .flatMap(json -> {
                     try {
-                        JsonNode root = objectMapper.readTree(json);
-                        JsonNode candidates = root.path("candidates");
+                        JsonNode candidates = json.path("candidates");
                         
                         if (candidates.isMissingNode() || candidates.isEmpty()) {
                             return Mono.error(new AiProtocolException(protocolLabel + " Safety Intercept: AI declined to generate content."));
                         }
 
-                        String rawText = candidates.get(0).path("content").path("parts").get(0).path("text").asText().trim();
+                        String rawText = candidates.get(0).path("content").path(PARTS_KEY).get(0).path("text").asText().trim();
                         // Strip markdown backticks
                         String cleanedText = rawText.replaceAll(MARKDOWN_JSON_PATTERN, "").trim();
                         
                         log.info("{}: Strategy synthesized successfully.", protocolLabel);
                         return Mono.just(cleanedText);
                     } catch (Exception e) {
-                        log.error("{}: Data Transformation Failure: {}", protocolLabel, e.getMessage(), e);
-                        return Mono.error(new AiProtocolException(protocolLabel + ": Transformation Failure: " + e.getMessage()));
+                        log.error("{}: AI Synthesis parse failure: {}", protocolLabel, e.getMessage());
+                        return Mono.error(new AiProtocolException(protocolLabel + ": Information Synthesis Error."));
                     }
                 });
     }

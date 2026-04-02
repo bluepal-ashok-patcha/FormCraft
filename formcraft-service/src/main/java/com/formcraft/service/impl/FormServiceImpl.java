@@ -36,6 +36,9 @@ import java.util.ArrayList;
 @RequiredArgsConstructor
 public class FormServiceImpl implements FormService {
 
+    private static final String FORM_NOT_FOUND_MSG = "Form not found with id: ";
+    private static final String CREATED_AT_FIELD = "createdAt";
+
     private final com.formcraft.repository.builder.FormDraftRepository formDraftRepository;
     private final FormRepository formRepository;
     private final FormResponseRepository formResponseRepository;
@@ -72,7 +75,7 @@ public class FormServiceImpl implements FormService {
     @Transactional(readOnly = true)
     public FormDto getFormById(UUID id) {
         Form form = formRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Form not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException(FORM_NOT_FOUND_MSG + id));
         return formMapper.toDto(form);
     }
 
@@ -111,11 +114,11 @@ public class FormServiceImpl implements FormService {
             }
             
             if (startDate != null) {
-                predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), startDate));
+                predicates.add(cb.greaterThanOrEqualTo(root.get(CREATED_AT_FIELD), startDate));
             }
             
             if (endDate != null) {
-                predicates.add(cb.lessThanOrEqualTo(root.get("createdAt"), endDate));
+                predicates.add(cb.lessThanOrEqualTo(root.get(CREATED_AT_FIELD), endDate));
             }
             
             return cb.and(predicates.toArray(new Predicate[0]));
@@ -133,7 +136,7 @@ public class FormServiceImpl implements FormService {
     @Transactional
     public ResponseDto submitResponse(SubmissionRequest request) {
         Form form = formRepository.findById(request.getFormId())
-                .orElseThrow(() -> new ResourceNotFoundException("Form not found with id: " + request.getFormId()));
+                .orElseThrow(() -> new ResourceNotFoundException(FORM_NOT_FOUND_MSG + request.getFormId()));
 
         if (form.getStatus() != FormStatus.ACTIVE) {
             throw new BusinessLogicException("Submission failed: This form is currently not active.");
@@ -165,10 +168,10 @@ public class FormServiceImpl implements FormService {
             predicates.add(cb.equal(root.get("form").get("id"), formId));
             
             if (startDate != null) {
-                predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), startDate));
+                predicates.add(cb.greaterThanOrEqualTo(root.get(CREATED_AT_FIELD), startDate));
             }
             if (endDate != null) {
-                predicates.add(cb.lessThanOrEqualTo(root.get("createdAt"), endDate));
+                predicates.add(cb.lessThanOrEqualTo(root.get(CREATED_AT_FIELD), endDate));
             }
             
             return cb.and(predicates.toArray(new Predicate[0]));
@@ -182,7 +185,7 @@ public class FormServiceImpl implements FormService {
     @Transactional
     public FormDto toggleFormStatus(UUID id) {
         Form form = formRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Form not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException(FORM_NOT_FOUND_MSG + id));
         
         FormStatus newStatus = (form.getStatus() == FormStatus.ACTIVE) ? FormStatus.INACTIVE : FormStatus.ACTIVE;
         form.setStatus(newStatus);
@@ -196,7 +199,7 @@ public class FormServiceImpl implements FormService {
     @Transactional
     public FormDto scheduleFormDeactivation(UUID id, int days) {
         Form form = formRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Form not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException(FORM_NOT_FOUND_MSG + id));
         
         form.setExpiresAt(LocalDateTime.now().plusDays(days));
         Form savedForm = formRepository.save(form);
@@ -232,7 +235,7 @@ public class FormServiceImpl implements FormService {
     @Transactional
     public void deleteForm(UUID id) {
         if (!formRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Form not found with id: " + id);
+            throw new ResourceNotFoundException(FORM_NOT_FOUND_MSG + id);
         }
         log.warn("Form Purge Protocol: Permanently decommissioning form ID '{}'", id);
         formRepository.deleteById(id);
@@ -243,9 +246,19 @@ public class FormServiceImpl implements FormService {
     @Override
     @Transactional
     public FormDto updateForm(UUID id, FormRequest request) {
-        validateFormSchedule(request.getStartsAt(), request.getExpiresAt());
         Form form = formRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Form not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException(FORM_NOT_FOUND_MSG + id));
+        
+        // Only validate schedule if it's actually changing. 
+        // This prevents the "Start date cannot be in the past" error when extending already active forms.
+        boolean startChanged = (form.getStartsAt() == null && request.getStartsAt() != null) || 
+                              (form.getStartsAt() != null && !form.getStartsAt().equals(request.getStartsAt()));
+        boolean endChanged = (form.getExpiresAt() == null && request.getExpiresAt() != null) || 
+                            (form.getExpiresAt() != null && !form.getExpiresAt().equals(request.getExpiresAt()));
+
+        if (startChanged || endChanged) {
+            validateFormScheduleForUpdate(form, request.getStartsAt(), request.getExpiresAt());
+        }
         
         form.setName(request.getName());
         form.setSchema(request.getSchema());
@@ -271,31 +284,36 @@ public class FormServiceImpl implements FormService {
 
     @Override
     @Transactional(readOnly = true)
-    public byte[] exportResponsesToCsv(UUID formId, LocalDateTime startDate, LocalDateTime endDate) {
+    public byte[] exportResponsesToCsv(UUID formId, String search, LocalDateTime startDate, LocalDateTime endDate) {
         Form form = formRepository.findById(formId)
                 .orElseThrow(() -> new ResourceNotFoundException("Form not found"));
 
-        Specification<FormResponse> spec = (root, query, cb) -> {
-            List<Predicate> predicates = new ArrayList<>();
-            predicates.add(cb.equal(root.get("form").get("id"), formId));
-            
-            if (startDate != null) {
-                predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), startDate));
-            }
-            if (endDate != null) {
-                predicates.add(cb.lessThanOrEqualTo(root.get("createdAt"), endDate));
-            }
-            
-            if (query != null) {
-                query.orderBy(cb.desc(root.get("createdAt")));
-            }
-            return cb.and(predicates.toArray(new Predicate[0]));
-        };
-
-        List<FormResponse> responses = formResponseRepository.findAll(spec);
+        List<FormResponse> responses = formResponseRepository.searchByFormIdBulk(formId, search, startDate, endDate);
         List<java.util.Map<String, Object>> fields = (List<java.util.Map<String, Object>>) form.getSchema().get("fields");
 
         return com.formcraft.util.CsvHelper.responsesToCsv(responses, fields);
+    }
+
+    private void validateFormScheduleForUpdate(Form existingForm, LocalDateTime startsAt, LocalDateTime expiresAt) {
+        LocalDateTime now = LocalDateTime.now().minusMinutes(5);
+        
+        // ONLY block past Start Date if the user is actually CHANGING it to something new.
+        // If it's the same as what's already in the DB, it's allowed even if it's currently past.
+        boolean isNewStart = (existingForm.getStartsAt() == null && startsAt != null) || 
+                            (existingForm.getStartsAt() != null && !existingForm.getStartsAt().equals(startsAt));
+                           
+        if (isNewStart && startsAt != null && startsAt.isBefore(now)) {
+            throw new BusinessLogicException("Start date cannot be in the past.");
+        }
+        
+        if (expiresAt != null) {
+            if (expiresAt.isBefore(LocalDateTime.now())) {
+                throw new BusinessLogicException("Expiration date cannot be in the past.");
+            }
+            if (startsAt != null && expiresAt.isBefore(startsAt)) {
+                throw new BusinessLogicException("Expiration date must be after the start date.");
+            }
+        }
     }
 
     private void validateFormSchedule(LocalDateTime startsAt, LocalDateTime expiresAt) {

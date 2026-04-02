@@ -17,11 +17,14 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class TemplateServiceImpl implements TemplateService {
+
+    private static final String SUPER_ADMIN_ROLE = "ROLE_SUPER_ADMIN";
+    private static final String TEMPLATE_ENTITY_TYPE = "TEMPLATE";
+    private static final String BLUEPRINT_NOT_FOUND_MSG = "Architecture Registry: Blueprint asset not found.";
 
     private final TemplateRepository templateRepository;
     private final CategoryRepository categoryRepository;
@@ -38,7 +41,7 @@ public class TemplateServiceImpl implements TemplateService {
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         boolean isSuperAdmin = auth != null && auth.getAuthorities()
-                .stream().anyMatch(a -> a.getAuthority().equals("ROLE_SUPER_ADMIN"));
+                .stream().anyMatch(a -> a.getAuthority().equals(SUPER_ADMIN_ROLE));
 
         Template template = Template.builder()
                 .name(templateDTO.getName())
@@ -51,7 +54,7 @@ public class TemplateServiceImpl implements TemplateService {
                 .build();
         
         Template saved = templateRepository.save(template);
-        auditService.log("CREATE_TEMPLATE", "TEMPLATE", saved.getId(), "Blueprint created: " + saved.getName());
+        auditService.log("CREATE_TEMPLATE", TEMPLATE_ENTITY_TYPE, saved.getId(), "Blueprint created: " + saved.getName());
         return mapToDTO(saved);
     }
 
@@ -60,7 +63,7 @@ public class TemplateServiceImpl implements TemplateService {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         String currentUser = auth != null ? auth.getName() : null;
         boolean isSuperAdmin = auth != null && auth.getAuthorities()
-                .stream().anyMatch(a -> a.getAuthority().equals("ROLE_SUPER_ADMIN"));
+                .stream().anyMatch(a -> a.getAuthority().equals(SUPER_ADMIN_ROLE));
 
         List<Template> templates;
 
@@ -74,28 +77,28 @@ public class TemplateServiceImpl implements TemplateService {
             } else {
                 templates = templateRepository.findAll().stream()
                         .filter(t -> t.isGlobal() || t.isRequestedForGlobal())
-                        .collect(Collectors.toList());
+                        .toList();
             }
         } else {
             templates = templateRepository.findAllVisible(currentUser);
             if ("requested".equalsIgnoreCase(filter)) {
                 templates = templates.stream()
                         .filter(Template::isRequestedForGlobal)
-                        .collect(Collectors.toList());
+                        .toList();
             } else if ("true".equalsIgnoreCase(filter)) {
                 templates = templates.stream()
                         .filter(Template::isGlobal)
-                        .collect(Collectors.toList());
+                        .toList();
             } else if ("false".equalsIgnoreCase(filter)) {
                 templates = templates.stream()
                         .filter(t -> !t.isGlobal())
-                        .collect(Collectors.toList());
+                        .toList();
             }
         }
 
         return templates.stream()
                 .map(this::mapToDTO)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
@@ -110,7 +113,7 @@ public class TemplateServiceImpl implements TemplateService {
     public TemplateDTO updateTemplate(UUID id, TemplateDTO templateDTO) {
         String currentUser = SecurityContextHolder.getContext().getAuthentication().getName();
         boolean isSuperAdmin = SecurityContextHolder.getContext().getAuthentication().getAuthorities()
-                .stream().anyMatch(a -> a.getAuthority().equals("ROLE_SUPER_ADMIN"));
+                .stream().anyMatch(a -> a.getAuthority().equals(SUPER_ADMIN_ROLE));
 
         Template template = templateRepository.findById(id)
                 .orElseThrow(() -> new com.formcraft.exception.ResourceNotFoundException("Strategic Asset Error: Template not found with identifier " + id));
@@ -136,7 +139,7 @@ public class TemplateServiceImpl implements TemplateService {
         }
 
         Template updated = templateRepository.save(template);
-        auditService.log("UPDATE_TEMPLATE", "TEMPLATE", updated.getId(), "Blueprint updated: " + updated.getName());
+        auditService.log("UPDATE_TEMPLATE", TEMPLATE_ENTITY_TYPE, updated.getId(), "Blueprint updated: " + updated.getName());
         return mapToDTO(updated);
     }
 
@@ -145,7 +148,7 @@ public class TemplateServiceImpl implements TemplateService {
     public void deleteTemplate(UUID id) {
         String currentUser = SecurityContextHolder.getContext().getAuthentication().getName();
         boolean isSuperAdmin = SecurityContextHolder.getContext().getAuthentication().getAuthorities()
-                .stream().anyMatch(a -> a.getAuthority().equals("ROLE_SUPER_ADMIN"));
+                .stream().anyMatch(a -> a.getAuthority().equals(SUPER_ADMIN_ROLE));
 
         Template template = templateRepository.findById(id)
                 .orElseThrow(() -> new com.formcraft.exception.ResourceNotFoundException("Registry Error: Template not found for purge pulse."));
@@ -161,7 +164,7 @@ public class TemplateServiceImpl implements TemplateService {
         }
 
         templateRepository.delete(template);
-        auditService.log("DELETE_TEMPLATE", "TEMPLATE", id, "Blueprint deleted permanently.");
+        auditService.log("DELETE_TEMPLATE", TEMPLATE_ENTITY_TYPE, id, "Blueprint deleted permanently.");
     }
 
     @Override
@@ -171,7 +174,7 @@ public class TemplateServiceImpl implements TemplateService {
                 .orElseThrow(() -> new com.formcraft.exception.ResourceNotFoundException("Governance Error: Target asset not found for global promotion."));
         template.setGlobal(true);
         Template updated = templateRepository.save(template);
-        auditService.log("PROMOTE_TEMPLATE", "TEMPLATE", updated.getId(), "Blueprint promoted to global.");
+        auditService.log("PROMOTE_TEMPLATE", TEMPLATE_ENTITY_TYPE, updated.getId(), "Blueprint promoted to global.");
         return mapToDTO(updated);
     }
 
@@ -188,7 +191,7 @@ public class TemplateServiceImpl implements TemplateService {
         
         template.setRequestedForGlobal(true);
         Template updated = templateRepository.save(template);
-        auditService.log("REQUEST_PROMOTION", "TEMPLATE", updated.getId(), "Promotion requested for blueprint.");
+        auditService.log("REQUEST_PROMOTION", TEMPLATE_ENTITY_TYPE, updated.getId(), "Promotion requested for blueprint.");
         return mapToDTO(updated);
     }
 
@@ -200,7 +203,7 @@ public class TemplateServiceImpl implements TemplateService {
                         .name(cat.getName())
                         .label(cat.getLabel())
                         .build())
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
@@ -229,12 +232,12 @@ public class TemplateServiceImpl implements TemplateService {
     @Transactional
     public TemplateDTO decertifyTemplate(UUID id) {
         Template template = templateRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Architecture Registry: Blueprint asset not found."));
+                .orElseThrow(() -> new ResourceNotFoundException(BLUEPRINT_NOT_FOUND_MSG));
 
         template.setGlobal(false);
         template.setRequestedForGlobal(false);
         Template updated = templateRepository.save(template);
-        auditService.log("DECERTIFY_TEMPLATE", "TEMPLATE", updated.getId(), "Blueprint decertified.");
+        auditService.log("DECERTIFY_TEMPLATE", TEMPLATE_ENTITY_TYPE, updated.getId(), "Blueprint decertified.");
         return mapToDTO(updated);
     }
 
@@ -242,7 +245,7 @@ public class TemplateServiceImpl implements TemplateService {
     @Transactional
     public TemplateDTO rejectPromotion(UUID id) {
         Template template = templateRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Architecture Registry: Blueprint asset not found."));
+                .orElseThrow(() -> new ResourceNotFoundException(BLUEPRINT_NOT_FOUND_MSG));
 
         template.setRequestedForGlobal(false);
         Template updated = templateRepository.save(template);
@@ -254,7 +257,7 @@ public class TemplateServiceImpl implements TemplateService {
     public TemplateDTO cancelPromotionRequest(UUID id) {
         String currentUser = SecurityContextHolder.getContext().getAuthentication().getName();
         Template template = templateRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Architecture Registry: Blueprint asset not found."));
+                .orElseThrow(() -> new ResourceNotFoundException(BLUEPRINT_NOT_FOUND_MSG));
 
         if (!template.getCreatedBy().equals(currentUser)) {
             throw new com.formcraft.exception.BusinessLogicException("Identity Mismatch: You can only cancel promotion requests for templates you created.");

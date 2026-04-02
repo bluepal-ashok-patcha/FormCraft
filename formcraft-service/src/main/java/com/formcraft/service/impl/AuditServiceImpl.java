@@ -3,7 +3,6 @@ package com.formcraft.service.impl;
 import com.formcraft.entity.AuditLog;
 import com.formcraft.repository.AuditLogRepository;
 import com.formcraft.service.AuditService;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -13,10 +12,17 @@ import java.util.UUID;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class AuditServiceImpl implements AuditService {
 
     private final AuditLogRepository auditLogRepository;
+    private final AuditService self;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public AuditServiceImpl(AuditLogRepository auditLogRepository, 
+                          @org.springframework.context.annotation.Lazy AuditService self) {
+        this.auditLogRepository = auditLogRepository;
+        this.self = self;
+    }
 
     @Async
     @Override
@@ -51,6 +57,6 @@ public class AuditServiceImpl implements AuditService {
             log.trace("Could not resolve security actor for audit in async context");
         }
         
-        this.log(action, actor, entityType, entityId, details);
+        self.log(action, actor, entityType, entityId, details);
     }
 }

@@ -7,7 +7,6 @@ import com.formcraft.dto.response.ResponseDto;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import java.util.List;
 import java.util.UUID;
 
 public interface FormService {
@@ -18,7 +17,7 @@ public interface FormService {
     
     ResponseDto submitResponse(SubmissionRequest request);
     Page<ResponseDto> getResponsesByFormId(UUID formId, String search, java.time.LocalDateTime startDate, java.time.LocalDateTime endDate, Pageable pageable);
-    byte[] exportResponsesToCsv(UUID formId, java.time.LocalDateTime startDate, java.time.LocalDateTime endDate);
+    byte[] exportResponsesToCsv(UUID formId, String search, java.time.LocalDateTime startDate, java.time.LocalDateTime endDate);
     
     FormDto toggleFormStatus(UUID id);
     FormDto scheduleFormDeactivation(UUID id, int days);

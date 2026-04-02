@@ -14,7 +14,6 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -45,7 +44,8 @@ public class DashboardService {
         long totalTemplates = isSuperAdmin ? templateRepository.countByGlobal(true) : 0;
         long pendingPromotions = isSuperAdmin ? templateRepository.countByRequestedForGlobalTrueAndGlobalFalse() : 0;
         
-        double avgResponses = totalForms > 0 ? (double) (isSuperAdmin ? formResponseRepository.count() : formResponseRepository.countByFormCreatedBy(username)) / totalForms : 0;
+        long totalResponses = isSuperAdmin ? formResponseRepository.count() : formResponseRepository.countByFormCreatedBy(username);
+        double avgResponses = totalForms > 0 ? (double) totalResponses / totalForms : 0;
         
         // Strategy: Delegate complex processing pipelines to private logic silos
         List<DashboardStatsResponse.RecentActivity> activities = fetchActivities(isSuperAdmin, username);
@@ -59,7 +59,7 @@ public class DashboardService {
                         .date(s[0].toString())
                         .count(((Number) s[1]).longValue())
                         .build())
-                .collect(Collectors.toList());
+                .toList();
                 
         List<Form> expiringSoonForms = isSuperAdmin ? formRepository.findAllByExpiresAtBetweenOrderByExpiresAtAsc(now, tomorrow) : formRepository.findAllByCreatedByAndExpiresAtBetweenOrderByExpiresAtAsc(username, now, tomorrow);
         
@@ -70,7 +70,7 @@ public class DashboardService {
                         .timeLeft(calculateTimeLeft(f.getExpiresAt()))
                         .expiresAt(f.getExpiresAt())
                         .build())
-                .collect(Collectors.toList());
+                .toList();
 
         return DashboardStatsResponse.builder()
                 .totalForms(totalForms)
@@ -81,7 +81,7 @@ public class DashboardService {
                 .totalTemplates(totalTemplates)
                 .pendingPromotions(pendingPromotions)
                 .avgResponsesPerForm(avgResponses)
-                .recentActivity(activities.stream().limit(5).collect(Collectors.toList()))
+                .recentActivity(activities.stream().limit(5).toList())
                 .expiringForms(expiringForms)
                 .promotionRequests(fetchPromotionRequests(isSuperAdmin))
                 .chartData(chartData)
@@ -106,7 +106,7 @@ public class DashboardService {
                         .requester(t.getCreatedBy())
                         .timeAgo(getTimeAgo(t.getCreatedAt()))
                         .build())
-                .collect(Collectors.toList());
+                .toList();
     }
 
     private List<DashboardStatsResponse.RecentActivity> fetchActivities(boolean isSuperAdmin, String username) {

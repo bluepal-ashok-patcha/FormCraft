@@ -38,6 +38,8 @@ import java.time.LocalDateTime;
 @Service
 public class AuthServiceImpl implements AuthService {
 
+    private static final String USER_NOT_FOUND_MSG = "Error: User not found.";
+
     private final AuthenticationManager authenticationManager;
     private final JwtTokenProvider jwtTokenProvider;
     private final RefreshTokenService refreshTokenService;
@@ -218,7 +220,7 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public JwtResponse verifyRegistrationOtp(String email, String otp) {
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new ResourceNotFoundException("Error: User not found."));
+                .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND_MSG));
 
         if (user.isActive()) {
             throw new BusinessLogicException("Account is already active.");
@@ -243,7 +245,7 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public void forgotPasswordRequest(String identity) {
         User user = userRepository.findByUsernameOrEmail(identity, identity)
-                .orElseThrow(() -> new ResourceNotFoundException("Error: User not found."));
+                .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND_MSG));
 
         if (!user.isActive()) {
             throw new BusinessLogicException("Account is unverified. Please verify your email first.");
@@ -262,7 +264,7 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public JwtResponse resetPasswordWithOtp(String identity, String otp, String newPassword) {
         User user = userRepository.findByUsernameOrEmail(identity, identity)
-                .orElseThrow(() -> new ResourceNotFoundException("Error: User not found."));
+                .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND_MSG));
 
         validateOtp(user, otp);
 
