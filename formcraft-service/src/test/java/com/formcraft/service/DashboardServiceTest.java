@@ -2,7 +2,6 @@ package com.formcraft.service;
 
 import com.formcraft.dto.response.DashboardStatsResponse;
 import com.formcraft.entity.Form;
-import com.formcraft.entity.FormResponse;
 import com.formcraft.repository.FormRepository;
 import com.formcraft.repository.FormResponseRepository;
 import com.formcraft.repository.TemplateRepository;
@@ -19,118 +18,117 @@ import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.time.LocalDateTime;
-import java.util.Collections;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 
-import static org.mockito.BDDMockito.doReturn;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class DashboardServiceTest {
 
     @Mock
     private FormRepository formRepository;
-
     @Mock
     private FormResponseRepository formResponseRepository;
-
     @Mock
     private FormDraftRepository formDraftRepository;
-
     @Mock
     private TemplateRepository templateRepository;
-
-    @Mock
-    private SecurityContext securityContext;
-
-    @Mock
-    private Authentication authentication;
 
     @InjectMocks
     private DashboardService dashboardService;
 
+    private SecurityContext securityContext;
+    private Authentication authentication;
+
     @BeforeEach
     void setUp() {
+        securityContext = mock(SecurityContext.class);
+        authentication = mock(Authentication.class);
         SecurityContextHolder.setContext(securityContext);
         when(securityContext.getAuthentication()).thenReturn(authentication);
         when(authentication.getName()).thenReturn("testuser");
     }
 
     @Test
-    void getDashboardStats_AsSuperAdmin_ShouldReturnGlobalMetrics() {
-        // Setup Super Admin Roles
-        doReturn(List.of(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN")))
-                .when(authentication).getAuthorities();
+    void getDashboardStats_ShouldReturnGlobalStats_ForSuperAdmin() {
+        // Arrange
+        List<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"));
+        when(authentication.getAuthorities()).thenReturn((Collection) authorities);
 
-        // Seed Mocks for counts
         when(formRepository.count()).thenReturn(10L);
         when(formDraftRepository.count()).thenReturn(5L);
-        when(formRepository.countByStatus(any())).thenReturn(8L);
-        when(templateRepository.countByGlobal(true)).thenReturn(3L);
-        when(formRepository.findTop5ByOrderByCreatedAtDesc()).thenReturn(Collections.emptyList());
-        when(formResponseRepository.findTop5ByOrderByCreatedAtDesc()).thenReturn(Collections.emptyList());
-        when(formResponseRepository.findGlobalResponseStats(any())).thenReturn(Collections.emptyList());
+        when(templateRepository.countByGlobal(true)).thenReturn(2L);
+        
+        List<Object[]> stats = Arrays.asList(new Object[][]{{"2024-01-01", 5L}});
+        when(formResponseRepository.findGlobalResponseStats(any())).thenReturn(stats);
 
-        DashboardStatsResponse stats = dashboardService.getDashboardStats("30d");
+        // Act
+        DashboardStatsResponse statsResponse = dashboardService.getDashboardStats("7d");
 
-        assertNotNull(stats);
-        assertEquals(10, stats.getTotalForms());
-        assertEquals(3, stats.getTotalTemplates());
+        // Assert
+        assertNotNull(statsResponse);
+        assertEquals(10L, statsResponse.getTotalForms());
+        assertEquals(2L, statsResponse.getTotalTemplates());
+        assertFalse(statsResponse.getChartData().isEmpty());
     }
 
     @Test
-    void getDashboardStats_AsRegularUser_ShouldReturnPersonalMetrics() {
-        // Setup User Roles
-        doReturn(List.of(new SimpleGrantedAuthority("ROLE_USER")))
-                .when(authentication).getAuthorities();
+    void getDashboardStats_ShouldReturnUserStats_ForRegularAdmin() {
+        // Arrange
+        List<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_ADMIN"));
+        when(authentication.getAuthorities()).thenReturn((Collection) authorities);
 
-        // Seed Mocks for personal counts
         when(formRepository.countByCreatedBy("testuser")).thenReturn(5L);
-        when(formDraftRepository.countByCreatedBy("testuser")).thenReturn(2L);
-        when(formRepository.countByCreatedByAndStatus(eq("testuser"), any())).thenReturn(4L);
+        when(formResponseRepository.countByFormCreatedBy("testuser")).thenReturn(20L);
         
-        // Mock range specifics
-        when(formResponseRepository.findResponseStatsByCreatedBy(eq("testuser"), any())).thenReturn(Collections.emptyList());
-        when(formRepository.findTop5ByCreatedByOrderByCreatedAtDesc(anyString())).thenReturn(Collections.emptyList());
-        when(formResponseRepository.findTop5ByFormCreatedByOrderByCreatedAtDesc(anyString())).thenReturn(Collections.emptyList());
+        List<Object[]> stats = Arrays.asList(new Object[][]{{"2024-01-01", 20L}});
+        when(formResponseRepository.findResponseStatsByCreatedBy(eq("testuser"), any())).thenReturn(stats);
 
-        DashboardStatsResponse stats = dashboardService.getDashboardStats("7d");
+        // Act
+        DashboardStatsResponse statsResponse = dashboardService.getDashboardStats("30d");
 
-        assertNotNull(stats);
-        assertEquals(5, stats.getTotalForms());
-        assertEquals(0, stats.getTotalTemplates()); // Non-admin sees 0 templates in stats
+        // Assert
+        assertNotNull(statsResponse);
+        assertEquals(5L, statsResponse.getTotalForms());
+        assertEquals(4.0, statsResponse.getAvgResponsesPerForm());
     }
 
     @Test
-    void getDashboardStats_WithActivities_ShouldCorrelateTimeline() {
-        doReturn(List.of(new SimpleGrantedAuthority("ROLE_USER")))
-                .when(authentication).getAuthorities();
+    void getDashboardStats_ShouldHandleExpiringForms() {
+        // Arrange
+        List<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_ADMIN"));
+        when(authentication.getAuthorities()).thenReturn((Collection) authorities);
 
-        Form testForm = new Form();
-        testForm.setId(UUID.randomUUID());
-        testForm.setName("Protocol Alpha");
-        testForm.setCreatedAt(LocalDateTime.now());
+        Form expiringForm = new Form();
+        expiringForm.setId(UUID.randomUUID());
+        expiringForm.setName("Expiring Form");
+        expiringForm.setExpiresAt(LocalDateTime.now().plusHours(10));
+        expiringForm.setCreatedAt(LocalDateTime.now().minusDays(1));
 
-        FormResponse testResponse = new FormResponse();
-        testResponse.setId(UUID.randomUUID());
-        testResponse.setForm(testForm);
-        testResponse.setCreatedAt(LocalDateTime.now().minusMinutes(10));
+        when(formRepository.findAllByCreatedByAndExpiresAtBetweenOrderByExpiresAtAsc(anyString(), any(), any()))
+                .thenReturn(List.of(expiringForm));
 
-        when(formRepository.findTop5ByCreatedByOrderByCreatedAtDesc(anyString())).thenReturn(List.of(testForm));
-        when(formResponseRepository.findTop5ByFormCreatedByOrderByCreatedAtDesc(anyString())).thenReturn(List.of(testResponse));
-        
-        // Mock basics to avoid NPE
-        when(formRepository.countByCreatedBy(anyString())).thenReturn(1L);
-        when(formResponseRepository.findResponseStatsByCreatedBy(anyString(), any())).thenReturn(Collections.emptyList());
+        // Act
+        DashboardStatsResponse statsResponse = dashboardService.getDashboardStats("7d");
 
-        DashboardStatsResponse stats = dashboardService.getDashboardStats("30d");
+        // Assert
+        assertFalse(statsResponse.getExpiringForms().isEmpty());
+        assertEquals("Expiring Form", statsResponse.getExpiringForms().get(0).getName());
+        assertTrue(statsResponse.getExpiringForms().get(0).getTimeLeft().contains("h"));
+    }
 
-        assertNotNull(stats.getRecentActivity());
-        assertTrue(stats.getRecentActivity().size() >= 2);
-        // Verify sorting (Newest first)
-        assertEquals("FORM_CREATED", stats.getRecentActivity().get(0).getType());
+    @Test
+    void getDashboardStats_ShouldDefaultTo7Days_WhenRangeIsInvalid() {
+        // Arrange
+        List<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_ADMIN"));
+        when(authentication.getAuthorities()).thenReturn((Collection) authorities);
+
+        // Act
+        dashboardService.getDashboardStats("unknown");
+
+        // Assert
+        verify(formResponseRepository).findResponseStatsByCreatedBy(eq("testuser"), any());
     }
 }

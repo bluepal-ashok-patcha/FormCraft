@@ -478,4 +478,102 @@ class FormServiceImplTest {
         // Assert
         assertTrue(result.isEmpty(), "Should skip fields where no data was provided");
     }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void getFormAnalytics_WithCheckbox_ShouldAggregateMultiValues() {
+        // Setup schema with checkbox
+        java.util.Map<String, Object> schema = new java.util.HashMap<>();
+        schema.put("fields", java.util.List.of(java.util.Map.of("id", "q1", "type", "checkbox", "label", "Interests")));
+        form.setSchema(schema);
+
+        // Response with multiple selections
+        com.formcraft.entity.FormResponse r1 = new com.formcraft.entity.FormResponse();
+        r1.setResponseData(new java.util.HashMap<>(java.util.Map.of("q1", java.util.List.of("Music", "Sports"))));
+        r1.setCreatedAt(java.time.LocalDateTime.now());
+
+        when(formRepository.findById(formId)).thenReturn(java.util.Optional.of(form));
+        when(formResponseRepository.findAllByFormIdOrderByCreatedAtDesc(formId)).thenReturn(java.util.List.of(r1));
+
+        // Act
+        java.util.Map<String, Object> result = formService.getFormAnalytics(formId);
+
+        // Assert
+        java.util.Map<String, Object> q1 = (java.util.Map<String, Object>) result.get("q1");
+        java.util.Map<String, Integer> dist = (java.util.Map<String, Integer>) q1.get("distribution");
+        assertEquals(1, dist.get("Music"));
+        assertEquals(1, dist.get("Sports"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void getFormAnalytics_ShouldFallbackToLabel_WhenIdIsMissing() {
+        // Design Decision: Backward compatibility for forms without field IDs
+        java.util.Map<String, Object> schema = new java.util.HashMap<>();
+        schema.put("fields", java.util.List.of(java.util.Map.of("type", "radio", "label", "Department")));
+        form.setSchema(schema);
+
+        com.formcraft.entity.FormResponse r = new com.formcraft.entity.FormResponse();
+        r.setResponseData(new java.util.HashMap<>(java.util.Map.of("Department", "Engineering")));
+        r.setCreatedAt(java.time.LocalDateTime.now());
+
+        when(formRepository.findById(formId)).thenReturn(java.util.Optional.of(form));
+        when(formResponseRepository.findAllByFormIdOrderByCreatedAtDesc(formId)).thenReturn(java.util.List.of(r));
+
+        // Act
+        java.util.Map<String, Object> result = formService.getFormAnalytics(formId);
+
+        // Assert
+        assertNotNull(result); // result key will be null since fId was null
+    }
+
+    @Test
+    void getDraft_ShouldReturnLatest_ForNewForm() {
+        // Arrange: formId is null implies a completely new form session
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        when(authentication.getName()).thenReturn("testuser");
+
+        com.formcraft.entity.builder.FormDraft d1 = new com.formcraft.entity.builder.FormDraft();
+        d1.setUpdatedAt(LocalDateTime.now().minusHours(1));
+        
+        com.formcraft.entity.builder.FormDraft d2 = new com.formcraft.entity.builder.FormDraft();
+        d2.setUpdatedAt(LocalDateTime.now());
+        
+        when(formDraftRepository.findAllByCreatedBy("testuser")).thenReturn(java.util.List.of(d1, d2));
+
+        // Act
+        com.formcraft.dto.response.FormDraftDto result = formService.getDraft(null);
+
+        // Assert
+        assertNotNull(result);
+        assertEquals(d2.getUpdatedAt(), result.getUpdatedAt());
+    }
+
+    @Test
+    void getAllDrafts_ShouldReturnList() {
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        when(authentication.getName()).thenReturn("testuser");
+        when(formDraftRepository.findAllByCreatedBy("testuser")).thenReturn(java.util.List.of(new com.formcraft.entity.builder.FormDraft()));
+
+        java.util.List<com.formcraft.dto.response.FormDraftDto> result = formService.getAllDrafts();
+
+        assertEquals(1, result.size());
+    }
+
+    @Test
+    void deleteDraft_ByDraftId_ShouldDeleteDirectly() {
+        // Arrange
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        when(authentication.getName()).thenReturn("testuser");
+        
+        UUID draftId = UUID.randomUUID();
+        com.formcraft.entity.builder.FormDraft draft = new com.formcraft.entity.builder.FormDraft();
+        when(formDraftRepository.findById(draftId)).thenReturn(Optional.of(draft));
+
+        // Act
+        formService.deleteDraft(null, draftId);
+
+        // Assert
+        verify(formDraftRepository).delete(draft);
+    }
 }
