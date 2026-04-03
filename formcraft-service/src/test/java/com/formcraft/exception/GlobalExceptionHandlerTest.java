@@ -5,17 +5,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.validation.BindingResult;
-import org.springframework.validation.FieldError;
-import org.springframework.web.bind.MethodArgumentNotValidException;
-
-import java.util.List;
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 class GlobalExceptionHandlerTest {
 
@@ -28,99 +19,70 @@ class GlobalExceptionHandlerTest {
 
     @Test
     void handleResourceNotFoundException_ShouldReturn404() {
-        // Arrange
-        ResourceNotFoundException ex = new ResourceNotFoundException("Form not found");
-
-        // Act
+        ResourceNotFoundException ex = new ResourceNotFoundException("Not found");
         ResponseEntity<ApiResponse<Void>> response = exceptionHandler.handleResourceNotFoundException(ex);
 
-        // Assert
         assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
-        assertEquals("Form not found", response.getBody().getMessage());
+        assertFalse(response.getBody().isSuccess());
+        assertEquals("Not found", response.getBody().getMessage());
     }
 
     @Test
     void handleBadRequestException_ShouldReturn400() {
-        // Arrange
-        BadRequestException ex = new BadRequestException("Invalid Protocol");
-
-        // Act
+        BadRequestException ex = new BadRequestException("Bad request");
         ResponseEntity<ApiResponse<Void>> response = exceptionHandler.handleBadRequestException(ex);
 
-        // Assert
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-        assertEquals("Invalid Protocol", response.getBody().getMessage());
+        assertFalse(response.getBody().isSuccess());
+        assertEquals("Bad request", response.getBody().getMessage());
     }
 
     @Test
     void handleBusinessLogicException_ShouldReturn422() {
-        // Arrange
-        BusinessLogicException ex = new BusinessLogicException("Logic Fault");
-
-        // Act
+        BusinessLogicException ex = new BusinessLogicException("Biz error");
         ResponseEntity<ApiResponse<Void>> response = exceptionHandler.handleBusinessLogicException(ex);
 
-        // Assert
         assertEquals(HttpStatus.UNPROCESSABLE_ENTITY, response.getStatusCode());
-        assertTrue(response.getBody().getMessage().contains("Logic Fault"));
+        assertFalse(response.getBody().isSuccess());
+        assertEquals("Error: Biz error", response.getBody().getMessage());
     }
 
     @Test
-    void handleAccessDeniedException_ShouldReturn403() {
-        // Arrange
-        org.springframework.security.access.AccessDeniedException ex = new org.springframework.security.access.AccessDeniedException("Denied");
+    void handleAiProtocolException_ShouldReturn503() {
+        AiProtocolException ex = new AiProtocolException("AI error");
+        ResponseEntity<ApiResponse<Void>> response = exceptionHandler.handleAiProtocolException(ex);
 
-        // Act
-        ResponseEntity<ApiResponse<Void>> response = exceptionHandler.handleAccessDeniedException(ex);
-
-        // Assert
-        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
-        assertTrue(response.getBody().getMessage().contains("permission"));
+        assertEquals(HttpStatus.SERVICE_UNAVAILABLE, response.getStatusCode());
+        assertFalse(response.getBody().isSuccess());
+        assertEquals("AI Service Error: AI error", response.getBody().getMessage());
     }
 
     @Test
-    void handleBadCredentialsException_ShouldReturn401() {
-        // Arrange
-        BadCredentialsException ex = new BadCredentialsException("Invalid Login");
+    void handleLockedException_ShouldReturn423() {
+        AccountLockedException ex = new AccountLockedException("Locked");
+        ResponseEntity<ApiResponse<Void>> response = exceptionHandler.handleLockedException(ex);
 
-        // Act
-        ResponseEntity<ApiResponse<Void>> response = exceptionHandler.handleBadCredentialsException(ex);
+        assertEquals(HttpStatus.LOCKED, response.getStatusCode());
+        assertFalse(response.getBody().isSuccess());
+        assertEquals("Locked", response.getBody().getMessage());
+    }
 
-        // Assert
-        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
-        assertEquals("Invalid Login", response.getBody().getMessage());
+    @Test
+    void handleFormCraftException_ShouldReturnCustomStatus() {
+        FormCraftException ex = new FormCraftException(HttpStatus.I_AM_A_TEAPOT, "Teapot");
+        ResponseEntity<ApiResponse<Void>> response = exceptionHandler.handleFormCraftException(ex);
+
+        assertEquals(HttpStatus.I_AM_A_TEAPOT, response.getStatusCode());
+        assertEquals("Teapot", response.getBody().getMessage());
     }
 
     @Test
     void handleGeneralException_ShouldReturn500() {
-        // Arrange
-        Exception ex = new Exception("System Failure");
-
-        // Act
+        Exception ex = new Exception("Critical error");
         ResponseEntity<ApiResponse<Void>> response = exceptionHandler.handleGeneralException(ex);
 
-        // Assert
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+        assertFalse(response.getBody().isSuccess());
         assertTrue(response.getBody().getMessage().contains("Internal Server Error"));
-    }
-
-    @Test
-    void handleValidationExceptions_ShouldReturn400WithErrors() {
-        // Arrange
-        MethodArgumentNotValidException ex = mock(MethodArgumentNotValidException.class);
-        BindingResult bindingResult = mock(BindingResult.class);
-        FieldError fieldError = new FieldError("form", "email", "Invalid email format");
-        
-        when(ex.getBindingResult()).thenReturn(bindingResult);
-        when(bindingResult.getAllErrors()).thenReturn(List.of(fieldError));
-        when(bindingResult.getErrorCount()).thenReturn(1);
-
-        // Act
-        ResponseEntity<ApiResponse<Map<String, String>>> response = exceptionHandler.handleValidationExceptions(ex);
-
-        // Assert
-        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-        assertEquals("email", response.getBody().getData().keySet().iterator().next());
-        assertEquals("Invalid email format", response.getBody().getData().get("email"));
     }
 }

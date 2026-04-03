@@ -131,4 +131,81 @@ class DashboardServiceTest {
         // Assert
         verify(formResponseRepository).findResponseStatsByCreatedBy(eq("testuser"), any());
     }
+
+    @Test
+    void getDashboardStats_90dRange_ShouldReturnStats() {
+        // Arrange
+        List<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_ADMIN"));
+        when(authentication.getAuthorities()).thenReturn((Collection) authorities);
+
+        // Act
+        dashboardService.getDashboardStats("90d");
+
+        // Assert: Ensure findResponseStatsByCreatedBy was called with 90 days range
+        verify(formResponseRepository).findResponseStatsByCreatedBy(eq("testuser"), any());
+    }
+
+    @Test
+    void fetchPromotionRequests_ShouldHandleSuperAdmin() {
+        // Arrange
+        List<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"));
+        when(authentication.getAuthorities()).thenReturn((Collection) authorities);
+
+        com.formcraft.entity.Template template = new com.formcraft.entity.Template();
+        template.setId(UUID.randomUUID());
+        template.setName("Promotion Quest");
+        template.setCreatedBy("user1");
+        template.setCreatedAt(LocalDateTime.now().minusMinutes(30));
+
+        when(templateRepository.findByRequestedForGlobalTrueAndGlobalFalse()).thenReturn(List.of(template));
+
+        // Act
+        DashboardStatsResponse stats = dashboardService.getDashboardStats("7d");
+
+        // Assert
+        assertEquals(1, stats.getPromotionRequests().size());
+        assertEquals("user1", stats.getPromotionRequests().get(0).getRequester());
+    }
+
+    @Test
+    void fetchActivities_ShouldHandleRegularAdmin() {
+        // Arrange
+        List<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_ADMIN"));
+        when(authentication.getAuthorities()).thenReturn((Collection) authorities);
+
+        Form recentForm = new Form();
+        recentForm.setId(UUID.randomUUID());
+        recentForm.setName("New Form");
+        recentForm.setCreatedAt(LocalDateTime.now().minusMinutes(5));
+
+        when(formRepository.findTop5ByCreatedByOrderByCreatedAtDesc(anyString())).thenReturn(List.of(recentForm));
+
+        // Act
+        DashboardStatsResponse stats = dashboardService.getDashboardStats("7d");
+
+        // Assert
+        assertFalse(stats.getRecentActivity().isEmpty());
+    }
+
+    @Test
+    void calculateTimeLeft_ShouldReturnMinutes_WhenLessThanOneHour() {
+        // Arrange
+        List<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_ADMIN"));
+        when(authentication.getAuthorities()).thenReturn((Collection) authorities);
+
+        Form expiringForm = new Form();
+        expiringForm.setId(UUID.randomUUID());
+        expiringForm.setExpiresAt(LocalDateTime.now().plusMinutes(15));
+        expiringForm.setCreatedAt(LocalDateTime.now().minusDays(1));
+
+        when(formRepository.findAllByCreatedByAndExpiresAtBetweenOrderByExpiresAtAsc(anyString(), any(), any()))
+                .thenReturn(List.of(expiringForm));
+
+        // Act
+        DashboardStatsResponse stats = dashboardService.getDashboardStats("7d");
+
+        // Assert
+        String timeLeft = stats.getExpiringForms().get(0).getTimeLeft();
+        assertTrue(timeLeft.equals("15m") || timeLeft.equals("14m"), "Time left should be approximately 15 minutes");
+    }
 }

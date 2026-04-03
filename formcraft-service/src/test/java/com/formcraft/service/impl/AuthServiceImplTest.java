@@ -272,4 +272,69 @@ class AuthServiceImplTest {
         
         SecurityContextHolder.clearContext();
     }
+
+    @Test
+    void validateOtp_ShouldThrowException_WhenOtpIsInvalid() {
+        // Arrange
+        user.setOtpCode("111111");
+        user.setOtpExpiry(LocalDateTime.now().plusMinutes(5));
+        when(userRepository.findByEmail(anyString())).thenReturn(Optional.of(user));
+
+        // Act & Assert
+        assertThrows(BusinessLogicException.class, () -> authService.verifyRegistrationOtp("test@example.com", "222222"));
+    }
+
+    @Test
+    void validateOtp_ShouldThrowException_WhenOtpIsExpired() {
+        // Arrange
+        user.setOtpCode("111111");
+        user.setOtpExpiry(LocalDateTime.now().minusMinutes(5));
+        when(userRepository.findByEmail(anyString())).thenReturn(Optional.of(user));
+
+        // Act & Assert
+        assertThrows(BusinessLogicException.class, () -> authService.verifyRegistrationOtp("test@example.com", "111111"));
+    }
+
+    @Test
+    void handleFailedLogin_ShouldTriggerLockout_WhenMaxAttemptsExceeded() {
+        // Arrange: 4 failed attempts, 1 more will trigger lockout
+        user.setFailedLoginAttempts(4);
+        when(userRepository.findById(any())).thenReturn(Optional.of(user));
+
+        // Act
+        authService.handleFailedLogin(user.getId());
+
+        // Assert
+        assertEquals(5, user.getFailedLoginAttempts());
+        assertNotNull(user.getLockoutTime());
+        verify(userRepository).save(user);
+    }
+
+    @Test
+    void resendVerificationOtp_ShouldSuccess_WhenUserIsInactive() {
+        // Arrange
+        user.setActive(false);
+        when(userRepository.findByEmail(anyString())).thenReturn(Optional.of(user));
+
+        // Act
+        authService.resendVerificationOtp("test@example.com");
+
+        // Assert
+        assertNotNull(user.getOtpCode());
+        verify(emailService).sendVerificationEmail(eq("test@example.com"), anyString());
+        verify(userRepository).save(user);
+    }
+
+    @Test
+    void register_ShouldThrowException_WhenUnverifiedAccountExists() {
+        // Arrange
+        user.setActive(false);
+        RegisterRequest request = new RegisterRequest();
+        request.setEmail("test@example.com");
+        when(userRepository.findByEmail(anyString())).thenReturn(Optional.of(user));
+
+        // Act & Assert: Should throw unverified account message
+        BusinessLogicException ex = assertThrows(BusinessLogicException.class, () -> authService.register(request));
+        assertTrue(ex.getMessage().contains("UNVERIFIED_ACCOUNT"));
+    }
 }
