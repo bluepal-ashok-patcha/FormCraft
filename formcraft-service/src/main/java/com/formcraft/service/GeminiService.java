@@ -122,6 +122,8 @@ public class GeminiService {
                         log.error("{}: AI Synthesis parse failure: {}", protocolLabel, e.getMessage());
                         return Mono.error(new AiProtocolException(protocolLabel + ": Information Synthesis Error."));
                     }
-                });
+                })
+                .onErrorMap(e -> !(e instanceof AiProtocolException), 
+                    e -> new AiProtocolException(protocolLabel + ": Information Synthesis Intermission."));
     }
 }

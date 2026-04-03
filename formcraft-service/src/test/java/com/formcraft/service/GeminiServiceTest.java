@@ -1,87 +1,96 @@
 package com.formcraft.service;
- 
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.formcraft.exception.AiProtocolException;
-// High-Fidelity Registry Sync: GeminiService is located in the com.formcraft.service package
-import okhttp3.mockwebserver.MockResponse;
-import okhttp3.mockwebserver.MockWebServer;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
- 
-import java.io.IOException;
+
 import java.util.Collections;
- 
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
 class GeminiServiceTest {
- 
-    private MockWebServer mockWebServer;
+
+    @Mock
+    private WebClient webClient;
+    @Mock
+    private WebClient.RequestBodyUriSpec requestBodyUriSpec;
+    @Mock
+    private WebClient.RequestBodySpec requestBodySpec;
+    @Mock
+    @SuppressWarnings("rawtypes")
+    private WebClient.RequestHeadersSpec requestHeadersSpec;
+    @Mock
+    private WebClient.ResponseSpec responseSpec;
+
     private GeminiService geminiService;
- 
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
     @BeforeEach
-    void setUp() throws IOException {
-        mockWebServer = new MockWebServer();
-        mockWebServer.start();
- 
-        WebClient webClient = WebClient.builder()
-                .baseUrl(mockWebServer.url("/").toString())
-                .build();
- 
+    void setUp() {
         geminiService = new GeminiService(webClient);
-    }
- 
-    @AfterEach
-    void tearDown() throws IOException {
-        mockWebServer.shutdown();
-    }
- 
-    @Test
-    void generateContent_Success_ShouldReturnsRawJson() {
-        // High-Fidelity JSON Registry Sync: Digital backslashes must be double-escaped for Jackson parsing
-        String mockResponse = "{ \"candidates\": [ { \"content\": { \"parts\": [ { \"text\": \"```json\\n{ \\\"regex\\\": \\\"\\\\\\\\d+\\\", \\\"errorMessage\\\": \\\"Digits only\\\" }\\n```\" } ] } } ] }";
         
-        mockWebServer.enqueue(new MockResponse()
-                .setBody(mockResponse)
-                .addHeader("Content-Type", "application/json"));
- 
-        StepVerifier.create(geminiService.generateContent("prompt"))
-                .expectNextMatches(json -> json.contains("regex") && json.contains("\\d+"))
+        when(webClient.post()).thenReturn(requestBodyUriSpec);
+        doReturn(requestHeadersSpec).when(requestBodyUriSpec).bodyValue(any());
+        when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
+        when(responseSpec.onStatus(any(), any())).thenReturn(responseSpec);
+    }
+
+    @Test
+    void generateContent_Success() throws Exception {
+        String mockResponse = "{\"candidates\": [{\"content\": {\"parts\": [{\"text\": \"{\\\"regex\\\": \\\"abc\\\", \\\"errorMessage\\\": \\\"err\\\"}\"}]}}]}";
+        JsonNode jsonNode = objectMapper.readTree(mockResponse);
+        when(responseSpec.bodyToMono(JsonNode.class)).thenReturn(Mono.just(jsonNode));
+
+        Mono<String> result = geminiService.generateContent("test");
+
+        StepVerifier.create(result)
+                .expectNext("{\"regex\": \"abc\", \"errorMessage\": \"err\"}")
                 .verifyComplete();
     }
- 
+
     @Test
-    void generateFormBlueprint_Success_ShouldRecalibrateNeuralSchema() {
-        // High-Fidelity Signature Sync: generateFormBlueprint(String, List)
-        String mockResponse = "{ \"candidates\": [ { \"content\": { \"parts\": [ { \"text\": \"```json\\n[ { \\\"id\\\": \\\"f1\\\", \\\"name\\\": \\\"Test Form\\\", \\\"fields\\\": [] } ]\\n```\" } ] } } ] }";
-        
-        mockWebServer.enqueue(new MockResponse()
-                .setBody(mockResponse)
-                .addHeader("Content-Type", "application/json"));
- 
-        StepVerifier.create(geminiService.generateFormBlueprint("test description", Collections.emptyList()))
-                .expectNextMatches(blueprint -> blueprint.contains("Test Form"))
+    void generateFormBlueprint_Success() throws Exception {
+        String mockResponse = "{\"candidates\": [{\"content\": {\"parts\": [{\"text\": \"[{\\\"id\\\": \\\"1\\\"}]\"}]}}]}";
+        JsonNode jsonNode = objectMapper.readTree(mockResponse);
+        when(responseSpec.bodyToMono(JsonNode.class)).thenReturn(Mono.just(jsonNode));
+
+        Mono<String> result = geminiService.generateFormBlueprint("test", Collections.emptyList());
+
+        StepVerifier.create(result)
+                .expectNext("[{\"id\": \"1\"}]")
                 .verifyComplete();
     }
- 
+
     @Test
-    void generateThemeBlueprint_Success_ShouldReturnsStyleMap() {
-        // High-Fidelity Naming Sync: generateThemeBlueprint 
-        String mockResponse = "{ \"candidates\": [ { \"content\": { \"parts\": [ { \"text\": \"```json\\n{ \\\"themeColor\\\": \\\"#4F46E5\\\" }\\n```\" } ] } } ] }";
-        
-        mockWebServer.enqueue(new MockResponse()
-                .setBody(mockResponse)
-                .addHeader("Content-Type", "application/json"));
- 
-        StepVerifier.create(geminiService.generateThemeBlueprint("ocean"))
-                .expectNextMatches(theme -> theme.contains("themeColor") && theme.contains("#4F46E5"))
-                .verifyComplete();
+    void executeAiPulse_MissingCandidates_ShouldThrowException() throws Exception {
+        String mockResponse = "{\"candidates\": []}";
+        JsonNode jsonNode = objectMapper.readTree(mockResponse);
+        when(responseSpec.bodyToMono(JsonNode.class)).thenReturn(Mono.just(jsonNode));
+
+        Mono<String> result = geminiService.generateThemeBlueprint("test");
+
+        StepVerifier.create(result)
+                .expectError(AiProtocolException.class)
+                .verify();
     }
- 
+
     @Test
-    void handleError_ShouldTriggerAiProtocolRefusal() {
-        mockWebServer.enqueue(new MockResponse().setResponseCode(500));
- 
-        StepVerifier.create(geminiService.generateContent("fail"))
+    void executeAiPulse_ParseError_ShouldThrowException() {
+        when(responseSpec.bodyToMono(JsonNode.class)).thenReturn(Mono.error(new RuntimeException("Bad JSON")));
+
+        Mono<String> result = geminiService.generateContent("test");
+
+        StepVerifier.create(result)
                 .expectError(AiProtocolException.class)
                 .verify();
     }

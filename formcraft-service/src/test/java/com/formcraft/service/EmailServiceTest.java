@@ -8,10 +8,12 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.mail.MailSendException;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -19,9 +21,6 @@ class EmailServiceTest {
 
     @Mock
     private JavaMailSender mailSender;
-
-    @Mock
-    private MimeMessage mimeMessage;
 
     @InjectMocks
     private EmailService emailService;
@@ -32,40 +31,40 @@ class EmailServiceTest {
     }
 
     @Test
-    void sendEmail_Success() {
+    void sendVerificationEmail_ShouldCallSend() {
+        MimeMessage mimeMessage = mock(MimeMessage.class);
         when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
 
-        emailService.sendEmail("test@example.com", "Subject", "Body");
+        emailService.sendVerificationEmail("test@example.com", "123456");
 
-        verify(mailSender, times(1)).createMimeMessage();
-        verify(mailSender, times(1)).send(mimeMessage);
+        verify(mailSender).send(any(MimeMessage.class));
     }
 
     @Test
-    void sendEmail_Failure_ThrowsCommunicationException() {
+    void sendForgotPasswordEmail_ShouldCallSend() {
+        MimeMessage mimeMessage = mock(MimeMessage.class);
         when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
-        doThrow(new org.springframework.mail.MailSendException("SMTP Error")).when(mailSender).send(any(MimeMessage.class));
+
+        emailService.sendForgotPasswordEmail("test@example.com", "123456");
+
+        verify(mailSender).send(any(MimeMessage.class));
+    }
+
+    @Test
+    void sendEmail_ShouldThrowCommunicationException_OnMessagingError() {
+        when(mailSender.createMimeMessage()).thenThrow(new MailSendException("SMTP Down"));
 
         assertThrows(CommunicationException.class, () -> 
-            emailService.sendEmail("test@example.com", "Subject", "Body")
-        );
+            emailService.sendEmail("to@test.com", "Sub", "Body"));
     }
 
     @Test
-    void sendVerificationEmail_Success() {
+    void sendEmail_ShouldThrowCommunicationException_OnMailException() {
+        MimeMessage mimeMessage = mock(MimeMessage.class);
         when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
-        
-        emailService.sendVerificationEmail("test@example.com", "123456");
-        
-        verify(mailSender).send(any(MimeMessage.class));
-    }
+        doThrow(new MailSendException("Fail")).when(mailSender).send(any(MimeMessage.class));
 
-    @Test
-    void sendForgotPasswordEmail_Success() {
-        when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
-        
-        emailService.sendForgotPasswordEmail("test@example.com", "123456");
-        
-        verify(mailSender).send(any(MimeMessage.class));
+        assertThrows(CommunicationException.class, () -> 
+            emailService.sendEmail("to@test.com", "Sub", "Body"));
     }
 }
