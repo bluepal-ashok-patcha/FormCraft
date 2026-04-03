@@ -38,12 +38,15 @@ Standard forms are rigid. **FormCraft** allows developers and businesses to crea
 
 Explore our deep-dive documentation for technical details, setup guides, and API specifications:
 
+0.  **[Project Walkthrough](./project_walkthrough.md)**: A guided tour of the architecture and data flows.
 1.  **[Getting Started](./docs/Setup.md)**: Standard installation and Docker orchestration.
-2.  **[System Architecture](./docs/Architecture.md)**: Data models, security flows, and architecture principles.
+2.  **[Total Project Lifecycle](./docs/Lifecycle_Flow.md)**: End-to-end data, security, and functional flows.
+3.  **[System Architecture](./docs/Architecture.md)**: Data models, security flows, and architecture principles.
 3.  **[Backend Engineering](./docs/Backend.md)**: Service layer, Security, and JPA implementations.
 4.  **[Frontend UI Guide](./docs/Frontend.md)**: Design system, components, and state management.
 5.  **[API Reference](./docs/API_Reference.md)**: Comprehensive REST API specifications.
-6.  **[Contributing](./docs/Contributing.md)**: Development standards and workflow.
+6.  **[Testing Manual](./docs/Testing_Manual.md)**: Coverage strategy, tools, and QA standards.
+7.  **[Contributing](./docs/Contributing.md)**: Development standards and workflow.
 
 ---
 

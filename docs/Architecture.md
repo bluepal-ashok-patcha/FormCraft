@@ -19,26 +19,59 @@ FormCraft adheres to the **Layered Architecture Style** on the backend and uses 
     - **Google Gemini AI**: Facilitates natural language form generation.
     - **Cloudinary**: Handles high-performance image and file storage.
 
-### Component Relationship
+### **The FormCraft "Unified Blueprint" (System Architecture)**
+
+This diagram provides an industry-standard mapping of the request processing pipeline, security perimeter, and the high-performance integration layer.
 
 ```mermaid
 graph TD
-    User((User)) -->|HTTPS| Frontend[React Frontend]
-    Frontend -->|REST + JWT| Backend[Spring Boot Service]
+    %% Client & Network Entry
+    Respondent((Public Respondent)) -->|HTTP/HTTPS| F1[React Form Runner]
+    Admin((Enterprise Admin)) -->|HTTP/HTTPS| F2[React Administrative UI]
     
-    subgraph "Core Backend"
-        Backend -->|Auth/Data| DB[(PostgreSQL 15)]
-        Backend -->|Audit/Logs| Logs[MDC Tracer]
+    subgraph "Frontend Gateway (Vite + React)"
+        F1 & F2 -->|Axios JSON API| Net[Network Layer / CORS]
     end
+
+    Net -->|Bearer JWT| Sec[Spring Security Perimeter]
+
+    subgraph "Backend Core Infrastructure (Spring Boot 3.2)"
+        Sec -->|Auth OK| Ctrl[REST Controllers]
+        
+        subgraph "Cross-Cutting Context"
+            Ctrl <--> GEH[Global Exception Handler]
+            Ctrl <--> Val[JSONB Schema Validator]
+            Ctrl <--> Aud[Async Audit Engine]
+        end
+        
+        Ctrl -->|Business Pulse| Svc[Service Layer]
+        
+        subgraph "Internal Service Hub"
+            Svc <--> Form[Form Logic]
+            Svc <--> AI[AI Orchestrator]
+            Svc <--> Stat[Dashboard Aggregator]
+            Svc <--> SecSvc[Auth & OTP logic]
+        end
+        
+        Svc -->|Data Mapping| Map[JPA / Hibernate]
+    end
+
+    %% Persistence & External Layer
+    Map -->|SQL| DB[(PostgreSQL 15 JSONB)]
+    Map -->|Migrations| FW[Flyway]
     
-    subgraph "External Integrations"
-        Backend -->|GenAI| Gemini[Google Gemini AI]
-        Backend -->|Storage| Cloud[Cloudinary Assets]
-    subgraph "Infrastructure"
-        DB -->|Migrations| FW[Flyway]
-        Backend -->|Metrics| Act[Spring Actuator]
-    end
-    end
+    SecSvc -->|SMTP| Mail[External SMTP Service]
+    AI -->|HTTPS| Gemini[Google Gemini AI]
+    Form -->|HTTPS| Cloud[Cloudinary Asset Store]
+    
+    %% Monitoring
+    Backend[Spring Boot] -->|Telemetry| Act[Actuator / Actuator Metrics]
+    
+    %% Styling
+    style Sec fill:#f96,stroke:#333,stroke-width:2px
+    style DB fill:#85c1e9,stroke:#333,stroke-width:2px
+    style Gemini fill:#abebc6,stroke:#333,stroke-width:2px
+    style GEH fill:#f5b7b1,stroke:#333,stroke-width:2px
 ```
 
 ---
@@ -60,13 +93,17 @@ One of FormCraft's most powerful features is its hybrid data model:
 erDiagram
     USERS ||--o{ REFRESH_TOKENS : has
     USERS }|--|{ ROLES : belongs_to
-    USERS ||--o{ FORMS : creates
+    
     FORMS ||--o{ FORM_RESPONSES : receives
+    TEMPLATES }|--|| CATEGORIES : belongs_to
+    
     FORMS {
         uuid id PK
         string name
         string slug
         jsonb schema
+        string status "ACTIVE, INACTIVE"
+        string created_by "Username"
         timestamp created_at
     }
     FORM_RESPONSES {
@@ -79,7 +116,14 @@ erDiagram
         uuid id PK
         string username
         string email
-        string password
+        boolean is_active
+        int failed_attempts
+    }
+    AUDIT_LOGS {
+        uuid id PK
+        string action
+        string actor
+        uuid entity_id
     }
 ```
 

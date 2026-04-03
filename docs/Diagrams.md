@@ -42,8 +42,9 @@ flowchart TD
     subgraph "Analytics Phase"
         R --> S[Backend Schema Validation]
         S --> T[PostgreSQL Persistence]
-        T --> U[Admin Stats Update]
-        U --> V[View Responses Analytics]
+        T --> U[Audit Registry Logging]
+        U --> V[Admin Stats Update]
+        V --> W[View Responses Analytics]
     end
 ```
 
@@ -72,33 +73,26 @@ erDiagram
     USER ||--o{ ROLE : possesses
     USER ||--o{ REFRESH_TOKEN : authenticates
     USER ||--o{ FORM : authors
-    USER ||--o{ CATEGORY : manages
     
     FORM ||--o{ FORM_RESPONSE : gathers
-    FORM }|--|| CATEGORY : categorized_under
     
     TEMPLATE }|--|| CATEGORY : belongs_to
+    AUDIT_LOG ||--o{ USER : performed_by
     
     USER {
         uuid id PK
         string username "Unique login handle"
         string email "Verified contact"
         string password "Hashed credential"
-        string full_name
         boolean is_active "Flag for OTP verification"
         int failed_attempts
-        timestamp createdAt
-    }
-
-    ROLE {
-        long id PK
-        string name "ROLE_ADMIN, ROLE_SUPER_ADMIN"
+        timestamp created_at
     }
 
     REFRESH_TOKEN {
         long id PK
         string token "JWT rotation key"
-        timestamp expiryDate
+        timestamp expiry_date
         uuid user_id FK
     }
 
@@ -107,25 +101,25 @@ erDiagram
         string name "Form Title"
         string slug "Unique URL segment"
         jsonb schema "Dynamic field definitions"
-        string status "ACTIVE, PLANNED, INACTIVE"
+        string status "ACTIVE, INACTIVE"
         string theme_color
         string banner_url
         timestamp starts_at "Start Date"
         timestamp expires_at "Expiry Date"
-        uuid created_by FK
+        string created_by "Username auditing"
     }
 
     FORM_RESPONSE {
         uuid id PK
         uuid form_id FK "Mapping to parent form"
         jsonb response_data "Answers JSONB"
-        timestamp createdAt
+        timestamp created_at
     }
 
     CATEGORY {
         uuid id PK
-        string name "Ex. Healthcare, Tech"
-        string description
+        string name "Ex. HEALTHCARE, TECH"
+        string label "Display Name"
     }
 
     TEMPLATE {
@@ -134,7 +128,19 @@ erDiagram
         string description
         jsonb schema "Form structure"
         boolean is_global "System-wide"
+        boolean requested_for_global "Promotion status"
+        string thumbnail_url
         uuid category_id FK
+    }
+
+    AUDIT_LOG {
+        uuid id PK
+        string action "CREATE, DELETE, etc"
+        string actor "Username"
+        string entity_type "FORM, TEMPLATE"
+        uuid entity_id
+        string details
+        timestamp created_at
     }
 ```
 
