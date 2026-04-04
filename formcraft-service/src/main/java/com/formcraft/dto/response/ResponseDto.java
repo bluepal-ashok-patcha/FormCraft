@@ -8,6 +8,8 @@ import java.util.UUID;
 
 @Data
 @Builder
+@lombok.NoArgsConstructor
+@lombok.AllArgsConstructor
 @io.swagger.v3.oas.annotations.media.Schema(description = "Details of a form submission.")
 public class ResponseDto {
     @io.swagger.v3.oas.annotations.media.Schema(description = "The unique ID profile for this response.")

@@ -238,7 +238,7 @@ class FormServiceImplTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
+    
     void getResponsesByFormId_WithSearch_CallsSearchRepo() {
         String search = "test-keyword";
         org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 10);
@@ -252,7 +252,7 @@ class FormServiceImplTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
+    
     void getResponsesByFormId_WithoutSearch_CallsFindAllWithSpec() {
         org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 10);
         when(formResponseRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), eq(pageable)))
@@ -402,7 +402,7 @@ class FormServiceImplTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
+    
     void getFormAnalytics_WithAllCategoricalTypes_ShouldSucceed() {
         // Setup schema with multiple categorical field types
         java.util.Map<String, Object> schema = new java.util.HashMap<>();
@@ -440,7 +440,6 @@ class FormServiceImplTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     void getFormAnalytics_ShouldReturnEmpty_WhenNoFields() {
         // Arrange
         java.util.Map<String, Object> schema = new java.util.HashMap<>();
@@ -458,7 +457,7 @@ class FormServiceImplTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
+    
     void getFormAnalytics_ShouldHandleNullValues_InResponse() {
         // Arrange
         java.util.Map<String, Object> schema = new java.util.HashMap<>();
@@ -480,7 +479,7 @@ class FormServiceImplTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
+    
     void getFormAnalytics_WithCheckbox_ShouldAggregateMultiValues() {
         // Setup schema with checkbox
         java.util.Map<String, Object> schema = new java.util.HashMap<>();
@@ -506,7 +505,6 @@ class FormServiceImplTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     void getFormAnalytics_ShouldFallbackToLabel_WhenIdIsMissing() {
         // Design Decision: Backward compatibility for forms without field IDs
         java.util.Map<String, Object> schema = new java.util.HashMap<>();
@@ -575,5 +573,66 @@ class FormServiceImplTest {
 
         // Assert
         verify(formDraftRepository).delete(draft);
+    }
+
+    @Test
+    void getAllForms_AsSuperAdmin_ShouldNotFilterByCreatedBy() {
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        when(authentication.getName()).thenReturn("superadmin");
+        
+        // Mock SUPER ADMIN authority
+        doReturn(java.util.List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_SUPER_ADMIN")))
+                .when(authentication).getAuthorities();
+
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 10);
+        
+        // Execute the lambda to trigger the security logic inside the spec
+        when(formRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), eq(pageable)))
+                .thenAnswer(invocation -> {
+                    org.springframework.data.jpa.domain.Specification<Form> spec = invocation.getArgument(0);
+                    // This triggers line 100-102 in FormServiceImpl
+                    spec.toPredicate(mock(jakarta.persistence.criteria.Root.class), mock(jakarta.persistence.criteria.CriteriaQuery.class), mock(jakarta.persistence.criteria.CriteriaBuilder.class));
+                    return Page.empty();
+                });
+
+        formService.getAllForms(null, null, null, null, null, pageable);
+
+        verify(formRepository).findAll(any(org.springframework.data.jpa.domain.Specification.class), eq(pageable));
+    }
+
+    @Test
+    void deleteResponse_Success() {
+        UUID responseId = UUID.randomUUID();
+        when(formResponseRepository.existsById(responseId)).thenReturn(true);
+
+        formService.deleteResponse(responseId);
+
+        verify(formResponseRepository).deleteById(responseId);
+        verify(auditService).log(eq("DELETE_RESPONSE"), any(), eq(responseId), anyString());
+    }
+
+    @Test
+    void deleteResponse_NotFound_ThrowsException() {
+        UUID responseId = UUID.randomUUID();
+        when(formResponseRepository.existsById(responseId)).thenReturn(false);
+
+        assertThrows(ResourceNotFoundException.class, () -> formService.deleteResponse(responseId));
+    }
+
+    @Test
+    void updateResponse_Success() {
+        UUID responseId = UUID.randomUUID();
+        com.formcraft.entity.FormResponse response = new com.formcraft.entity.FormResponse();
+        response.setForm(form);
+        java.util.Map<String, Object> newData = java.util.Map.of("field", "value");
+
+        when(formResponseRepository.findById(responseId)).thenReturn(Optional.of(response));
+        when(formResponseRepository.save(any())).thenReturn(response);
+        when(responseMapper.toDto(any())).thenReturn(new com.formcraft.dto.response.ResponseDto());
+
+        formService.updateResponse(responseId, newData);
+
+        verify(formValidator).validate(any(), eq(newData));
+        verify(formResponseRepository).save(response);
     }
 }

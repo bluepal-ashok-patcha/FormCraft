@@ -8,6 +8,8 @@ import java.util.UUID;
 
 @Data
 @Builder
+@lombok.NoArgsConstructor
+@lombok.AllArgsConstructor
 @io.swagger.v3.oas.annotations.media.Schema(description = "Information about a form.")
 public class FormDto {
     @io.swagger.v3.oas.annotations.media.Schema(description = "The unique ID of the form.")

@@ -178,6 +178,73 @@ class TemplateServiceImplTest {
         assertEquals("NEW_CAT", result.getName());
     }
 
+    @Test
+    void getAllVisibleTemplates_SuperAdmin_VariousFilters() {
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        stubRole("ROLE_SUPER_ADMIN");
+        
+        when(templateRepository.findByGlobal(true)).thenReturn(Collections.emptyList());
+        when(templateRepository.findByGlobal(false)).thenReturn(Collections.emptyList());
+        when(templateRepository.findAll()).thenReturn(Collections.emptyList());
+
+        templateService.getAllVisibleTemplates("true");
+        templateService.getAllVisibleTemplates("false");
+        templateService.getAllVisibleTemplates(null);
+
+        verify(templateRepository).findByGlobal(true);
+        verify(templateRepository).findByGlobal(false);
+        verify(templateRepository).findAll();
+    }
+
+    @Test
+    void decertifyTemplate_Success() {
+        template.setGlobal(true);
+        when(templateRepository.findById(templateId)).thenReturn(Optional.of(template));
+        when(templateRepository.save(any())).thenReturn(template);
+
+        TemplateDTO result = templateService.decertifyTemplate(templateId);
+
+        assertFalse(result.isGlobal());
+        verify(auditService).log(eq("DECERTIFY_TEMPLATE"), anyString(), eq(templateId), anyString());
+    }
+
+    @Test
+    void rejectPromotion_Success() {
+        template.setRequestedForGlobal(true);
+        when(templateRepository.findById(templateId)).thenReturn(Optional.of(template));
+        when(templateRepository.save(any())).thenReturn(template);
+
+        TemplateDTO result = templateService.rejectPromotion(templateId);
+
+        assertFalse(result.isRequestedForGlobal());
+    }
+
+    @Test
+    void cancelPromotionRequest_Success() {
+        template.setRequestedForGlobal(true);
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        stubUsername("testuser");
+        when(templateRepository.findById(templateId)).thenReturn(Optional.of(template));
+        when(templateRepository.save(any())).thenReturn(template);
+
+        TemplateDTO result = templateService.cancelPromotionRequest(templateId);
+
+        assertFalse(result.isRequestedForGlobal());
+    }
+
+    @Test
+    void getAllCategories_ShouldReturnList() {
+        when(categoryRepository.findAll()).thenReturn(List.of(category));
+        List<CategoryDTO> result = templateService.getAllCategories();
+        assertEquals(1, result.size());
+    }
+
+    @Test
+    void deleteCategory_Success() {
+        templateService.deleteCategory(1);
+        verify(categoryRepository).deleteById(1);
+    }
+
     @SuppressWarnings("unchecked")
     private void stubAuth(String role, String username) {
         stubUsername(username);
