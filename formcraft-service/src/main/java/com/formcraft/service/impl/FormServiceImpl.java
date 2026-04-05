@@ -46,6 +46,10 @@ public class FormServiceImpl implements FormService {
     private final AuditService auditService;
     private final ResponseMapper responseMapper;
     private final com.formcraft.util.FormValidator formValidator;
+    private final org.springframework.kafka.core.KafkaTemplate<String, Object> kafkaTemplate;
+
+    @org.springframework.beans.factory.annotation.Value("${app.kafka.topic}")
+    private String submissionTopic;
 
     @Override
     @Transactional
@@ -136,7 +140,6 @@ public class FormServiceImpl implements FormService {
     }
 
     @Override
-    @Transactional
     public ResponseDto submitResponse(SubmissionRequest request) {
         Form form = formRepository.findById(request.getFormId())
                 .orElseThrow(() -> new ResourceNotFoundException(FORM_NOT_FOUND_MSG + request.getFormId()));
@@ -145,17 +148,19 @@ public class FormServiceImpl implements FormService {
             throw new BusinessLogicException("Submission failed: This form is currently not active.");
         }
 
-        // Validate submission against form schema
+        // 1. Sync Validate (Fail-Fast)
         formValidator.validate(form.getSchema(), request.getResponses());
 
-        FormResponse response = FormResponse.builder()
-                .form(form)
+        // 2. Async Produce (Push to Kafka)
+        log.debug("Pushing submission for form '{}' to event stream: {}", form.getName(), submissionTopic);
+        kafkaTemplate.send(submissionTopic, request.getFormId().toString(), request);
+        
+        // 3. Early Return (Submission Accepted Status)
+        return ResponseDto.builder()
+                .formId(request.getFormId())
                 .responseData(request.getResponses())
+                .submittedAt(LocalDateTime.now())
                 .build();
-
-        FormResponse savedResponse = formResponseRepository.saveAndFlush(response);
-        log.info("Transmission Indexed: New response recorded for form '{}'", form.getName());
-        return responseMapper.toDto(savedResponse);
     }
 
     @Override

@@ -94,8 +94,8 @@ public class FormController {
     public ResponseEntity<ApiResponse<ResponseDto>> submitResponse(@Valid @RequestBody SubmissionRequest request) {
         log.info("Transmission Received: Processing submission for form ID '{}'", request.getFormId());
         ResponseDto response = formService.submitResponse(request);
-        log.info("Transmission Successful: Response indexed with ID '{}'", response.getId());
-        return new ResponseEntity<>(ApiResponse.success(response, "Response submitted successfully"), HttpStatus.CREATED);
+        log.info("Transmission Accepted: Submission queued for indexing via event stream.");
+        return new ResponseEntity<>(ApiResponse.success(response, "Response submitted and queued for processing"), HttpStatus.ACCEPTED);
     }
 
     @Operation(summary = "View form responses", description = "See all the answers people have submitted for this form.")

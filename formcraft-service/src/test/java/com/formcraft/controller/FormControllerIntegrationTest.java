@@ -98,11 +98,14 @@ class FormControllerIntegrationTest extends BaseIntegrationTest {
         mockMvc.perform(post("/api/forms/submit")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(sr)))
-                .andExpect(status().isCreated())
+                .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.success", is(true)));
  
-        // Registry Verification: Verify that the telemetry response was captured and correctly mapped
-        assertEquals(1, formResponseRepository.count());
+        // Registry Verification: Wait and verify that the telemetry response was captured and correctly mapped
+        org.awaitility.Awaitility.await()
+            .atMost(java.time.Duration.ofSeconds(5))
+            .until(() -> formResponseRepository.count() == 1);
+        
         assertEquals("Integration works!", formResponseRepository.findAll().get(0).getResponseData().get("q1"));
     }
  
