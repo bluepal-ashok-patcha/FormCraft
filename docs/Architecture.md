@@ -44,6 +44,10 @@ graph TD
             Ctrl <--> Aud[Async Audit Engine]
         end
         
+        Ctrl -->|Valid Submission| KPro[Kafka Producer]
+        KPro -->|Event Stream| KCons[Kafka Consumer]
+        KCons -->|Async Save| Map[JPA / Hibernate]
+        
         Ctrl -->|Business Pulse| Svc[Service Layer]
         
         subgraph "Internal Service Hub"

@@ -29,8 +29,9 @@ Forms are served to the public via highly performant slugs.
 2.  **Lifecycle Monitor**: `FormService` checks the `status` (ACTIVE), `startDate`, and `expiryDate`.
 3.  **Dynamic Rendering**: `FormRunner.jsx` parses the JSONB schema and renders pixel-perfect React components using **Framer Motion** for smooth transitions.
 4.  **Data Ingestion**: User submits the form.
-5.  **Backend Validation**: `ResponseServiceImpl` validates the input values against the rules defined in the original JSONB schema.
-6.  **Yield Storage**: Data is saved as a new `FormResponse` entry, linked to the form's UUID.
+5.  **Backend Validation**: `FormServiceImpl` performs a **Synchronous Validation Pulse** against the original JSONB schema.
+6.  **Kafka Orchestration**: If valid, the submission is pushed into the **Apache Kafka Event Stream**. The user receives an immediate `202 Accepted` response.
+7.  **Asynchronous Persistence**: The **`FormResponseConsumer`** worker pulls the event from the stream and saves it to the `FORM_RESPONSES` table linked to the form's UUID.
 
 ---
 
