@@ -58,6 +58,18 @@ class FormServiceImplTest {
  
     @Mock
     private TemplateService templateService;
+
+    @Mock
+    private com.formcraft.service.AuditService auditService;
+
+    @Mock
+    private com.formcraft.util.FormValidator formValidator;
+    
+    @Mock
+    private com.formcraft.repository.builder.FormDraftRepository formDraftRepository;
+
+    @Mock
+    private org.springframework.kafka.core.KafkaTemplate<String, Object> kafkaTemplate;
     
     @Mock
     private SecurityContext securityContext;
@@ -65,14 +77,7 @@ class FormServiceImplTest {
     @Mock
     private Authentication authentication;
     
-    @Mock
-    private com.formcraft.service.AuditService auditService;
  
-    @Mock
-    private com.formcraft.repository.builder.FormDraftRepository formDraftRepository;
-
-    @Mock
-    private com.formcraft.util.FormValidator formValidator;
 
     @InjectMocks
     private FormServiceImpl formService;
@@ -634,5 +639,32 @@ class FormServiceImplTest {
 
         verify(formValidator).validate(any(), eq(newData));
         verify(formResponseRepository).save(response);
+    }
+
+    @Test
+    void submitResponse_ShouldPushToKafka_WhenValid() {
+        SubmissionRequest request = new SubmissionRequest();
+        UUID formUUID = UUID.randomUUID();
+        request.setFormId(formUUID);
+        request.setResponses(new HashMap<>());
+
+        Form activeForm = new Form();
+        activeForm.setId(formUUID);
+        activeForm.setStatus(FormStatus.ACTIVE);
+        activeForm.setSchema(new HashMap<>());
+
+        when(formRepository.findById(formUUID)).thenReturn(Optional.of(activeForm));
+
+        com.formcraft.dto.response.ResponseDto result = formService.submitResponse(request);
+
+        assertNotNull(result);
+        assertEquals(formUUID, result.getFormId());
+        
+        // Match the producer expectation: topic, key (UUID string), and the request object
+        verify(kafkaTemplate).send(any(), eq(formUUID.toString()), eq(request));
+        
+        // Verify database persistence is BYPASSED in the synchronous flow
+        verify(formResponseRepository, never()).save(any());
+        verify(formResponseRepository, never()).saveAndFlush(any());
     }
 }
