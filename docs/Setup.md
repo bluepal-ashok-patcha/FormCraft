@@ -9,14 +9,14 @@ Welcome to the **FormCraft** setup guide. This document provides step-by-step in
 Ensure you have the following installed on your system:
 - **Java 17 (LTS)**: JDK 17+ (Amazon Corretto or OpenJDK recommended)
 - **Node.js 18+**: For frontend development (uses Vite)
-- **Docker & Docker Compose**: For containerized orchestration
-- **Maven 3.8+**: If running the backend service locally without Docker
+- **Docker & Docker Compose**: To launch the full enterprise stack (PostgreSQL 16, Kafka 7.5, Zookeeper)
+- **Maven 3.8+**: If running the backend service locally
 
 ---
 
 ## 🐳 Containerized Setup (Recommended)
 
-FormCraft is designed to run in containers for consistency across environments. Follow these steps for the fastest setup:
+FormCraft is designed to run in containers for absolute consistency. Follow these steps for a one-click setup:
 
 1.  **Clone the Repository**:
     ```bash
@@ -25,90 +25,85 @@ FormCraft is designed to run in containers for consistency across environments. 
     ```
 
 2.  **Environment Variables**:
-    Create a `.env` file in the root directory (refer to `.env.example` if available).
+    Create a `.env` file in the root directory.
     ```env
+    # Database Configuration (Postgres 16)
     SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/formcraft
     SPRING_DATASOURCE_USERNAME=postgres
     SPRING_DATASOURCE_PASSWORD=ashok
+
+    # Infrastructure Logic
+    KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+
+    # Third-Party Integrations
     CLOUDINARY_CLOUD_NAME=your_cloud_name
     CLOUDINARY_API_KEY=your_api_key
     CLOUDINARY_API_SECRET=your_api_secret
     GEMINI_API_KEY=your_gemini_key
     ```
 
-3.  **Run with Docker Compose**:
+3.  **Launch the Fleet**:
     ```bash
     docker-compose up -d --build
     ```
 
-4.  **Access the Application**:
-    - **Frontend**: `http://localhost:5173`
-    - **Backend API**: `http://localhost:8080/api`
-    - **Swagger UI**: `http://localhost:8080/swagger-ui.html`
+---
+
+## 🚀 Deployment Verification (The Production Handshake)
+
+After running `docker-compose`, verify the health of the high-throughput pipeline:
+
+1.  **Check Service Pulse**:
+    `docker-compose ps` — Ensure all 5 containers (db, backend, frontend, kafka, zookeeper) are `Up`.
+    
+2.  **Verify Kafka Connectivity**:
+    Check the backend logs for the Kafka connection handshake:
+    `docker-compose logs -f backend | grep "ProducerConfig"`
+    
+3.  **Test the Event Pipeline**:
+    Submit a form via the UI or `curl`. If you receive an **HTTP 202 Accepted**, it means Kafka successfully ingested the event.
+    Check the database 1 second later to confirm the background worker persisted the data.
 
 ---
 
 ## 🛠 Manual Development Setup
 
-If you need to debug specific components, you may want to run services manually.
+If you need to debug the code while running the infrastructure in Docker:
 
-### 1. Database (PostgreSQL)
-If you aren't using Docker for the database, ensure a PostgreSQL 15 instance is running and create a database named `formcraft`.
+1.  **Run Infrastructure Only**:
+    ```bash
+    docker-compose up -d db zookeeper kafka
+    ```
+    *Note: Kafka is mapped to `localhost:9093` for host-side development to prevent conflicts with SonarQube.*
 
-### 2. Backend Service (Spring Boot)
-1.  Navigate to the service directory:
+2.  **Run Backend Locally**:
     ```bash
     cd formcraft-service
-    ```
-2.  Install dependencies:
-    ```bash
-    ./mvnw clean install
-    ```
-3.  Run the application:
-    ```bash
-    ./mvnw spring-boot:run
-    ```
-
-### 3. Frontend Application (React + Vite)
-1.  Navigate to the frontend directory:
-    ```bash
-    cd formcraft-frontend
-    ```
-2.  Install dependencies:
-    ```bash
-    npm install
-    ```
-3.  Run development server:
-    ```bash
-    npm run dev
+    mvn spring-boot:run
     ```
 
 ---
 
-## 🧪 Running Tests
+## 🧪 Testing Protocol
 
-### Backend Unit & Integration Tests
-The backend uses JUnit 5, Mockito, and Testcontainers for integration testing.
+### Full Regression Suite
+The project uses **Testcontainers** to launch ephemeral Postgres and Kafka instances for 100% fidelity.
 ```bash
-cd formcraft-service
-./mvnw test
+mvn clean test
 ```
 
-### Frontend Linting
-```bash
-cd formcraft-frontend
-npm run lint
-```
+### Async Logic Verification
+We use **Awaitility** in our integration tests to validate the millisecond gap between Kafka ingestion and Database persistence. See `FormControllerIntegrationTest.java` for implementation patterns.
 
 ---
 
 ## 🚩 Troubleshooting
 
-- **Database Connection**: Ensure the PostgreSQL container is fully healthy before the Spring Boot service starts.
-- **CORS Issues**: Check `WebSecurityConfig.java` to ensure `http://localhost:5173` is allowed for cross-origin requests.
-- **JWT Errors**: Ensure the `app.jwt-secret` in `application.yml` is at least 256-bit (32 characters).
+- **Database Health**: If the backend fails, check if Postgres is ready: `docker-compose logs db`.
+- **Kafka Port Conflict**: If your local machine has SonarQube or another Kafka instance on `9092`, the system will automatically use **9093** for its host-side connection.
+- **Docker Memory**: Kafka/Zookeeper require at least 4GB of RAM assigned to Docker Desktop to run smoothly.
 
 ---
 
 ## 📧 Support
-For specialized architectural questions, contact the development lead.
+For architectural deep-dives, refer to [Architecture.md Tuning](./Architecture.md).

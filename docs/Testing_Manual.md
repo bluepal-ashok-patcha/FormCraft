@@ -14,11 +14,11 @@ FormCraft follows a **Multi-Layered Testing Strategy** to ensure that every arch
 | Technology | Purpose |
 | :--- | :--- |
 | **JUnit 5 (Jupiter)** | Core testing framework for unit and integration tests. |
-| **Mockito** | Mocking framework for isolating service dependencies. |
-| **JaCoCo** | Java Code Coverage library for analyzing branch and line coverage. |
-| **Testcontainers** | Docker-based integration testing for PostgreSQL persistence. |
+| **Mockito** | Mocking framework for isolating dependencies. |
+| **Testcontainers** | **Kafka & Postgres** integration testing (Standard-aligned). |
+| **Awaitility** | **Asynchronous polling** for validating Kafka event persistence. |
+| **JaCoCo** | Java Code Coverage analysis (80% Green Gate). |
 | **MockMvc** | Specialized framework for testing REST Controller endpoints. |
-| **StepVerifier** | Reactive stream testing for Gemini AI asynchronous pulses. |
 
 ---
 
@@ -28,23 +28,24 @@ FormCraft follows a **Multi-Layered Testing Strategy** to ensure that every arch
 We isolate the business logic using Mockito to stub repository and external service responses.
 - **FormValidator**: Exhaustive testing of JSONB schema constraints (regex, min/max, type formats).
 - **Service Impls**: Verifying role-based logic, promotion flows, and calculation accuracy.
-- **Mappers**: Ensuring zero-loss data translation between Entities and DTOs.
+- **Kafka Producers**: Mocked during unit tests to verify that `submitResponse` correctly serializes messages and pushes to the topic.
 
 ### 2. Controller Testing (Web Layer)
 Testing the REST API surface while mocking security contexts and service results.
-- **Status Codes**: Ensuring correct 200, 201, 400, 404, and 500 responses.
+- **Status Codes**: 202 Accepted (Submit), 200/201 (Admin and creation).
 - **Validation**: Testing `@Valid` request body constraints.
-- **Exception Handling**: Verifying the `GlobalExceptionHandler` returns consistent `ApiResponse` payloads.
 
-### 3. Integration Testing (Persistence Layer)
-Using **Testcontainers** to launch a real PostgreSQL instance during the build.
-- **JPA Queries**: Verifying complex custom `@Query` and `Specification` logic.
-- **Flyway Migrations**: Ensuring the database schema is correctly initialized from scratch.
+### 3. Integration Testing (The Infrastructure Chain)
+Using **Testcontainers (Kafka + Postgres)** to launch a real, isolated ecosystem during the build.
+- **Event Persistence Flow**: 
+    1.  Submit form via `MockMvc`.
+    2.  `Awaitility.await()` for the background worker to consume the message.
+    3.  Verify the database state after consumption.
 
 ### 4. Security & Audit Testing
-- **Lockout Logic**: Verifying that 5 failed login attempts trigger the 15-minute account block.
-- **RBAC**: Testing that `@PreAuthorize` correctly blocks `ROLE_USER` from Administrative actions.
-- **Audit Logs**: Ensuring that every mutating action (Create, Update, Delete) is asynchronously recorded in the audit registry.
+- **JWT Rotation**: Verifying token exchange and refresh logic.
+- **RBAC**: Testing that `@PreAuthorize` correctly blocks unauthorized actions.
+- **Async Auditing**: Testing that the `AuditService` records all mutations in the background.
 
 ---
 
@@ -52,26 +53,22 @@ Using **Testcontainers** to launch a real PostgreSQL instance during the build.
 
 ### Execute full test suite:
 ```bash
-./mvnw clean test
+mvn clean test
 ```
 
 ### Analyze Coverage Report (JaCoCo):
 After running the tests, the HTML coverage report is generated at:
 `target/site/jacoco/index.html`
 
-**Key Metrics Tracked:**
-- **Line Coverage**: Ensures every line of logic is executed.
-- **Branch Coverage**: Critical for complex `if/else` and `switch` logic in `DashboardService` and `FormValidator`.
-
 ---
 
 ## 🏗 CI/CD Quality Gates
-FormCraft uses industry-standard quality gates to prevent code regression:
-1.  **Build Phase**: Compiles the code and runs all unit tests.
-2.  **Test Phase**: Runs integration tests using Docker-in-Docker.
-3.  **Verification Phase**: JaCoCo analyzes coverage. If coverage falls below **80%**, the build fails automatically.
+FormCraft uses industry-standard quality gates:
+1.  **Build Phase**: Compiles the code and runs unit tests.
+2.  **Test Phase**: Runs integration tests using real Dockerized Kafka/Postgres.
+3.  **Verification Phase**: JaCoCo analyzes coverage. Fail if < **80%**.
 
 ---
 
 ## ✉️ Support
-For questions regarding the testing registry or test case addition, contact the Quality Assurance lead.
+For questions regarding the testing registry, contact the QA lead.

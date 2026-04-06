@@ -1,23 +1,26 @@
 # FormCraft - Enterprise Form Building Re-imagined
 
 ![FormCraft Banner](https://img.shields.io/badge/FormCraft-V1.0.0-blue?style=for-the-badge&logo=spring&logoColor=white)
+![Kafka Architecture](https://img.shields.io/badge/Architecture-Event--Driven-success?style=for-the-badge&logo=apache-kafka)
 ![Build Status](https://img.shields.io/badge/Build-Passing-success?style=for-the-badge)
-![License](https://img.shields.io/badge/License-Proprietary-red?style=for-the-badge)
 
-FormCraft is a high-performance, industry-ready platform designed to model, render, and manage dynamic forms with extreme flexibility. Built using **Spring Boot 3.2** and **React + Vite**, it leverages a JSONB-based schema architecture within PostgreSQL to enable schema-less data storage while maintaining strict backend validation.
+FormCraft is a **High-Throughput (10k+ concurrent)**, industry-ready platform designed for extreme-scale form ingestion. Built using **Spring Boot 3.4**, **Apache Kafka**, and **React + Vite**, it leverages an asynchronous event pipeline to decouple ingestion from database persistence.
 
 ---
 
 ## 🚀 Vision
-Standard forms are rigid. **FormCraft** allows developers and businesses to create complex, multi-field forms on-the-fly, validate them with high precision, and analyze the resulting data in real-time. With the integration of **Google Gemini AI**, form creation is as easy as describing what you need.
+Standard forms are rigid. **FormCraft** allows developers to create complex, multi-field forms on-the-fly, validate them with high-integrity "Fail-Fast" logic, and ingest them into a global event stream for reliable background processing.
+
+## 🌉 New: Asynchronous Architecture (v1.1)
+- **Non-Blocking Ingestion**: Submission endpoints now return **HTTP 202 (Accepted)**, offloading persistence to Kafka.
+- **Event-Driven Workers**: Dedicated consumers handle database writing, auditing, and analytics in the background.
+- **Resilient Persistence**: Powered by **PostgreSQL 16 (JSONB)** with GIN indexing for millisecond-level search.
 
 ## 🛠 Features
-- **Dynamic Field System**: Support for diverse input types (Text, Number, Email, Dropdowns, Date, File Uploads).
-- **AI-Powered Builder**: Generate entire form structures from simple natural language prompts.
-- **Stateless Security**: Secure JWT-based authentication with high-integrity Refresh Token rotation.
-- **Enterprise Auditing**: Complete history tracking for all form modifications and responses.
-- **Production Performance**: Paginated APIs, optimized JSONB queries, and high-speed delivery.
-- **Sleek Interface**: A modern, high-end UI built with React, Tailwind CSS, and Framer Motion.
+- **Dynamic Field System**: Text, Number, Email, Dropdowns, Date, File Uploads.
+- **AI-Powered Builder**: Natural language form generation via **Google Gemini AI**.
+- **Enterprise Security**: JWT-based stateless auth with high-integrity token rotation.
+- **Fail-Fast Validation**: Synchronous schema checks before Kafka production to prevent "Poison Pill" events.
 
 ---
 
@@ -25,34 +28,19 @@ Standard forms are rigid. **FormCraft** allows developers and businesses to crea
 
 | Tier | Technologies |
 | :--- | :--- |
-| **Frontend** | React, Vite, Tailwind CSS, Radix UI, Framer Motion |
-| **Backend** | Java 17, Spring Boot 3.2, Spring Security 6 |
-| **Database** | PostgreSQL 15 (JSONB), Flyway |
-| **AI Integration** | Google Gemini Generative AI |
-| **Storage** | Cloudinary (Image/Assets) |
-| **Monitoring** | Spring Boot Actuator, MDC Logging |
+| **Messaging** | **Apache Kafka (Kraft Mode)**, Zookeeper |
+| **Frontend** | React, Vite, Tailwind CSS, Framer Motion |
+| **Backend** | Java 17, Spring Boot 3.4, Spring Security |
+| **Database** | **PostgreSQL 16**, HikariCP, JSONB Indexes |
+| **AI Hub** | Google Gemini Generative AI |
+| **Storage** | Cloudinary (Assets) |
+| **Testing** | **Testcontainers**, **Awaitility**, JUnit 5 |
 
 ---
 
-## 📖 Complete Documentation
+## ⚡ Quick Start (Docker Orchestration)
 
-Explore our deep-dive documentation for technical details, setup guides, and API specifications:
-
-0.  **[Project Walkthrough](./project_walkthrough.md)**: A guided tour of the architecture and data flows.
-1.  **[Getting Started](./docs/Setup.md)**: Standard installation and Docker orchestration.
-2.  **[Total Project Lifecycle](./docs/Lifecycle_Flow.md)**: End-to-end data, security, and functional flows.
-3.  **[System Architecture](./docs/Architecture.md)**: Data models, security flows, and architecture principles.
-3.  **[Backend Engineering](./docs/Backend.md)**: Service layer, Security, and JPA implementations.
-4.  **[Frontend UI Guide](./docs/Frontend.md)**: Design system, components, and state management.
-5.  **[API Reference](./docs/API_Reference.md)**: Comprehensive REST API specifications.
-6.  **[Testing Manual](./docs/Testing_Manual.md)**: Coverage strategy, tools, and QA standards.
-7.  **[Contributing](./docs/Contributing.md)**: Development standards and workflow.
-
----
-
-## ⚡ Quick Start (Docker)
-
-Spin up the entire stack with a single command:
+Launch the entire high-availability stack with a single pulse:
 
 ```bash
 docker-compose up -d --build
@@ -64,5 +52,14 @@ docker-compose up -d --build
 
 ---
 
+## 📖 Technical Deep-Dives
+
+1.  **[Architecture.md](./docs/Architecture.md)**: Kafka Pipeline, Zookeeper Coordination, and Data Models.
+2.  **[Getting Started](./docs/Setup.md)**: Standard installation, Docker verification, and .env configuration.
+3.  **[Testing Manual](./docs/Testing_Manual.md)**: Full Coverage strategy, Testcontainers, and QA standards.
+4.  **[API Reference](./docs/API_Reference.md)**: Deep-dive into REST endpoints and JSON payloads.
+
+---
+
 ## ✉️ Support & License
-Developed for Murali Sir Projects. Proprietary License. All rights reserved.
+Developed for Murali Sir Projects. Proprietary License.

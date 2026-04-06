@@ -61,7 +61,7 @@ graph TD
     end
 
     %% Persistence & External Layer
-    Map -->|SQL| DB[(PostgreSQL 15 JSONB)]
+    Map -->|SQL| DB[(PostgreSQL 16 JSONB)]
     Map -->|Migrations| FW[Flyway]
     
     SecSvc -->|SMTP| Mail[External SMTP Service]
