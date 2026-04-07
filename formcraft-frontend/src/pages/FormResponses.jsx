@@ -29,6 +29,7 @@ import api from '../services/api';
 import { toast } from 'react-toastify';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
+import ExportModal from '../components/ExportModal';
 
 const FormResponses = () => {
   const { id } = useParams();
@@ -51,6 +52,7 @@ const FormResponses = () => {
   const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, id: null });
   const [analytics, setAnalytics] = useState({});
   const [selectedAnalytic, setSelectedAnalytic] = useState(null);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -127,7 +129,7 @@ const FormResponses = () => {
       if (dateRange.end) params.endDate = new Date(dateRange.end).toISOString();
       if (searchTerm) params.search = searchTerm;
 
-      const data = await api.get(`/forms/${id}/responses/export`, {
+      const data = await api.get(`/forms/${id}/responses/export/csv`, { // Explicit path
         params,
         responseType: 'blob'
       });
@@ -140,11 +142,33 @@ const FormResponses = () => {
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
-      
+      setIsExportModalOpen(false); // Close after success
       toast.success('Strategy Exported: Your filtered responses have been successfully downloaded.');
     } catch (err) {
       console.error('Export failed:', err);
       toast.error('Export Error: Could not synchronize CSV download.');
+    }
+  };
+
+  const handleExportPdf = async () => {
+    try {
+      const data = await api.get(`/forms/${id}/responses/export/pdf`, {
+        responseType: 'blob'
+      });
+      
+      const url = window.URL.createObjectURL(new Blob([data], { type: 'application/pdf' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `FormCraft_Report_${form?.name || id}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      setIsExportModalOpen(false); // Close after success
+      toast.success('Enterprise PDF Synchronized: High-End Analytics Downloaded.');
+    } catch (err) {
+      console.error('Export failed:', err);
+      toast.error('Export Error: Backend failed to generate PDF registry.');
     }
   };
 
@@ -192,11 +216,11 @@ const FormResponses = () => {
           
           <div className="flex items-center gap-4 shrink-0 w-full md:w-auto">
             <button 
-              onClick={handleExportCsv}
+              onClick={() => setIsExportModalOpen(true)}
               className="px-5 bg-brand-default text-white h-10 rounded-md font-semibold uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 hover:bg-brand-600 transition-all shadow-lg shadow-brand-500/10"
             >
-              <FileSpreadsheet size={14} />
-              Export CSV
+              <Download size={14} />
+              Export
             </button>
             <button 
               onClick={refreshData}
@@ -886,7 +910,14 @@ const FormResponses = () => {
           </div>
         )}
       </AnimatePresence>
-    </div>
+      <ExportModal 
+        isOpen={isExportModalOpen} 
+        onClose={() => setIsExportModalOpen(false)} 
+        onExportCsv={handleExportCsv}
+        onExportPdf={handleExportPdf}
+        formName={form?.name}
+      />
+      </div>
   );
 };
 
