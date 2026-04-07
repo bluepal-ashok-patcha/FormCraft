@@ -299,7 +299,10 @@ public class FormServiceImpl implements FormService {
         List<FormResponse> responses = formResponseRepository.searchByFormIdBulk(formId, search, startDate, endDate);
         List<java.util.Map<String, Object>> fields = (List<java.util.Map<String, Object>>) form.getSchema().get("fields");
 
-        return com.formcraft.util.CsvHelper.responsesToCsv(responses, fields);
+        // Calculate Analytics Summary for inclusion via Internal Private Method (Sonar Proxy Compliance)
+        java.util.Map<String, Object> analytics = calculateInternalAnalytics(form, responses);
+
+        return com.formcraft.util.CsvHelper.responsesToCsv(responses, fields, analytics);
     }
 
     private void validateFormScheduleForUpdate(Form existingForm, LocalDateTime startsAt, LocalDateTime expiresAt) {
@@ -442,12 +445,20 @@ public class FormServiceImpl implements FormService {
 
     @Override
     @Transactional(readOnly = true)
-    @SuppressWarnings("unchecked")
     public java.util.Map<String, Object> getFormAnalytics(UUID formId) {
         Form form = formRepository.findById(formId)
                 .orElseThrow(() -> new ResourceNotFoundException(FORM_NOT_FOUND_MSG + formId));
 
         java.util.List<com.formcraft.entity.FormResponse> responses = formResponseRepository.findAllByFormIdOrderByCreatedAtDesc(formId);
+        return calculateInternalAnalytics(form, responses);
+    }
+
+    /**
+     * Shared Internal Logic to handle statistical breakdown.
+     * Bypasses the need for a secondary transactional proxy call.
+     */
+    @SuppressWarnings("unchecked")
+    private java.util.Map<String, Object> calculateInternalAnalytics(Form form, java.util.List<com.formcraft.entity.FormResponse> responses) {
         java.util.Map<String, Object> analytics = new java.util.HashMap<>();
         
         java.util.List<java.util.Map<String, Object>> fields = (java.util.List<java.util.Map<String, Object>>) form.getSchema().get("fields");

@@ -71,6 +71,30 @@ class CsvHelperTest {
     }
 
     @Test
+    void responsesToCsv_WithAnalytics_ShouldIncludeFooter() {
+        // Arrange
+        FormResponse response = new FormResponse();
+        response.setId(UUID.randomUUID());
+        
+        List<Map<String, Object>> fields = List.of(Map.of("id", "q1", "label", "Question 1"));
+        Map<String, Object> analytics = Map.of("q1", Map.of(
+            "label", "Question 1",
+            "topAnswer", "Excel Boss",
+            "totalResponses", 100
+        ));
+
+        // Act
+        byte[] csvBytes = CsvHelper.responsesToCsv(List.of(response), fields, analytics);
+        String csv = new String(csvBytes);
+
+        // Assert
+        assertTrue(csv.contains("-- ANALYTICS BREAKDOWN --"));
+        assertTrue(csv.contains("Question 1"));
+        assertTrue(csv.contains("Excel Boss"));
+        assertTrue(csv.contains("100"));
+    }
+
+    @Test
     void responsesToCsv_ShouldReturnEmpty_WhenNoResponses() {
         // Arrange
         List<Map<String, Object>> fields = List.of(Map.of("id", "f1", "label", "L1"));
