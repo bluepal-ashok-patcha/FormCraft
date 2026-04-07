@@ -47,6 +47,7 @@ public class FormServiceImpl implements FormService {
     private final ResponseMapper responseMapper;
     private final com.formcraft.util.FormValidator formValidator;
     private final org.springframework.kafka.core.KafkaTemplate<String, Object> kafkaTemplate;
+    private final com.formcraft.util.PdfHelper pdfHelper;
 
     @org.springframework.beans.factory.annotation.Value("${app.kafka.topic}")
     private String submissionTopic;
@@ -303,6 +304,18 @@ public class FormServiceImpl implements FormService {
         java.util.Map<String, Object> analytics = calculateInternalAnalytics(form, responses);
 
         return com.formcraft.util.CsvHelper.responsesToCsv(responses, fields, analytics);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public byte[] exportResponsesToPdf(UUID formId) {
+        Form form = formRepository.findById(formId)
+                .orElseThrow(() -> new ResourceNotFoundException(FORM_NOT_FOUND_MSG + formId));
+
+        List<FormResponse> responses = formResponseRepository.findAllByFormIdOrderByCreatedAtDesc(formId);
+        java.util.Map<String, Object> analytics = calculateInternalAnalytics(form, responses);
+
+        return pdfHelper.generateFormReport(form.getName(), responses, analytics);
     }
 
     private void validateFormScheduleForUpdate(Form existingForm, LocalDateTime startsAt, LocalDateTime expiresAt) {

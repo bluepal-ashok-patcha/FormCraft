@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Form Submission Report</title>
+    <style>
+        @page { margin: 1in; }
+        body { font-family: 'Helvetica', 'Arial', sans-serif; color: #333; line-height: 1.4; }
+        .header { text-align: center; border-bottom: 2px solid #2563eb; padding-bottom: 15px; margin-bottom: 30px; }
+        .header h1 { color: #2563eb; margin: 0; font-size: 24pt; }
+        .header p { color: #666; margin-top: 5px; font-size: 10pt; }
+        
+        .section-title { font-size: 16pt; color: #1e3a8a; border-left: 5px solid #2563eb; padding-left: 10px; margin-top: 40px; margin-bottom: 20px; }
+        
+        /* 📊 Graph Area Logic */
+        .chart-container { margin-bottom: 25px; page-break-inside: avoid; }
+        .option-lbl { font-weight: bold; font-size: 10pt; margin-bottom: 5px; }
+        .bar-outer { background-color: #f1f5f9; height: 18px; width: 100%; border-radius: 9px; position: relative; }
+        .bar-inner { background-color: #3b82f6; height: 18px; border-radius: 9px; }
+        .bar-pct { position: absolute; right: 10px; top: -2px; font-size: 8pt; color: #1e293b; font-weight: bold; }
+        
+        /* 📋 Table Area Logic */
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 9pt; }
+        th { background-color: #f8fafc; color: #1e3a8a; text-align: left; padding: 10px; border-bottom: 2px solid #e2e8f0; }
+        td { padding: 10px; border-bottom: 1px solid #f1f5f9; }
+        .footer { position: fixed; bottom: -50px; left: 0; right: 0; text-align: center; color: #999; font-size: 8pt; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>FormCraft Analytics Report</h1>
+        <p>Strategic Insight for Form: <span th:text="${formName}" style="font-weight: bold; color: #2563eb;">Form Name</span> | Generated on: <span th:text="${#temporals.format(#temporals.createNow(), 'dd MMMM yyyy HH:mm')}">Date</span></p>
+    </div>
+
+    <!-- 🏷️ GLOBAL STATS BELT -->
+    <div style="display: table; width: 100%; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 30px; background-color: #f8fafc;">
+        <div style="display: table-cell; padding: 20px; text-align: center; border-right: 1px solid #e2e8f0;">
+            <p style="margin: 0; font-size: 8pt; color: #64748b; font-weight: bold; text-transform: uppercase; letter-spacing: 0.1em;">Total Submissions</p>
+            <h2 style="margin: 5px 0 0; color: #1e3a8a; font-size: 24pt;" th:text="${#lists.size(responses)}">0</h2>
+        </div>
+        <div style="display: table-cell; padding: 20px; text-align: center;">
+            <p style="margin: 0; font-size: 8pt; color: #64748b; font-weight: bold; text-transform: uppercase; letter-spacing: 0.1em;">Sync Status</p>
+            <h2 style="margin: 5px 0 0; color: #10b981; font-size: 24pt;">SUCCESS</h2>
+        </div>
+    </div>
+
+    <!-- 📊 Analytics Breakdown Section -->
+    <div class="section-title">Submission Breakdown &amp; Insights</div>
+    <div th:each="entry : ${analytics}" class="chart-container">
+        <h3 th:text="${entry.value.label}" style="font-size: 11pt;">Question Label</h3>
+        <div th:each="dist : ${entry.value.distribution}">
+            <div class="option-lbl">
+                <span th:text="${dist.key}">Option</span>: <span th:text="${dist.value}">0</span> responses
+            </div>
+            <div class="bar-outer">
+                <div class="bar-inner" th:style="'width: ' + (${entry.value.totalResponses} == 0 ? 0 : ${dist.value} * 100.0 / ${entry.value.totalResponses}) + '%;'"></div>
+                <span class="bar-pct" th:text="${entry.value.totalResponses == 0 ? '0%' : #numbers.formatDecimal(dist.value * 100.0 / entry.value.totalResponses, 1, 1) + '%'}">0%</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 👥 Raw Data Section (Top 50 or Paginated) -->
+    <div class="section-title">Raw Submissions Log</div>
+    <table>
+        <thead>
+            <tr>
+                <th>Submission ID</th>
+                <th>Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr th:each="response : ${responses}">
+                <td th:text="${response.id}">ID</td>
+                <td th:text="${#temporals.format(response.createdAt, 'dd/MM/yyyy')}">Date</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="footer">
+        Powered by FormCraft | Enterprise Intelligence | Page <span class="pageNumber"></span>
+    </div>
+</body>
+</html>

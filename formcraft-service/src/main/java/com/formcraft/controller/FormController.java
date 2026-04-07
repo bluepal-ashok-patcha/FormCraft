@@ -113,7 +113,7 @@ public class FormController {
 
     @Operation(summary = "Download responses as CSV", description = "Save all form answers into a spreadsheet-friendly file.")
     @PreAuthorize("hasRole('ADMIN')")
-    @GetMapping("/{id}/responses/export")
+    @GetMapping("/{id}/responses/export/csv")
     public ResponseEntity<org.springframework.core.io.Resource> exportResponses(
             @Parameter(description = "The ID of the form") @PathVariable("id") UUID id,
             @Parameter(description = "Keywords to search across all response fields") @RequestParam(name = "search", required = false) String search,
@@ -127,6 +127,21 @@ public class FormController {
                 .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=responses_" + id + ".csv")
                 .header(org.springframework.http.HttpHeaders.CONTENT_TYPE, "text/csv")
                 .contentLength(csvData.length)
+                .body(resource);
+    }
+
+    @Operation(summary = "Download Executive PDF Report", description = "Generate a professional PDF report with bar charts, percentages, and response tables.")
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/{id}/responses/export/pdf")
+    public ResponseEntity<org.springframework.core.io.Resource> exportResponsesPdf(@PathVariable("id") UUID id) {
+        log.info("Executive Reporting Initiated: Generating PDF analytics for Form ID '{}'", id);
+        byte[] pdfData = formService.exportResponsesToPdf(id);
+        org.springframework.core.io.ByteArrayResource resource = new org.springframework.core.io.ByteArrayResource(pdfData);
+
+        return ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=FormCraft_Report_" + id + ".pdf")
+                .header(org.springframework.http.HttpHeaders.CONTENT_TYPE, "application/pdf")
+                .contentLength(pdfData.length)
                 .body(resource);
     }
 

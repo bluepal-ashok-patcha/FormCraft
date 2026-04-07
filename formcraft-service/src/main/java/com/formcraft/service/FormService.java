@@ -18,6 +18,7 @@ public interface FormService {
     ResponseDto submitResponse(SubmissionRequest request);
     Page<ResponseDto> getResponsesByFormId(UUID formId, String search, java.time.LocalDateTime startDate, java.time.LocalDateTime endDate, Pageable pageable);
     byte[] exportResponsesToCsv(UUID formId, String search, java.time.LocalDateTime startDate, java.time.LocalDateTime endDate);
+    byte[] exportResponsesToPdf(UUID formId);
     
     FormDto toggleFormStatus(UUID id);
     FormDto scheduleFormDeactivation(UUID id, int days);
