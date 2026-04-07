@@ -145,4 +145,28 @@ class FormControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.message").value("Form and all its responses deleted successfully"));
     }
+
+    @Test
+    @WithMockUser
+    void exportResponses_ShouldReturnCsvFile() throws Exception {
+        UUID id = UUID.randomUUID();
+        when(formService.exportResponsesToCsv(eq(id), any(), any(), any())).thenReturn(new byte[]{1, 2, 3});
+
+        mockMvc.perform(get("/api/forms/" + id + "/responses/export/csv"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Type", "text/csv"))
+                .andExpect(content().bytes(new byte[]{1, 2, 3}));
+    }
+
+    @Test
+    @WithMockUser
+    void exportResponsesPdf_ShouldReturnPdfFile() throws Exception {
+        UUID id = UUID.randomUUID();
+        when(formService.exportResponsesToPdf(id)).thenReturn(new byte[]{1, 2, 3});
+
+        mockMvc.perform(get("/api/forms/" + id + "/responses/export/pdf"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Type", "application/pdf"))
+                .andExpect(content().bytes(new byte[]{1, 2, 3}));
+    }
 }

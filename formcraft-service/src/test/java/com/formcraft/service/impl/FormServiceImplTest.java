@@ -72,6 +72,9 @@ class FormServiceImplTest {
     private org.springframework.kafka.core.KafkaTemplate<String, Object> kafkaTemplate;
     
     @Mock
+    private com.formcraft.util.PdfHelper pdfHelper;
+    
+    @Mock
     private SecurityContext securityContext;
     
     @Mock
@@ -279,6 +282,19 @@ class FormServiceImplTest {
         
         assertNotNull(result);
         verify(formResponseRepository).searchByFormIdBulk(eq(formId), eq(search), any(), any());
+    }
+
+    @Test
+    void exportResponsesToPdf_Success() {
+        when(formRepository.findById(formId)).thenReturn(Optional.of(form));
+        when(formResponseRepository.findAllByFormIdOrderByCreatedAtDesc(formId)).thenReturn(Collections.emptyList());
+        when(pdfHelper.generateFormReport(eq(form.getName()), anyList(), anyMap())).thenReturn(new byte[]{1, 2, 3});
+
+        byte[] result = formService.exportResponsesToPdf(formId);
+
+        assertNotNull(result);
+        assertEquals(3, result.length);
+        verify(pdfHelper).generateFormReport(eq(form.getName()), anyList(), anyMap());
     }
 
     @Test
