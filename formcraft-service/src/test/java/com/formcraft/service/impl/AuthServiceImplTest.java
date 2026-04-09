@@ -337,4 +337,57 @@ class AuthServiceImplTest {
         BusinessLogicException ex = assertThrows(BusinessLogicException.class, () -> authService.register(request));
         assertTrue(ex.getMessage().contains("UNVERIFIED_ACCOUNT"));
     }
+
+    @Test
+    void login_ShouldThrowException_WhenAccountIsLocked() {
+        // Arrange
+        user.setLockoutTime(LocalDateTime.now().plusMinutes(15));
+        user.setActive(true);
+        when(userRepository.findByUsernameOrEmail(anyString(), anyString())).thenReturn(Optional.of(user));
+        
+        LoginRequest request = new LoginRequest();
+        request.setUsernameOrEmail("testuser");
+        request.setPassword("pass");
+
+        // Act & Assert
+        assertThrows(com.formcraft.exception.AccountLockedException.class, () -> 
+            authService.login(request));
+    }
+
+    @Test
+    void login_ShouldThrowException_WhenAccountIsInactive() {
+        // Arrange
+        user.setActive(false);
+        when(userRepository.findByUsernameOrEmail(anyString(), anyString())).thenReturn(Optional.of(user));
+        
+        LoginRequest request = new LoginRequest();
+        request.setUsernameOrEmail("testuser");
+        request.setPassword("pass");
+
+        // Act & Assert
+        BusinessLogicException ex = assertThrows(BusinessLogicException.class, () -> 
+            authService.login(request));
+        assertTrue(ex.getMessage().contains("not active"));
+    }
+
+    @Test
+    void resendVerificationOtp_ShouldThrowException_WhenAccountAlreadyActive() {
+        // Arrange
+        user.setActive(true);
+        when(userRepository.findByEmail(anyString())).thenReturn(Optional.of(user));
+
+        // Act & Assert
+        assertThrows(BusinessLogicException.class, () -> authService.resendVerificationOtp("test@test.com"));
+    }
+
+    @Test
+    void forgotPasswordRequest_ShouldThrowException_WhenAccountUnverified() {
+        // Arrange
+        user.setActive(false);
+        when(userRepository.findByUsernameOrEmail(anyString(), anyString())).thenReturn(Optional.of(user));
+
+        // Act & Assert
+        BusinessLogicException ex = assertThrows(BusinessLogicException.class, () -> authService.forgotPasswordRequest("testuser"));
+        assertTrue(ex.getMessage().contains("unverified"));
+    }
 }
