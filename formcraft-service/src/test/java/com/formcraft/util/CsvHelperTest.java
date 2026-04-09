@@ -117,4 +117,54 @@ class CsvHelperTest {
         // Act & Assert
         assertThrows(InvocationTargetException.class, constructor::newInstance);
     }
+
+    @Test
+    void responsesToCsv_ShouldHandleMissingFields_InResponseData() {
+        // Arrange: Field q2 exists in schema but NOT in this specific response
+        FormResponse response = new FormResponse();
+        response.setId(UUID.randomUUID());
+        response.setResponseData(Map.of("q1", "Exists"));
+
+        List<Map<String, Object>> fields = List.of(
+            Map.of("id", "q1", "label", "L1"),
+            Map.of("id", "q2", "label", "L2")
+        );
+
+        // Act
+        byte[] csvBytes = CsvHelper.responsesToCsv(List.of(response), fields);
+        String csv = new String(csvBytes);
+
+        // Assert: L2 column should be an empty quoted string (,"")
+        assertTrue(csv.contains("\"Exists\",\"\""), "Should have empty quoted L2 column");
+    }
+
+    @Test
+    void responsesToCsv_WithNullAnalytics_ShouldSkipFooter() {
+        // Arrange
+        List<Map<String, Object>> fields = List.of(Map.of("id", "q1", "label", "L1"));
+
+        // Act: Passing null as analytics map
+        byte[] csvBytes = CsvHelper.responsesToCsv(List.of(), fields, null);
+        String csv = new String(csvBytes);
+
+        // Assert
+        assertFalse(csv.contains("-- ANALYTICS BREAKDOWN --"));
+    }
+
+    @Test
+    void responsesToCsv_ShouldEscapeSpecialCsvCharacters() {
+        // Arrange
+        FormResponse response = new FormResponse();
+        response.setId(UUID.randomUUID());
+        response.setResponseData(Map.of("f1", "Line1\nLine2, and comma"));
+
+        List<Map<String, Object>> fields = List.of(Map.of("id", "f1", "label", "L1"));
+
+        // Act
+        byte[] csvBytes = CsvHelper.responsesToCsv(List.of(response), fields);
+        String csv = new String(csvBytes);
+
+        // Assert: Should be wrapped in quotes
+        assertTrue(csv.contains("\"Line1\nLine2, and comma\""));
+    }
 }
