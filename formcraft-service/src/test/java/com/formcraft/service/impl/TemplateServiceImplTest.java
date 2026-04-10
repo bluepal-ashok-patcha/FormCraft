@@ -89,6 +89,19 @@ class TemplateServiceImplTest {
     }
 
     @Test
+    void createTemplate_WithNullCategory_ShouldSucceed() {
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        stubRole("ROLE_ADMIN");
+        templateDTO.setCategory(null);
+        when(templateRepository.save(any(Template.class))).thenAnswer(i -> i.getArgument(0));
+
+        TemplateDTO result = templateService.createTemplate(templateDTO);
+
+        assertNull(result.getCategory());
+        verify(templateRepository).save(argThat(t -> t.getCategory() == null));
+    }
+
+    @Test
     void getAllVisibleTemplates_AsRegularUser_ShouldCallVisible() {
         when(securityContext.getAuthentication()).thenReturn(authentication);
         stubAuth("ROLE_ADMIN", "testuser");
@@ -98,6 +111,22 @@ class TemplateServiceImplTest {
 
         assertEquals(1, result.size());
         verify(templateRepository).findAllVisible("testuser");
+    }
+
+    @Test
+    void getAllVisibleTemplates_AsRegularUser_WithFilters() {
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        stubAuth("ROLE_ADMIN", "testuser");
+        
+        Template tReq = Template.builder().requestedForGlobal(true).global(false).build();
+        Template tGlobal = Template.builder().requestedForGlobal(false).global(true).build();
+        Template tPriv = Template.builder().requestedForGlobal(false).global(false).build();
+        
+        when(templateRepository.findAllVisible("testuser")).thenReturn(List.of(tReq, tGlobal, tPriv));
+
+        assertEquals(1, templateService.getAllVisibleTemplates("requested").size());
+        assertEquals(1, templateService.getAllVisibleTemplates("true").size());
+        assertEquals(2, templateService.getAllVisibleTemplates("false").size());
     }
 
     @Test
@@ -115,6 +144,17 @@ class TemplateServiceImplTest {
     void updateTemplate_NotOwner_ShouldFail() {
         when(securityContext.getAuthentication()).thenReturn(authentication);
         stubAuth("ROLE_ADMIN", "otheruser");
+        when(templateRepository.findById(templateId)).thenReturn(Optional.of(template));
+
+        assertThrows(com.formcraft.exception.BusinessLogicException.class, () -> 
+            templateService.updateTemplate(templateId, templateDTO));
+    }
+
+    @Test
+    void updateTemplate_GlobalTemplate_AsRegularUser_ShouldFail() {
+        template.setGlobal(true);
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        stubAuth("ROLE_ADMIN", "testuser");
         when(templateRepository.findById(templateId)).thenReturn(Optional.of(template));
 
         assertThrows(com.formcraft.exception.BusinessLogicException.class, () -> 
@@ -230,6 +270,17 @@ class TemplateServiceImplTest {
         TemplateDTO result = templateService.cancelPromotionRequest(templateId);
 
         assertFalse(result.isRequestedForGlobal());
+    }
+
+    @Test
+    void cancelPromotionRequest_NotRequested_ShouldFail() {
+        template.setRequestedForGlobal(false); // Already false
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        stubUsername("testuser");
+        when(templateRepository.findById(templateId)).thenReturn(Optional.of(template));
+
+        assertThrows(com.formcraft.exception.BusinessLogicException.class, () -> 
+            templateService.cancelPromotionRequest(templateId));
     }
 
     @Test
