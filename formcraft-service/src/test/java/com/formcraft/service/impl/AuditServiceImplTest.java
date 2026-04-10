@@ -2,22 +2,25 @@ package com.formcraft.service.impl;
 
 import com.formcraft.entity.AuditLog;
 import com.formcraft.repository.AuditLogRepository;
+import com.formcraft.service.AuditService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doThrow;
 
 @ExtendWith(MockitoExtension.class)
 class AuditServiceImplTest {
@@ -26,71 +29,88 @@ class AuditServiceImplTest {
     private AuditLogRepository auditLogRepository;
 
     @Mock
-    private AuditServiceImpl self;
+    private AuditService self;
 
-    @InjectMocks
     private AuditServiceImpl auditService;
 
     @BeforeEach
     void setUp() {
-        ReflectionTestUtils.setField(auditService, "self", auditService); // Point self to actual instance for test
+        auditService = new AuditServiceImpl(auditLogRepository, self);
     }
 
     @Test
-    void log_WithActor_ShouldSaveAuditLog() {
+    void log_WithExplicitActor_ShouldSaveAuditLog() {
         // Arrange
         UUID entityId = UUID.randomUUID();
-        String action = "CREATE";
-        String actor = "testuser";
-        String entityType = "FORM";
-        String details = "New form created";
-
+        
         // Act
-        auditService.log(action, actor, entityType, entityId, details);
+        auditService.log("ACTION", "ACTOR", "ENTITY", entityId, "DETAILS");
 
         // Assert
         ArgumentCaptor<AuditLog> captor = ArgumentCaptor.forClass(AuditLog.class);
         verify(auditLogRepository).save(captor.capture());
         
         AuditLog saved = captor.getValue();
-        assertEquals(action, saved.getAction());
-        assertEquals(actor, saved.getActor());
-        assertEquals(entityType, saved.getEntityType());
+        assertEquals("ACTION", saved.getAction());
+        assertEquals("ACTOR", saved.getActor());
+        assertEquals("ENTITY", saved.getEntityType());
         assertEquals(entityId, saved.getEntityId());
-        assertEquals(details, saved.getDetails());
+        assertEquals("DETAILS", saved.getDetails());
     }
 
     @Test
-    void log_WithoutActor_ShouldResolveFromContext() {
-        // Arrange
-        SecurityContext securityContext = mock(SecurityContext.class);
-        Authentication authentication = mock(Authentication.class);
-        when(securityContext.getAuthentication()).thenReturn(authentication);
-        when(authentication.isAuthenticated()).thenReturn(true);
-        when(authentication.getName()).thenReturn("contextuser");
-        
-        SecurityContextHolder.setContext(securityContext);
-        
-        UUID entityId = UUID.randomUUID();
-
+    void log_WithNullActor_ShouldDefaultToSystem() {
         // Act
-        auditService.log("LOGIN", "USER", entityId, "Log in");
+        auditService.log("ACTION", null, "ENTITY", null, "DETAILS");
 
         // Assert
         ArgumentCaptor<AuditLog> captor = ArgumentCaptor.forClass(AuditLog.class);
         verify(auditLogRepository).save(captor.capture());
-        assertEquals("contextuser", captor.getValue().getActor());
+        assertEquals("SYSTEM", captor.getValue().getActor());
+    }
+
+    @Test
+    void log_ResolvedIdentity_ShouldCallRecursiveLogWithAuthName() {
+        // Arrange
+        SecurityContext context = mock(SecurityContext.class);
+        Authentication auth = mock(Authentication.class);
+        when(auth.isAuthenticated()).thenReturn(true);
+        when(auth.getName()).thenReturn("auth_user");
+        when(context.getAuthentication()).thenReturn(auth);
+        SecurityContextHolder.setContext(context);
+
+        UUID entityId = UUID.randomUUID();
+
+        // Act
+        auditService.log("ACTION", "ENTITY", entityId, "DETAILS");
+
+        // Assert
+        verify(self).log("ACTION", "auth_user", "ENTITY", entityId, "DETAILS");
         
         SecurityContextHolder.clearContext();
     }
 
     @Test
-    void log_ShouldHandleException() {
+    void log_ResolvedIdentity_ShouldCallRecursiveLogWithAnonymous_WhenNoAuth() {
         // Arrange
-        when(auditLogRepository.save(any())).thenThrow(new RuntimeException("DB Error"));
+        SecurityContextHolder.clearContext();
+        UUID entityId = UUID.randomUUID();
 
-        // Act & Assert
-        // Should not throw exception to the caller due to try-catch in service
-        assertDoesNotThrow(() -> auditService.log("ACTION", "ACTOR", "TYPE", UUID.randomUUID(), "DETAILS"));
+        // Act
+        auditService.log("ACTION", "ENTITY", entityId, "DETAILS");
+
+        // Assert
+        verify(self).log("ACTION", "ANONYMOUS", "ENTITY", entityId, "DETAILS");
+    }
+
+    @Test
+    void log_ShouldHandlePersistenceFailure_Gracefully() {
+        // Arrange: Repository throws exception
+        doThrow(new RuntimeException("DB Crash")).when(auditLogRepository).save(any());
+
+        // Act & Assert: Should NOT throw exception (caught internally at line 41)
+        auditService.log("ACTION", "ACTOR", "ENTITY", null, "DETAILS");
+        
+        verify(auditLogRepository).save(any());
     }
 }
