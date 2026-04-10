@@ -133,6 +133,60 @@ class FormServiceImplTest {
         assertEquals("Audit Form", result.getName());
         verify(formRepository, times(1)).save(any(Form.class));
     }
+
+    @Test
+    void createForm_PlannedStatus_ShouldSetCorrectly() {
+        LocalDateTime future = LocalDateTime.now().plusDays(1);
+        formRequest.setStartsAt(future);
+        
+        Form mappedForm = new Form();
+        mappedForm.setStartsAt(future); // HIGH-FIDELITY: Set startsAt on the mapped entity
+        
+        when(formMapper.toEntity(any(FormRequest.class))).thenReturn(mappedForm);
+        when(formRepository.save(any(Form.class))).thenAnswer(i -> i.getArgument(0));
+        when(formMapper.toDto(any(Form.class))).thenReturn(formDto);
+
+        formService.createForm(formRequest);
+
+        verify(formRepository).save(argThat(f -> f.getStatus() == FormStatus.PLANNED));
+    }
+
+    @Test
+    void createForm_InactiveStatus_ShouldSetCorrectly() {
+        // HIGH-FIDELITY: Bypass validation by providing a future date in request, 
+        // but mocking the mapped entity to have a past date
+        LocalDateTime future = LocalDateTime.now().plusHours(1);
+        LocalDateTime past = LocalDateTime.now().minusHours(1);
+        
+        formRequest.setExpiresAt(future); // Pass validation
+        
+        Form mappedForm = new Form();
+        mappedForm.setExpiresAt(past); // Inject past for status calculation
+        
+        when(formMapper.toEntity(any(FormRequest.class))).thenReturn(mappedForm);
+        when(formRepository.save(any(Form.class))).thenAnswer(i -> i.getArgument(0));
+        when(formMapper.toDto(any(Form.class))).thenReturn(formDto);
+
+        formService.createForm(formRequest);
+
+        verify(formRepository).save(argThat(f -> f.getStatus() == FormStatus.INACTIVE));
+    }
+
+    @Test
+    void updateForm_InactiveStatus_ShouldSetCorrectly() {
+        // HIGH-FIDELITY: Bypass update validation by providing the SAME past date 
+        LocalDateTime pastExpiry = LocalDateTime.now().minusHours(1);
+        form.setExpiresAt(pastExpiry); // Already in past
+        formRequest.setExpiresAt(pastExpiry); // SAME as existing -> validation passes
+
+        when(formRepository.findById(formId)).thenReturn(Optional.of(form));
+        when(formRepository.save(any(Form.class))).thenAnswer(i -> i.getArgument(0));
+        when(formMapper.toDto(any(Form.class))).thenReturn(formDto);
+
+        formService.updateForm(formId, formRequest);
+
+        verify(formRepository).save(argThat(f -> f.getStatus() == FormStatus.INACTIVE));
+    }
  
     @Test
     void getAllForms_ByExpirationDate_ShouldSucceed() {
@@ -381,6 +435,40 @@ class FormServiceImplTest {
         
         assertEquals(draftId, result);
         verify(formDraftRepository).save(any(com.formcraft.entity.builder.FormDraft.class));
+    }
+
+    @Test
+    void saveDraft_RestoreById_ShouldUseExisting() {
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        when(authentication.getName()).thenReturn("testuser");
+        
+        UUID draftId = UUID.randomUUID();
+        com.formcraft.entity.builder.FormDraft existingDraft = new com.formcraft.entity.builder.FormDraft();
+        existingDraft.setId(draftId);
+        
+        when(formDraftRepository.findById(draftId)).thenReturn(Optional.of(existingDraft));
+        when(formDraftRepository.save(existingDraft)).thenReturn(existingDraft);
+        
+        formService.saveDraft(draftId, formId, formRequest);
+        
+        verify(formDraftRepository).findById(draftId);
+        verify(formDraftRepository).save(existingDraft);
+    }
+
+    @Test
+    void saveDraft_RestoreByFormId_ShouldUseExisting() {
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        when(authentication.getName()).thenReturn("testuser");
+        
+        com.formcraft.entity.builder.FormDraft existingDraft = new com.formcraft.entity.builder.FormDraft();
+        
+        when(formDraftRepository.findByCreatedByAndFormId("testuser", formId)).thenReturn(Optional.of(existingDraft));
+        when(formDraftRepository.save(existingDraft)).thenReturn(existingDraft);
+        
+        formService.saveDraft(null, formId, formRequest);
+        
+        verify(formDraftRepository).findByCreatedByAndFormId("testuser", formId);
+        verify(formDraftRepository).save(existingDraft);
     }
 
     @Test
