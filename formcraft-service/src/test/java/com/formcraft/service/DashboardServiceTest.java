@@ -8,6 +8,8 @@ import com.formcraft.repository.TemplateRepository;
 import com.formcraft.repository.builder.FormDraftRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -18,11 +20,23 @@ import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.Collection;
+import java.util.List;
+import java.util.Arrays;
+import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import org.mockito.ArgumentCaptor;
 
 @ExtendWith(MockitoExtension.class)
 class DashboardServiceTest {
@@ -119,30 +133,32 @@ class DashboardServiceTest {
         assertTrue(statsResponse.getExpiringForms().get(0).getTimeLeft().contains("h"));
     }
 
-    @Test
-    void getDashboardStats_ShouldDefaultTo7Days_WhenRangeIsInvalid() {
+    @ParameterizedTest
+    @CsvSource({
+        "unknown, 7",
+        "7d, 7",
+        "30d, 30",
+        "90d, 90"
+    })
+    void getDashboardStats_ShouldVerifyCorrectRange(String range, int expectedDays) {
         // Arrange
         List<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_ADMIN"));
         when(authentication.getAuthorities()).thenReturn((Collection) authorities);
 
         // Act
-        dashboardService.getDashboardStats("unknown");
+        dashboardService.getDashboardStats(range);
 
         // Assert
-        verify(formResponseRepository).findResponseStatsByCreatedBy(eq("testuser"), any());
-    }
-
-    @Test
-    void getDashboardStats_90dRange_ShouldReturnStats() {
-        // Arrange
-        List<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_ADMIN"));
-        when(authentication.getAuthorities()).thenReturn((Collection) authorities);
-
-        // Act
-        dashboardService.getDashboardStats("90d");
-
-        // Assert: Ensure findResponseStatsByCreatedBy was called with 90 days range
-        verify(formResponseRepository).findResponseStatsByCreatedBy(eq("testuser"), any());
+        ArgumentCaptor<LocalDateTime> captor = ArgumentCaptor.forClass(LocalDateTime.class);
+        verify(formResponseRepository).findResponseStatsByCreatedBy(eq("testuser"), captor.capture());
+        
+        // Success criteria: The start date should be roughly 'expectedDays' before now
+        LocalDateTime capturedDate = captor.getValue();
+        LocalDateTime expectedDate = LocalDateTime.now().minusDays(expectedDays);
+        
+        // Threshold check (allow 1 minute variance for test execution timing)
+        assertTrue(capturedDate.isAfter(expectedDate.minusMinutes(1)) && 
+                   capturedDate.isBefore(expectedDate.plusMinutes(1)));
     }
 
     @Test
@@ -207,6 +223,27 @@ class DashboardServiceTest {
         // Assert
         String timeLeft = stats.getExpiringForms().get(0).getTimeLeft();
         assertTrue(timeLeft.contains("m"), "Time left should be in minutes");
+    }
+
+    @Test
+    void calculateTimeLeft_ShouldReturnZeroMinutes_WhenDurationIsInvalid() {
+        // Arrange
+        List<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_ADMIN"));
+        when(authentication.getAuthorities()).thenReturn((Collection) authorities);
+
+        Form expiringForm = new Form();
+        expiringForm.setId(UUID.randomUUID());
+        expiringForm.setExpiresAt(LocalDateTime.now().minusMinutes(5)); // Already expired
+        expiringForm.setCreatedAt(LocalDateTime.now().minusDays(1));
+
+        when(formRepository.findAllByCreatedByAndExpiresAtBetweenOrderByExpiresAtAsc(anyString(), any(), any()))
+                .thenReturn(List.of(expiringForm));
+
+        // Act
+        DashboardStatsResponse stats = dashboardService.getDashboardStats("7d");
+
+        // Assert
+        assertEquals("0m", stats.getExpiringForms().get(0).getTimeLeft());
     }
 
     @Test
