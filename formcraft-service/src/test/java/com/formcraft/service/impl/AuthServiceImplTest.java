@@ -34,9 +34,18 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.times;
 
 @ExtendWith(MockitoExtension.class)
 class AuthServiceImplTest {
@@ -214,6 +223,17 @@ class AuthServiceImplTest {
     }
 
     @Test
+    void verifyRegistrationOtp_ShouldThrowException_WhenAlreadyActive() {
+        // Arrange
+        user.setActive(true);
+        when(userRepository.findByEmail(anyString())).thenReturn(Optional.of(user));
+
+        // Act & Assert
+        assertThrows(BusinessLogicException.class, () -> 
+            authService.verifyRegistrationOtp("test@example.com", "123456"));
+    }
+
+    @Test
     void forgotPasswordRequest_ShouldSendEmail_WhenUserExists() {
         // Arrange
         when(userRepository.findByUsernameOrEmail(anyString(), anyString())).thenReturn(Optional.of(user));
@@ -307,6 +327,21 @@ class AuthServiceImplTest {
         // Assert
         assertEquals(5, user.getFailedLoginAttempts());
         assertNotNull(user.getLockoutTime());
+        verify(userRepository).save(user);
+    }
+
+    @Test
+    void handleFailedLogin_ShouldJustIncrement_WhenBelowMax() {
+        // Arrange
+        user.setFailedLoginAttempts(0);
+        when(userRepository.findById(any())).thenReturn(Optional.of(user));
+
+        // Act
+        authService.handleFailedLogin(user.getId());
+
+        // Assert
+        assertEquals(1, user.getFailedLoginAttempts());
+        assertNull(user.getLockoutTime());
         verify(userRepository).save(user);
     }
 

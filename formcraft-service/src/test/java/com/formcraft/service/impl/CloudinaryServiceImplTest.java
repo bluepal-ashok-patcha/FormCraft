@@ -2,6 +2,7 @@ package com.formcraft.service.impl;
 
 import com.cloudinary.Cloudinary;
 import com.cloudinary.Uploader;
+import com.formcraft.exception.BusinessLogicException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -13,9 +14,13 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class CloudinaryServiceImplTest {
@@ -26,47 +31,40 @@ class CloudinaryServiceImplTest {
     @Mock
     private Uploader uploader;
 
-    @Mock
-    private MultipartFile file;
-
     @InjectMocks
     private CloudinaryServiceImpl cloudinaryService;
 
     @BeforeEach
     void setUp() {
-        // cloudinary.uploader() is called in each method, mocking it here
+        when(cloudinary.uploader()).thenReturn(uploader);
     }
 
     @Test
-    void uploadFile_ShouldReturnUrl_WhenSuccessful() throws IOException {
+    void uploadFile_ShouldReturnUrl_WhenUploadIsSuccessful() throws IOException {
         // Arrange
-        byte[] bytes = "test content".getBytes();
-        String expectedUrl = "https://cloudinary.com/test.png";
-        Map<String, Object> result = Map.of("secure_url", expectedUrl);
-
+        MultipartFile file = mock(MultipartFile.class);
+        byte[] bytes = new byte[]{1, 2, 3};
         when(file.getBytes()).thenReturn(bytes);
-        when(cloudinary.uploader()).thenReturn(uploader);
-        when(uploader.upload(eq(bytes), any(Map.class))).thenReturn(result);
+
+        Map<String, Object> mockResult = Map.of("secure_url", "https://cloudinary.com/image.jpg");
+        when(uploader.upload(eq(bytes), any())).thenReturn(mockResult);
 
         // Act
-        String actualUrl = cloudinaryService.uploadFile(file);
+        String result = cloudinaryService.uploadFile(file);
 
         // Assert
-        assertEquals(expectedUrl, actualUrl);
-        verify(uploader, times(1)).upload(eq(bytes), any(Map.class));
+        assertEquals("https://cloudinary.com/image.jpg", result);
     }
 
     @Test
     void uploadFile_ShouldThrowException_WhenIOExceptionOccurs() throws IOException {
         // Arrange
-        when(file.getBytes()).thenThrow(new IOException("Disk Error"));
+        MultipartFile file = mock(MultipartFile.class);
+        when(file.getBytes()).thenThrow(new IOException("Disk Failure"));
 
         // Act & Assert
-        com.formcraft.exception.BusinessLogicException exception = assertThrows(
-            com.formcraft.exception.BusinessLogicException.class,
-            () -> cloudinaryService.uploadFile(file)
-        );
-
-        assertTrue(exception.getMessage().contains("Visual Protocol Interruption"));
+        BusinessLogicException ex = assertThrows(BusinessLogicException.class, () -> 
+            cloudinaryService.uploadFile(file));
+        assertTrue(ex.getMessage().contains("Visual Protocol Interruption"));
     }
 }
